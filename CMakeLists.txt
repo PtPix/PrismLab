@@ -1,0 +1,32 @@
+cmake_minimum_required(VERSION 3.24)
+project(RenderLab LANGUAGES C CXX)
+
+if(NOT WIN32)
+    message(FATAL_ERROR "This starter currently targets Windows and D3D12.")
+endif()
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+foreach(config DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${config} "${CMAKE_BINARY_DIR}/bin")
+endforeach()
+
+set(DONUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/Donut-Samples/donut")
+if(NOT EXISTS "${DONUT_DIR}/nvrhi/CMakeLists.txt")
+    message(FATAL_ERROR "Dependencies missing. See the submodule commands in README.md.")
+endif()
+
+# Compile only our sample and its framework dependencies, not the upstream demos.
+set(DONUT_WITH_DX11 OFF CACHE BOOL "" FORCE)
+set(DONUT_WITH_DX12 ON CACHE BOOL "" FORCE)
+set(DONUT_WITH_VULKAN OFF CACHE BOOL "" FORCE)
+set(DONUT_WITH_TINYEXR OFF CACHE BOOL "" FORCE)
+set(DONUT_WITH_UNIT_TESTS OFF CACHE BOOL "" FORCE)
+set(DONUT_SHADERS_OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders/framework")
+add_subdirectory("${DONUT_DIR}" "${CMAKE_BINARY_DIR}/donut" EXCLUDE_FROM_ALL)
+include("${DONUT_DIR}/compileshaders.cmake")
+add_subdirectory(samples/starter)
+set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT RenderLabStarter)

@@ -1,0 +1,9 @@
+* text=auto
+*.cpp text eol=lf
+*.hlsl text eol=lf
+*.cfg text eol=lf
+*.cmake text eol=lf
+CMakeLists.txt text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+.gitmodules text eol=lf
