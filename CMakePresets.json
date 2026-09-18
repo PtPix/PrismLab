@@ -15,13 +15,13 @@
       "name": "release",
       "configurePreset": "windows",
       "configuration": "Release",
-      "targets": ["RenderLabStarter"]
+      "targets": ["PrismLabStarter"]
     },
     {
       "name": "debug",
       "configurePreset": "windows",
       "configuration": "Debug",
-      "targets": ["RenderLabStarter"]
+      "targets": ["PrismLabStarter"]
     }
   ]
 }

@@ -1,4 +1,4 @@
-# RenderLab
+# PrismLab
 
 用于图形学实验的最小 Donut + NVRHI 起步工程。当前仅包含一个 D3D12 彩色三角形、自己的 C++ 入口与 HLSL Shader。
 
@@ -34,15 +34,15 @@ git -C external/Donut-Samples submodule update --init --recursive donut
 ```powershell
 cmake --preset windows
 cmake --build --preset release --parallel
-.\build\windows\bin\RenderLabStarter.exe
+.\build\windows\bin\PrismLabStarter.exe
 ```
 
-也可用 Visual Studio 打开根目录或生成的 `build/windows/RenderLab.sln`，启动目标是 `RenderLabStarter`。
+也可用 Visual Studio 打开根目录或生成的 `build/windows/PrismLab.sln`，启动目标是 `PrismLabStarter`。
 
 程序显示彩色三角形，支持调整窗口大小。`--smoke-test` 会在绘制三帧后自动退出，用于检查设备、Shader 加载和绘制流程。Shader 相对可执行文件定位，无需指定工作目录。
 
 ```powershell
-.\build\windows\bin\RenderLabStarter.exe --smoke-test
+.\build\windows\bin\PrismLabStarter.exe --smoke-test
 cmake --build --preset debug --parallel
 ```
 

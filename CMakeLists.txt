@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(RenderLab LANGUAGES C CXX)
+project(PrismLab LANGUAGES C CXX)
 
 if(NOT WIN32)
     message(FATAL_ERROR "This starter currently targets Windows and D3D12.")
@@ -29,4 +29,4 @@ set(DONUT_SHADERS_OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders/framewor
 add_subdirectory("${DONUT_DIR}" "${CMAKE_BINARY_DIR}/donut" EXCLUDE_FROM_ALL)
 include("${DONUT_DIR}/compileshaders.cmake")
 add_subdirectory(samples/starter)
-set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT RenderLabStarter)
+set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT PrismLabStarter)
