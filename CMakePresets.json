@@ -3,25 +3,42 @@
   "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
   "configurePresets": [
     {
-      "name": "windows",
-      "displayName": "Windows x64 / Visual Studio 2022 / D3D12",
+      "name": "windows-base",
+      "hidden": true,
       "generator": "Visual Studio 17 2022",
-      "architecture": "x64",
-      "binaryDir": "${sourceDir}/build/windows"
+      "architecture": "x64"
+    },
+    {
+      "name": "my-project",
+      "displayName": "PrismLab only",
+      "inherits": "windows-base",
+      "binaryDir": "${sourceDir}/build/my-project",
+      "cacheVariables": {
+        "PRISMLAB_BUILD_ALL_PROJECTS": "OFF"
+      }
+    },
+    {
+      "name": "all-projects",
+      "displayName": "PrismLab and all Donut examples",
+      "inherits": "windows-base",
+      "binaryDir": "${sourceDir}/build/all-projects",
+      "cacheVariables": {
+        "PRISMLAB_BUILD_ALL_PROJECTS": "ON"
+      }
     }
   ],
   "buildPresets": [
     {
-      "name": "release",
-      "configurePreset": "windows",
+      "name": "my-project",
+      "configurePreset": "my-project",
       "configuration": "Release",
-      "targets": ["PrismLabStarter"]
+      "targets": ["PrismLabHost", "PrismLabStarter"]
     },
     {
-      "name": "debug",
-      "configurePreset": "windows",
-      "configuration": "Debug",
-      "targets": ["PrismLabStarter"]
+      "name": "all-projects",
+      "configurePreset": "all-projects",
+      "configuration": "Release",
+      "targets": ["PrismLabAllProjects"]
     }
   ]
 }

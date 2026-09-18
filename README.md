@@ -32,18 +32,18 @@ git -C external/Donut-Samples submodule update --init --recursive donut
 ## 构建与运行
 
 ```powershell
-cmake --preset windows
-cmake --build --preset release --parallel
-.\build\windows\bin\PrismLabStarter.exe
+cmake --preset my-project
+cmake --build --preset my-project --parallel
+.\build\my-project\bin\PrismLabStarter.exe
 ```
 
-也可用 Visual Studio 打开根目录或生成的 `build/windows/PrismLab.sln`，启动目标是 `PrismLabStarter`。
+也可用 Visual Studio 打开根目录或生成的 `build/my-project/PrismLab.sln`，启动目标是 `PrismLabStarter`。
 
 程序显示彩色三角形，支持调整窗口大小。`--smoke-test` 会在绘制三帧后自动退出，用于检查设备、Shader 加载和绘制流程。Shader 相对可执行文件定位，无需指定工作目录。
 
 ```powershell
-.\build\windows\bin\PrismLabStarter.exe --smoke-test
-cmake --build --preset debug --parallel
+.\build\my-project\bin\PrismLabStarter.exe --smoke-test
+cmake --build build/my-project --config Debug --target PrismLabStarter --parallel
 ```
 
 Debug 启用 NVRHI 校验与可用的 D3D12 调试运行时。Release/Debug 共用输出目录，切换后先构建所需配置。运行包需要保留 EXE 旁的 `shaders/` 目录。
@@ -68,3 +68,29 @@ git push -u origin main
 ## 来源
 
 三角形起步代码基于 NVIDIA Donut-Samples 的 `examples/basic_triangle` 修改，保留其版权与 MIT 许可声明。第三方依赖遵循各自许可，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+## 两种构建选项
+
+项目只提供两个公开 Preset，配置和构建使用相同的名字：
+
+```powershell
+# 只生成和构建自己的 PrismLabStarter
+cmake --preset my-project
+cmake --build --preset my-project --parallel
+
+# 生成和构建 PrismLabStarter 以及当前 D3D12 配置适用的全部 Donut 示例
+cmake --preset all-projects
+cmake --build --preset all-projects --parallel
+```
+
+全部程序输出到 `build/all-projects/bin/`。例如：
+
+```powershell
+.\build\all-projects\bin\basic_triangle.exe --dx12
+.\build\all-projects\bin\vertex_buffer.exe --dx12
+.\build\all-projects\bin\feature_demo.exe --dx12
+```
+
+`all-projects` 包含 PrismLab、Feature Demo、普通光栅示例、光追示例、Meshlet、异步计算、线程渲染、Work Graphs 和光追反射。Vulkan 专属的 `shader_specializations` 与需要额外 Aftermath SDK 的示例不属于当前 D3D12 配置。部分程序运行时还要求支持对应 GPU 功能，Feature Demo 和场景类示例可能需要上游媒体资产。
+
+CMake Preset 负责配置和构建，不能安全地同时启动十几个窗口程序；需要测试哪个示例，直接运行 `bin` 中对应的 EXE。

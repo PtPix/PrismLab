@@ -6,3 +6,6 @@
 /CMakeUserPresets.json
 *.user
 *.suo
+
+# runtime log written next to the executable by the host sample
+hostlab_debug.log
