@@ -1,4 +1,6 @@
-#include "procedural_scene.h"
+#include "ProceduralScene.h"
+
+#include "LightAdapter.h"
 
 #include <donut/core/log.h>
 #include <donut/core/math/math.h>
@@ -18,7 +20,7 @@ using namespace donut::math;
 #include <donut/shaders/bindless.h>
 #include <donut/shaders/material_cb.h>
 
-namespace renderlab
+namespace renderlab::adapter
 {
 namespace
 {
@@ -144,7 +146,7 @@ namespace
     struct PartDescription
     {
         std::string name;
-        std::shared_ptr<donut::engine::Material> material;
+        uint32_t materialIndex = 0;
         uint32_t indexOffset = 0;
         uint32_t indexCount = 0;
         uint32_t vertexOffset = 0;
@@ -160,9 +162,10 @@ namespace
         dm::double3 scaling = dm::double3(1.0);
     };
 
-    std::shared_ptr<donut::engine::Material> CreateMaterial(
+    uint32_t CreateMaterial(
         nvrhi::IDevice* device,
         nvrhi::ICommandList* commandList,
+        std::vector<std::shared_ptr<donut::engine::Material>>& materials,
         const std::string& name,
         const dm::float3& baseColor,
         float roughness,
@@ -199,24 +202,27 @@ namespace
         material->FillConstantBuffer(constants);
         commandList->writeBuffer(material->materialConstants, &constants, sizeof(constants));
 
-        return material;
+        materials.push_back(material);
+        return uint32_t(materials.size()) - 1;
     }
 }
 
-ProceduralScene CreateProceduralScene(
+SceneData CreateProceduralScene(
     nvrhi::IDevice* device,
     nvrhi::ICommandList* commandList,
     const HostLightingPreset& lighting)
 {
+    SceneData scene;
+
     MeshSource source;
     std::vector<PartDescription> parts;
     std::vector<Placement> placements;
 
-    auto beginPart = [&](const char* name, std::shared_ptr<donut::engine::Material> material) -> uint32_t
+    auto beginPart = [&](const char* name, uint32_t materialIndex) -> uint32_t
     {
         PartDescription part;
         part.name = name;
-        part.material = std::move(material);
+        part.materialIndex = materialIndex;
         part.indexOffset = uint32_t(source.indices.size());
         part.vertexOffset = uint32_t(source.positions.size());
         parts.push_back(std::move(part));
@@ -241,16 +247,18 @@ ProceduralScene CreateProceduralScene(
 
     // --- geometry and materials: each part is a separate mesh and may have several instances ---
     {
-        const uint32_t part = beginPart("Ground",
-            CreateMaterial(device, commandList, "GroundMaterial", dm::float3(0.30f, 0.31f, 0.33f), 0.95f, 0.f));
+        const uint32_t material = CreateMaterial(device, commandList, scene.materials,
+            "GroundMaterial", dm::float3(0.30f, 0.31f, 0.33f), 0.95f, 0.f);
+        const uint32_t part = beginPart("Ground", material);
         AddBox(source, dm::float3(0.f, -0.05f, 0.f), dm::float3(10.f, 0.05f, 10.f));
         endPart(part);
         placements.push_back({ part, dm::double3(0.0, 0.0, 0.0) });
     }
 
     {
-        const uint32_t part = beginPart("MetalSphere",
-            CreateMaterial(device, commandList, "MetalSphereMaterial", dm::float3(0.95f, 0.86f, 0.70f), 0.20f, 1.f));
+        const uint32_t material = CreateMaterial(device, commandList, scene.materials,
+            "MetalSphereMaterial", dm::float3(0.95f, 0.86f, 0.70f), 0.20f, 1.f);
+        const uint32_t part = beginPart("MetalSphere", material);
         AddSphere(source, dm::float3(0.f), 0.8f, 48, 32);
         endPart(part);
         placements.push_back({ part, dm::double3(0.0, 0.8, 0.0) });
@@ -258,8 +266,9 @@ ProceduralScene CreateProceduralScene(
 
     // Four instances of the same mesh, to exercise instance indices and per-instance transforms.
     {
-        const uint32_t part = beginPart("Cube",
-            CreateMaterial(device, commandList, "CubeMaterial", dm::float3(0.72f, 0.25f, 0.20f), 0.35f, 0.f));
+        const uint32_t material = CreateMaterial(device, commandList, scene.materials,
+            "CubeMaterial", dm::float3(0.72f, 0.25f, 0.20f), 0.35f, 0.f);
+        const uint32_t part = beginPart("Cube", material);
         AddBox(source, dm::float3(0.f), dm::float3(0.35f));
         endPart(part);
 
@@ -270,17 +279,18 @@ ProceduralScene CreateProceduralScene(
     }
 
     {
-        const uint32_t part = beginPart("BackWall",
-            CreateMaterial(device, commandList, "BackWallMaterial", dm::float3(0.45f, 0.48f, 0.52f), 0.80f, 0.f));
+        const uint32_t material = CreateMaterial(device, commandList, scene.materials,
+            "BackWallMaterial", dm::float3(0.45f, 0.48f, 0.52f), 0.80f, 0.f);
+        const uint32_t part = beginPart("BackWall", material);
         AddBox(source, dm::float3(0.f), dm::float3(6.f, 1.6f, 0.1f));
         endPart(part);
         placements.push_back({ part, dm::double3(0.0, 1.6, 4.0) });
     }
 
     {
-        const uint32_t part = beginPart("EmissiveCube",
-            CreateMaterial(device, commandList, "EmissiveCubeMaterial", dm::float3(0.f), 0.5f, 0.f,
-                dm::float3(1.f, 0.55f, 0.15f), 6.f));
+        const uint32_t material = CreateMaterial(device, commandList, scene.materials,
+            "EmissiveCubeMaterial", dm::float3(0.f), 0.5f, 0.f, dm::float3(1.f, 0.55f, 0.15f), 6.f);
+        const uint32_t part = beginPart("EmissiveCube", material);
         AddBox(source, dm::float3(0.f), dm::float3(0.25f));
         endPart(part);
         placements.push_back({ part, dm::double3(0.0, 0.25, -3.0) });
@@ -375,7 +385,7 @@ ProceduralScene CreateProceduralScene(
         const PartDescription& part = parts[i];
 
         auto geometry = std::make_shared<donut::engine::MeshGeometry>();
-        geometry->material = part.material;
+        geometry->material = scene.materials[part.materialIndex];
         geometry->indexOffsetInMesh = 0;
         geometry->vertexOffsetInMesh = 0;
         geometry->numIndices = part.indexCount;
@@ -441,7 +451,7 @@ ProceduralScene CreateProceduralScene(
         const int index = instances[i]->GetInstanceIndex();
         if (index < 0 || uint32_t(index) >= instanceCount)
         {
-            donut::log::error("HostLab: instance %u did not receive a valid instance index (%d).", i, index);
+            donut::log::error("RenderLab: instance %u did not receive a valid instance index (%d).", i, index);
             continue;
         }
 
@@ -460,17 +470,55 @@ ProceduralScene CreateProceduralScene(
     commandList->writeBuffer(buffers->instanceBuffer, instanceData.data(), instanceBufferSize, 0);
     commandList->setPermanentBufferState(buffers->instanceBuffer, nvrhi::ResourceStates::ShaderResource);
 
-    ProceduralScene scene;
-    scene.graph = graph;
-    scene.buffers = buffers;
-    scene.meshCount = uint32_t(meshes.size());
-    scene.instanceCount = instanceCount;
-    scene.lightCount = uint32_t(graph->GetLights().size());
-    scene.vertexCount = vertexCount;
-    scene.triangleCount = indexCount / 3;
+    // --- backend geometry batch for algorithm-side passes (no Donut types in it) ---
+    gpu::GeometryBuffers batchBuffers;
+    batchBuffers.vertexBuffer = buffers->vertexBuffer;
+    batchBuffers.indexBuffer = buffers->indexBuffer;
+    batchBuffers.positionRange = nvrhi::BufferRange(positionOffset, positionSize);
+    batchBuffers.texCoordRange = nvrhi::BufferRange(texcoordOffset, texcoordSize);
+    batchBuffers.normalRange = nvrhi::BufferRange(normalOffset, normalSize);
+    batchBuffers.tangentRange = nvrhi::BufferRange(tangentOffset, tangentSize);
+    batchBuffers.indexFormat = nvrhi::Format::R32_UINT;
 
-    donut::log::info("HostLab: procedural scene ready -- %u meshes / %u instances / %u lights / %u vertices / %u triangles.",
-        scene.meshCount, scene.instanceCount, scene.lightCount, scene.vertexCount, scene.triangleCount);
+    scene.geometry.bufferGroups.push_back(batchBuffers);
+
+    dm::box3 worldBounds = dm::box3::empty();
+    for (size_t i = 0; i < placements.size(); ++i)
+    {
+        const PartDescription& part = parts[placements[i].partIndex];
+
+        gpu::DrawRecord draw;
+        draw.debugName = part.name;
+        draw.bufferGroupIndex = 0;
+        draw.meshIndex = placements[i].partIndex;
+        draw.instanceIndex = uint32_t(i);
+        draw.materialIndex = part.materialIndex;
+        draw.firstIndex = part.indexOffset;
+        draw.indexCount = part.indexCount;
+        draw.baseVertex = int32_t(part.vertexOffset);
+        draw.objectToWorld = instanceNodes[i]->GetLocalToWorldTransformFloat();
+        draw.prevObjectToWorld = draw.objectToWorld;
+        draw.worldBounds = gpu::TransformBounds(part.bounds, draw.objectToWorld);
+
+        worldBounds = worldBounds | draw.worldBounds;
+        scene.geometry.draws.push_back(std::move(draw));
+    }
+
+    scene.geometry.worldBounds = worldBounds;
+
+    // --- summary ---
+    scene.graph = graph;
+    scene.sharedBuffers = buffers;
+    scene.lights = CollectLights(*graph);
+    scene.description = "procedural test scene (no assets)";
+    scene.stats.meshes = uint32_t(meshes.size());
+    scene.stats.instances = instanceCount;
+    scene.stats.lights = uint32_t(scene.lights.size());
+    scene.stats.vertices = vertexCount;
+    scene.stats.triangles = indexCount / 3;
+
+    donut::log::info("RenderLab: procedural scene ready -- %u meshes / %u instances / %u lights / %u vertices / %u triangles.",
+        scene.stats.meshes, scene.stats.instances, scene.stats.lights, scene.stats.vertices, scene.stats.triangles);
 
     return scene;
 }

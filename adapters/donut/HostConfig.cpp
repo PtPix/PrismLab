@@ -1,4 +1,4 @@
-#include "host_config.h"
+#include "HostConfig.h"
 
 #include <donut/app/ApplicationBase.h>
 #include <donut/core/json.h>
@@ -33,7 +33,7 @@ namespace
     }
 }
 
-namespace renderlab
+namespace renderlab::adapter
 {
     HostConfig LoadHostConfig(const std::filesystem::path& explicitPath)
     {
@@ -50,13 +50,13 @@ namespace renderlab
 
         if (configPath.empty())
         {
-            donut::log::warning("HostLab: configs/host/camera_default.json not found, using built-in defaults.");
+            donut::log::warning("RenderLab: configs/host/camera_default.json not found, using built-in defaults.");
             return config;
         }
 
         if (!std::filesystem::exists(configPath))
         {
-            donut::log::warning("HostLab: config file does not exist: %s, using built-in defaults.", configPath.string().c_str());
+            donut::log::warning("RenderLab: config file does not exist: %s, using built-in defaults.", configPath.string().c_str());
             return config;
         }
 
@@ -64,7 +64,7 @@ namespace renderlab
         Json::Value root;
         if (!donut::json::LoadFromFile(fileSystem, configPath, root))
         {
-            donut::log::warning("HostLab: failed to parse config file: %s, using built-in defaults.", configPath.string().c_str());
+            donut::log::warning("RenderLab: failed to parse config file: %s, using built-in defaults.", configPath.string().c_str());
             return config;
         }
 
@@ -81,10 +81,6 @@ namespace renderlab
             camera["zFar"] >> config.camera.zFar;
             camera["moveSpeed"] >> config.camera.moveSpeed;
         }
-        else
-        {
-            donut::log::warning("HostLab: config is missing the camera section, using built-in camera defaults.");
-        }
 
         if (root.isMember("window"))
         {
@@ -92,10 +88,6 @@ namespace renderlab
             window["width"] >> config.window.width;
             window["height"] >> config.window.height;
             window["vsync"] >> config.window.vsync;
-        }
-        else
-        {
-            donut::log::warning("HostLab: config is missing the window section, using built-in window defaults.");
         }
 
         if (root.isMember("lighting"))
@@ -105,11 +97,67 @@ namespace renderlab
             lighting["sunIrradiance"] >> config.lighting.sunIrradiance;
             lighting["ambientIntensity"] >> config.lighting.ambientIntensity;
         }
-        else
+
+        if (root.isMember("scene"))
         {
-            donut::log::warning("HostLab: config is missing the lighting section, using built-in lighting defaults.");
+            const Json::Value& scene = root["scene"];
+            scene["source"] >> config.scene.source;
+            scene["asset"] >> config.scene.asset;
+        }
+
+        if (root.isMember("render"))
+        {
+            const Json::Value& render = root["render"];
+            render["renderScale"] >> config.render.renderScale;
+            render["enableGpuTiming"] >> config.render.enableGpuTiming;
         }
 
         return config;
+    }
+
+    std::filesystem::path ResolveAssetPath(const std::string& path)
+    {
+        if (path.empty())
+            return std::filesystem::path();
+
+        const std::filesystem::path candidate(path);
+        if (candidate.is_absolute())
+            return candidate;
+
+        std::error_code error;
+        if (std::filesystem::exists(candidate, error))
+            return std::filesystem::absolute(candidate, error);
+
+        // 运行目录通常是 build/<preset>/bin，而资产在仓库里：向上查找。
+        const std::filesystem::path found = FindFileUpwards(
+            donut::app::GetDirectoryWithExecutable(),
+            candidate,
+            6);
+
+        if (!found.empty())
+            return found;
+
+        return candidate;
+    }
+
+    bool LoadLabSettings(const HostConfig& config, const char* labName, Json::Value& outSettings)
+    {
+        if (!config.loadedFromFile || !labName)
+            return false;
+
+        donut::vfs::NativeFileSystem fileSystem;
+        Json::Value root;
+        if (!donut::json::LoadFromFile(fileSystem, config.sourcePath, root))
+            return false;
+
+        if (!root.isMember("labs"))
+            return false;
+
+        const Json::Value& labs = root["labs"];
+        if (!labs.isMember(labName))
+            return false;
+
+        outSettings = labs[labName];
+        return true;
     }
 }

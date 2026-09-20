@@ -16,5 +16,25 @@
         "sunDirection": [0.45, -1.0, 0.35],
         "sunIrradiance": 2.2,
         "ambientIntensity": 0.18
+    },
+    "scene": {
+        "source": "procedural",
+        "asset": ""
+    },
+    "render": {
+        "renderScale": 1.0,
+        "enableGpuTiming": true
+    },
+    "labs": {
+        "ForwardLab": {
+            "debugMode": 0,
+            "depthScale": 1.0
+        },
+        "ContractLab": {
+            "verifyFrame": 3,
+            "sampleStride": 32,
+            "toleranceMeters": 0.01,
+            "tolerancePixels": 0.05
+        }
     }
 }
