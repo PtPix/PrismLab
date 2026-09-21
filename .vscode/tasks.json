@@ -1,0 +1,109 @@
+// 构建 / 运行任务。所有任务都通过 scripts/prismlab.ps1 执行，
+// 因此 cmake 的位置、preset 配置、目标名与运行参数只有一处定义。
+//
+// 用法：Ctrl+Shift+P -> Tasks: Run Task，或 Ctrl+Shift+B 直接构建（默认任务）。
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "PrismLab: configure",
+            "detail": "cmake --preset my-project（生成 build/my-project）",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile", "-ExecutionPolicy", "Bypass",
+                "-File", "${workspaceFolder}/scripts/prismlab.ps1",
+                "-ConfigureOnly"
+            ],
+            "options": { "cwd": "${workspaceFolder}" },
+            "problemMatcher": []
+        },
+        {
+            "label": "PrismLab: build (Debug)",
+            "detail": "构建 ForwardLab / ContractLab / Starter（Debug）",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile", "-ExecutionPolicy", "Bypass",
+                "-File", "${workspaceFolder}/scripts/prismlab.ps1",
+                "-Target", "All", "-NoRun"
+            ],
+            "options": { "cwd": "${workspaceFolder}" },
+            "group": { "kind": "build", "isDefault": true },
+            "problemMatcher": "$msCompile",
+            "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+        },
+        {
+            "label": "PrismLab: build (Release)",
+            "detail": "构建 ForwardLab / ContractLab / Starter（Release）",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile", "-ExecutionPolicy", "Bypass",
+                "-File", "${workspaceFolder}/scripts/prismlab.ps1",
+                "-Target", "All", "-Config", "Release", "-NoRun"
+            ],
+            "options": { "cwd": "${workspaceFolder}" },
+            "group": "build",
+            "problemMatcher": "$msCompile",
+            "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+        },
+        {
+            "label": "PrismLab: run ForwardLab",
+            "detail": "构建并启动共享前向管线实验（交互窗口）",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile", "-ExecutionPolicy", "Bypass",
+                "-File", "${workspaceFolder}/scripts/prismlab.ps1",
+                "-Target", "PrismLabForward"
+            ],
+            "options": { "cwd": "${workspaceFolder}" },
+            "problemMatcher": [],
+            "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+        },
+        {
+            "label": "PrismLab: run ContractLab (self check)",
+            "detail": "契约自检 30 帧后退出，失败返回非零退出码",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile", "-ExecutionPolicy", "Bypass",
+                "-File", "${workspaceFolder}/scripts/prismlab.ps1",
+                "-Target", "PrismLabContract", "-SmokeTest", "30", "-TailLog"
+            ],
+            "options": { "cwd": "${workspaceFolder}" },
+            "problemMatcher": [],
+            "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+        },
+        {
+            "label": "PrismLab: run Starter",
+            "detail": "构建并启动最小三角形成立示例",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile", "-ExecutionPolicy", "Bypass",
+                "-File", "${workspaceFolder}/scripts/prismlab.ps1",
+                "-Target", "PrismLabStarter"
+            ],
+            "options": { "cwd": "${workspaceFolder}" },
+            "problemMatcher": [],
+            "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+        },
+        {
+            "label": "PrismLab: bench ForwardLab (120 frames)",
+            "detail": "预热 30 帧后测量 120 帧，写出 forward_bench.csv",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile", "-ExecutionPolicy", "Bypass",
+                "-File", "${workspaceFolder}/scripts/prismlab.ps1",
+                "-Target", "PrismLabForward",
+                "-Bench", "120", "-Metrics", "forward_bench.csv", "-TailLog"
+            ],
+            "options": { "cwd": "${workspaceFolder}" },
+            "problemMatcher": [],
+            "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+        }
+    ]
+}

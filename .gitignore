@@ -2,7 +2,6 @@
 /out/
 /.vs/
 /.idea/
-/.vscode/
 /CMakeUserPresets.json
 *.user
 *.suo

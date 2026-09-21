@@ -1,0 +1,53 @@
+// PrismLab 工作区设置。
+//
+// 启动方式分三条路，全都调用 scripts/prismlab.ps1（找 cmake、按需 configure、构建、运行）：
+//   1. Code Runner 扩展：在任何 .cpp 上按 Run Code -> 构建并运行对应的实验程序；
+//   2. 运行任务（Ctrl+Shift+P -> Run Task）或 F5 调试：见 tasks.json / launch.json；
+//   3. 终端：powershell -NoProfile -File scripts/prismlab.ps1 -Target PrismLabForward
+//
+// 目标推断规则（未显式指定 -Target 时）：samples/lab_forward -> PrismLabForward，
+// samples/lab_contract -> PrismLabContract，samples/starter -> PrismLabStarter，
+// 其余（框架代码）默认 PrismLabForward。
+//
+// Code Runner（formulahendry.code-runner）是可选的第三方扩展：装了就生效，没装也不影响
+// （任务与 F5 走同一份脚本）。这里的 executorMap 只覆盖 cpp 条目，其他语言的条目仍沿用
+// 用户设置，例如全局的 g++ 单文件编译规则。
+{
+    // ------------------------------------------------------------------
+    // Code Runner
+    // ------------------------------------------------------------------
+    "code-runner.runInTerminal": true,
+    "code-runner.saveAllFilesBeforeRun": true,
+    "code-runner.clearPreviousOutput": true,
+    "code-runner.ignoreSelection": true,
+    "code-runner.fileDirectoryAsCwd": false,
+    "code-runner.executorMap": {
+        "cpp": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$workspaceRoot/scripts/prismlab.ps1\" -SourceFile \"$fullFileName\" -TailLog"
+    },
+    "code-runner.executorMapByFileExtension": {
+        // shader 不能单独运行：只重新构建（构建会顺带编译 shader）
+        ".hlsl": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$workspaceRoot/scripts/prismlab.ps1\" -Target PrismLabForward -NoRun",
+        ".hlsli": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$workspaceRoot/scripts/prismlab.ps1\" -Target PrismLabForward -NoRun",
+        ".ps1": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$fullFileName\""
+    },
+    // Code Runner 的 "Run Custom Command"（默认快捷键未绑定）
+    "code-runner.customCommand": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$workspaceRoot/scripts/prismlab.ps1\" -Target All -NoRun",
+
+    // ------------------------------------------------------------------
+    // C/C++ 与 CMake
+    // 装了 CMake Tools 时由它读取 CMakePresets 提供真实 include 路径与宏；
+    // 否则回退到 c_cpp_properties.json 里的手写 include 列表。
+    // ------------------------------------------------------------------
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "C_Cpp.default.cppStandard": "c++17",
+    "C_Cpp.default.intelliSenseMode": "windows-msvc-x64",
+    "cmake.useCMakePresets": "always",
+    "cmake.configureOnOpen": false,
+
+    // HLSL 与共享常量头的语法高亮
+    "files.associations": {
+        "*.hlsl": "hlsl",
+        "*.hlsli": "hlsl",
+        "*.cfg": "properties"
+    }
+}

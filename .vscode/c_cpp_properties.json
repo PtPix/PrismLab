@@ -1,0 +1,41 @@
+// IntelliSense 兜底配置：装了 CMake Tools 时 settings.json 里的 configurationProvider
+// 会用 CMakePresets 的真实配置覆盖这里；没有 CMake Tools 时（或它还没配置过）用下面的路径。
+//
+// 依赖目录变化时（升级 Donut/NVRHI、改 _deps 路径）同步更新 includePath。
+{
+    "version": 4,
+    "configurations": [
+        {
+            "name": "PrismLab (MSVC x64)",
+            "includePath": [
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/host",
+                "${workspaceFolder}/pipelines",
+                "${workspaceFolder}/adapters",
+                "${workspaceFolder}/backends",
+                "${workspaceFolder}/algorithms",
+                "${workspaceFolder}/samples",
+
+                "${workspaceFolder}/external/Donut-Samples/donut/include",
+                "${workspaceFolder}/external/Donut-Samples/donut/nvrhi/include",
+                "${workspaceFolder}/external/Donut-Samples/donut/thirdparty/imgui",
+                "${workspaceFolder}/external/Donut-Samples/donut/thirdparty/jsoncpp-amalgam",
+                "${workspaceFolder}/external/Donut-Samples/donut/thirdparty/glfw/include",
+                "${workspaceFolder}/external/Donut-Samples/donut/thirdparty/stb",
+                "${workspaceFolder}/external/Donut-Samples/donut/thirdparty/cgltf",
+                "${workspaceFolder}/external/Donut-Samples/donut/thirdparty/tinyexr",
+
+                "${workspaceFolder}/build/my-project/_deps/directx_headers-src/include"
+            ],
+            "defines": [
+                "_WIN32",
+                "NOMINMAX",
+                "WIN32_LEAN_AND_MEAN",
+                "DONUT_WITH_DX12=1"
+            ],
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-msvc-x64"
+        }
+    ]
+}

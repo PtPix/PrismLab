@@ -1,0 +1,65 @@
+// F5 调试配置（需要 ms-vscode.cpptools）。preLaunchTask 会先构建再启动，
+// 构建逻辑仍在 scripts/prismlab.ps1 里，这里不重复写 cmake 命令。
+//
+// 程序是 WIN32 子系统：stdout 不可见，运行日志见 build/my-project/bin/renderlab.log
+// （无头参数运行时一定写文件；交互运行时日志显示在应用内控制台）。
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "PrismLab: ForwardLab",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/my-project/bin/PrismLabForward.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/build/my-project/bin",
+            "console": "internalConsole",
+            "preLaunchTask": "PrismLab: build (Debug)",
+            "stopAtEntry": false
+        },
+        {
+            "name": "PrismLab: ForwardLab (smoke test 30)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/my-project/bin/PrismLabForward.exe",
+            "args": [ "--smoke-test=30" ],
+            "cwd": "${workspaceFolder}/build/my-project/bin",
+            "console": "internalConsole",
+            "preLaunchTask": "PrismLab: build (Debug)",
+            "stopAtEntry": false
+        },
+        {
+            "name": "PrismLab: ForwardLab (capture frame 4)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/my-project/bin/PrismLabForward.exe",
+            "args": [ "--capture", "forward_capture.png", "--capture-frame", "4" ],
+            "cwd": "${workspaceFolder}/build/my-project/bin",
+            "console": "internalConsole",
+            "preLaunchTask": "PrismLab: build (Debug)",
+            "stopAtEntry": false
+        },
+        {
+            "name": "PrismLab: ContractLab (self check 30)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/my-project/bin/PrismLabContract.exe",
+            "args": [ "--smoke-test=30" ],
+            "cwd": "${workspaceFolder}/build/my-project/bin",
+            "console": "internalConsole",
+            "preLaunchTask": "PrismLab: build (Debug)",
+            "stopAtEntry": false
+        },
+        {
+            "name": "PrismLab: Starter",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/my-project/bin/PrismLabStarter.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/build/my-project/bin",
+            "console": "internalConsole",
+            "preLaunchTask": "PrismLab: build (Debug)",
+            "stopAtEntry": false
+        }
+    ]
+}
