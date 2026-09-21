@@ -6,8 +6,10 @@
 // own UI section; the host owns the window, device, swap chain, camera, scene, config, ImGui, GPU
 // timing and the frame loop. Adding an experiment means adding a Lab subclass and a factory.
 
+#include <backends/nvrhi/common/BufferPool.h>
 #include <backends/nvrhi/common/GpuProfiler.h>
 #include <backends/nvrhi/common/RenderTargetPool.h>
+#include <backends/nvrhi/common/ResourceTable.h>
 #include <backends/nvrhi/common/ShaderLibrary.h>
 
 #include <adapters/donut/HostConfig.h>
@@ -15,7 +17,14 @@
 
 #include <pipelines/SceneForwardPipeline.h>
 
+#include "DebugViewRegistry.h"
+#include "DisplayChain.h"
+#include "Metrics.h"
+#include "Params.h"
+#include "TemporalServices.h"
+
 #include <renderlab/contracts/CameraData.h>
+#include <renderlab/contracts/ColorSpace.h>
 #include <renderlab/contracts/FrameInfo.h>
 #include <renderlab/contracts/Status.h>
 #include <renderlab/contracts/Types.h>
@@ -53,11 +62,35 @@ namespace renderlab::host
 
         gpu::ShaderLibrary* shaders = nullptr;
         gpu::RenderTargetPool* targets = nullptr;
+        gpu::BufferPool* buffers = nullptr;
+
+        // 资源表：纹理与缓冲的统一入口，实验用自己声明的槽位获取（见 ResourceTable.h）。
+        gpu::ResourceTable* resources = nullptr;
+
         gpu::GpuProfiler* profiler = nullptr;
 
         pipeline::SceneForwardPipeline* scenePipeline = nullptr;
         const adapter::SceneData* scene = nullptr;
         const adapter::HostConfig* config = nullptr;
+
+        // 显示链接缝（见 host/DisplayChain.h）。为空时宿主直接把实验输出 blit 到交换链，
+        // 表现为"线性 HDR 未做显示变换"；实现由使用者提供。
+        IDisplayChain* displayChain = nullptr;
+
+        // 时域服务接缝（见 host/TemporalServices.h）。为空表示没有历史/采样序列基础设施，
+        // 需要它的 feature 应当明确报错，而不是自己临时造一套。实现由使用者提供。
+        ITemporalServices* temporal = nullptr;
+
+        // 实验本帧输出的颜色空间：显示链据此判断输入是否可以直接显示。
+        renderlab::ColorSpace outputColorSpace = renderlab::ColorSpace::SceneLinear;
+
+        // 调试视图登记（见 host/DebugViewRegistry.h）：每帧把想看的中间纹理发布进来，
+        // 宿主面板里可切换显示。发布顺序必须每帧稳定。
+        DebugViewRegistry* debugViews = nullptr;
+
+        // 指标上报（见 host/Metrics.h）：实验把数值（能量、NaN 计数、复用率）报给宿主，
+        // 由宿主统一进面板与 CSV。
+        Metrics* metrics = nullptr;
 
         // 仓库根下的资产目录（可能不存在）：实验读取数据文件时使用。
         std::filesystem::path assetsDirectory;

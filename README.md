@@ -56,22 +56,74 @@ cmake --build --preset my-project --parallel
 `PrismLabForward`。Debug 启用 NVRHI 校验与可用的 D3D12 调试运行时；运行包需要保留 EXE 旁的
 `shaders/` 目录。
 
+### 一键构建 + 运行
+
+`scripts/prismlab.ps1` 是唯一入口（查找 cmake、按需 configure preset、构建、启动程序），
+编辑器里的运行任务、F5 调试与 Code Runner 都调用它：
+
+```powershell
+# 终端：构建并启动实验
+powershell -NoProfile -File scripts/prismlab.ps1 -Target PrismLabForward
+
+# 无头运行：跑 30 帧后退出，失败返回非零退出码，并回显日志尾部
+powershell -NoProfile -File scripts/prismlab.ps1 -Target PrismLabContract -SmokeTest 30 -TailLog
+
+# 性能测量：预热 30 帧后测量 120 帧，写出指标 CSV
+powershell -NoProfile -File scripts/prismlab.ps1 -Target PrismLabForward -Bench 120 -Metrics forward_bench.csv
+
+# 只构建（等价于 CMake preset 的 Debug / Release 变体）
+cmake --build --preset my-project-debug
+cmake --build --preset my-project
+```
+
+编辑器集成：
+
+* **运行任务**：`.vscode/tasks.json` 提供配置、Debug/Release 构建、三个实验的运行、契约自检与基准测量；`Ctrl+Shift+B` 直接执行默认构建。
+* **F5 调试**：`.vscode/launch.json` 提供 ForwardLab / ContractLab / Starter 及冒烟测试、截图等配置，启动前自动构建。
+* **Code Runner 扩展**：`.vscode/settings.json` 已配置 `code-runner.executorMap`，在实验源码上按 Run Code 会构建并运行对应程序（需要安装第三方扩展 `formulahendry.code-runner`）。
+
+不指定 `-Target` 时按源文件推断：`samples/lab_forward` → `PrismLabForward`，
+`samples/lab_contract` → `PrismLabContract`，`samples/starter` → `PrismLabStarter`，
+框架代码（`host/`、`pipelines/`、`adapters/` 等）默认 `PrismLabForward`。
+
 ### 命令行
 
 ```powershell
---config <path>        指定 JSON 配置文件（默认 configs/host/camera_default.json）
---scene <source>       覆盖场景来源：procedural | gltf
---asset <path>         覆盖场景资产（场景 .json、.gltf 或 .glb）
---smoke-test[=N]       渲染 N 帧（默认 3）后退出，用于验证构建与初始化
---capture <path>       截图后退出（配合 --capture-frame，默认第 2 帧）
---width/--height <n>   窗口尺寸
---no-vsync             关闭垂直同步
---no-timing            关闭 GPU 时间戳查询
---help                 打印用法
+--config <path>           指定 JSON 配置文件（默认 configs/host/camera_default.json）
+--scene <source>          覆盖场景来源：procedural | gltf
+--asset <path>            覆盖场景资产（场景 .json、.gltf 或 .glb）
+--smoke-test[=N]          渲染 N 帧（默认 3）后退出，用于验证构建与初始化
+--capture <path>          截图后退出（配合 --capture-frame，默认第 2 帧）
+--write-reference <path>  把该帧输出写成浮点参考图（.f32）后退出
+--reference <path>        与该帧输出和浮点参考图比较，超差时进程返回非零
+--tolerance <v>           参考图比较容差，默认 0.01
+--bench[=N]               预热后测量 N 帧（默认 120），写出指标 CSV 后退出
+--bench-warmup[=N]        基准的预热帧数，默认 30
+--metrics <path>          指标 CSV 路径（配合 --bench / --smoke-test）
+--debug-view <n>          显示第 n 个登记的中间结果（0 = 实验输出）
+--width/--height <n>      窗口尺寸
+--no-vsync                关闭垂直同步
+--no-timing               关闭 GPU 时间戳查询
+--help                    打印用法
 ```
 
-`--smoke-test` 与 `--capture` 会把日志写到 EXE 旁的 `renderlab.log`（交互运行时日志显示在应用内
-控制台）。自检失败时进程返回非零退出码，可直接用于 CI。
+示例：
+
+```powershell
+# 建立浮点基线，然后回归比较（数值判定，失败返回非零）
+.\PrismLabForward.exe --write-reference forward_ref.f32 --capture-frame 4
+.\PrismLabForward.exe --reference forward_ref.f32 --capture-frame 4 --tolerance 0.0001
+
+# 预热 30 帧后测量 120 帧，逐帧指标 + 末尾 mean/min/max 汇总
+.\PrismLabForward.exe --bench=120 --bench-warmup=30 --metrics forward_bench.csv
+
+# 给第 2 个中间结果（场景深度）截图，不需要手点面板
+.\PrismLabForward.exe --debug-view 2 --capture depth.png --capture-frame 4
+```
+
+`--smoke-test` / `--bench` / `--capture` / `--reference` 这类无人值守运行会把日志写到 EXE 旁的
+`renderlab.log`（交互运行时日志显示在应用内控制台）。自检、参考图比较失败时进程返回非零退出码，
+可直接用于 CI。
 
 ### 场景
 
@@ -87,14 +139,14 @@ git -C external/Donut-Samples submodule update --init media
 ## 写一个新实验
 
 1. `samples/lab_<name>/` 下放 `xxx_lab.h/.cpp`、自己的 `*.hlsl`、`shaders.cfg`、`CMakeLists.txt`。
-2. 继承 `renderlab::host::Lab`：`Initialize` 建 shader/PSO/绑定并声明渲染目标，`Render` 录制 Pass，
-   `BuildUI` 画参数；需要读回或数值验证时用 `BeginFrame`。
-3. 定义工厂 `std::unique_ptr<renderlab::host::Lab> renderlab::host::CreateLab()`，链上 `rl_host` 即可，
-   不需要 `WinMain`。
-4. 在顶层 `CMakeLists.txt` 加 `add_subdirectory(samples/lab_<name>)`。
+2. 继承 `renderlab::host::Lab`：`Initialize` 里用 `context.resources->Get(slot)` 声明资源、建 PSO，
+   `Render` 录制 Pass，`BuildUI` 里 `m_Params.BuildUI()`；需要读回或数值验证时用 `BeginFrame`。
+3. 定义工厂 `std::unique_ptr<renderlab::host::Lab> renderlab::host::CreateLab()`。
+4. CMakeLists 写一次 `rl_add_target(<target> KIND EXECUTABLE SOURCES ... SHADERS ... CFG ...)`：
+   框架库、shader 编译与依赖关系都由它处理；顶层只需 `add_subdirectory(samples/lab_<name>)`。
 
-`samples/lab_forward` 是最小完整例子（约 200 行，含自己的全屏 Pass 与调试视图）；
-`samples/lab_contract` 展示了 GPU/CPU 数值自检的写法。shader 里第一行要包含
+`samples/lab_forward` 是最小完整例子（含自己的全屏 Pass、参数表和调试视图发布）；
+`samples/lab_contract` 展示了 GPU/CPU 数值自检的写法。shader 第一行要包含
 `RenderLab/Common/Platform.hlsli`（矩阵行主序、深度与颜色约定）。
 
 ## 连接自己的 GitHub 仓库

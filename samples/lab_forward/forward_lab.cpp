@@ -163,6 +163,15 @@ namespace renderlab::labs
                 context.ambientBottom);
         }
 
+        // 中间结果发布给宿主面板（顺序每帧固定）
+        if (context.debugViews)
+        {
+            context.debugViews->Publish(GetName(), "Scene color", color);
+            // 设备深度是 forward-Z：远平面接近 1，用 1 - R 才有对比度
+            context.debugViews->Publish(GetName(), "Scene depth (1 - device Z)", depth,
+                { gpu::DebugViewMode::OneMinusR, 20.f, 0.f });
+        }
+
         if (m_Settings.debugMode <= 0)
             return color;
 

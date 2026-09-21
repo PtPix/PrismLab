@@ -172,6 +172,8 @@ namespace renderlab::host
         // --- shared services --------------------------------------------------
         gpu::ShaderLibrary shaderLibrary(device, shaderFactory);
         gpu::RenderTargetPool renderTargets(device);
+        gpu::BufferPool buffers(device);
+        gpu::ResourceTable resources(renderTargets, buffers);
         gpu::GpuProfiler profiler(device);
         profiler.SetEnabled(config.render.enableGpuTiming);
 
@@ -208,6 +210,8 @@ namespace renderlab::host
         services.commonPasses = commonPasses;
         services.shaders = &shaderLibrary;
         services.targets = &renderTargets;
+        services.buffers = &buffers;
+        services.resources = &resources;
         services.profiler = &profiler;
         services.scenePipeline = &scenePipeline;
         services.sceneHost = &sceneHost;
@@ -249,8 +253,12 @@ namespace renderlab::host
         deviceManager->RemoveRenderPass(uiPass.get());
         deviceManager->RemoveRenderPass(labPass.get());
 
+        // 指标 CSV：--bench 在测量结束时已经写过，这里兜住 --metrics 的其他用法。
+        labPass->WriteMetricsIfRequested();
+
         const bool labFailed = labPass->HasFailed();
         const bool verificationFailed = labPass->GetLab() && !labPass->GetLab()->PassedVerification();
+        const bool analysisFailed = labPass->HasAnalysisFailure();
 
         // Passes and the shader factory own NVRHI objects, so they must be gone before the device dies.
         uiPass.reset();
@@ -267,8 +275,9 @@ namespace renderlab::host
         // without that call tears the framebuffers down after the device resources are already gone.
         deviceManager->Shutdown();
 
-        donut::log::info("RenderLab: exited %s.", (labFailed || verificationFailed) ? "with errors" : "cleanly");
-        return (labFailed || verificationFailed) ? 1 : 0;
+        const bool failed = labFailed || verificationFailed || analysisFailed;
+        donut::log::info("RenderLab: exited %s.", failed ? "with errors" : "cleanly");
+        return failed ? 1 : 0;
     }
 
     int Run(int argc, char** argv)

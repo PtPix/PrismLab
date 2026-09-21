@@ -38,17 +38,18 @@ namespace renderlab::labs
         if (!context.device || !context.targets || !context.shaders)
             return Status::Error(ErrorCode::NotInitialized, "the host context is incomplete");
 
+        // 参数表：JSON 读取 + UI + hash 都由描述符驱动，加参数不需要写这里的代码。
+        m_Params = host::ParamTable(kContractParams);
+        m_Params.Bind(&m_Settings);
+
         if (context.config)
         {
             Json::Value settings;
             if (adapter::LoadLabSettings(*context.config, GetName(), settings))
-            {
-                settings["verifyFrame"] >> m_Settings.verifyFrame;
-                settings["sampleStride"] >> m_Settings.sampleStride;
-                settings["toleranceMeters"] >> m_Settings.toleranceMeters;
-                settings["tolerancePixels"] >> m_Settings.tolerancePixels;
-            }
+                m_Params.LoadJson(settings);
         }
+
+        m_Params.ClearEdited();
 
         m_ColorRequest.name = "SceneColor";
         m_ColorRequest.format = PixelFormat::RGBA16_FLOAT;
@@ -79,7 +80,7 @@ namespace renderlab::labs
         if (!m_CheckConstantBuffer)
             return Status::Error(ErrorCode::DeviceError, "failed to create the contract check constant buffer");
 
-        donut::log::info("ContractLab: ready (verification at frame %u, sample stride %u).",
+        donut::log::info("ContractLab: ready (verification at frame %d, sample stride %d).",
             m_Settings.verifyFrame, m_Settings.sampleStride);
 
         return Status::Ok();
@@ -135,7 +136,8 @@ namespace renderlab::labs
         if (!m_HasVerifiedCamera)
             return;
 
-        const bool scheduled = !m_Report.ran && frame.frame.frameIndex >= m_Settings.verifyFrame + 1;
+        const bool scheduled = !m_Report.ran &&
+            frame.frame.frameIndex >= uint64_t(std::max(m_Settings.verifyFrame, 1)) + 1;
 
         if (!scheduled && !m_VerificationRequested)
             return;
@@ -177,6 +179,20 @@ namespace renderlab::labs
 
         if (!EnsureCheckPass(context, depth))
             return color;
+
+        // 中间结果发布给宿主面板：任何一张都可以被公共调试视图显示。
+        if (context.debugViews)
+        {
+            context.debugViews->Publish(GetName(), "Scene color", color);
+            context.debugViews->Publish(GetName(), "Scene depth (1 - device Z)", depth,
+                { gpu::DebugViewMode::OneMinusR, 20.f, 0.f });
+            context.debugViews->Publish(GetName(), "Reconstructed world position",
+                context.targets->Find(m_PositionRequest.name.c_str()));
+            context.debugViews->Publish(GetName(), "Linear depth (meters)",
+                context.targets->Find(m_PositionRequest.name.c_str()), { gpu::DebugViewMode::A, 0.1f, 0.f });
+            context.debugViews->Publish(GetName(), "Device depth copy",
+                context.targets->Find(m_DepthCopyRequest.name.c_str()));
+        }
 
         ContractCheckConstants constants = {};
         constants.clipToWorld = frame.camera.current.clipToWorld;
@@ -273,7 +289,7 @@ namespace renderlab::labs
         const gpu::TextureData& depthData = depths.Value();
 
         const Extent2D size = positionData.size;
-        const uint32_t stride = std::max(m_Settings.sampleStride, 1u);
+        const uint32_t stride = uint32_t(std::max(m_Settings.sampleStride, 1));
 
         for (uint32_t y = 0; y < size.height; y += stride)
         {
@@ -366,8 +382,10 @@ namespace renderlab::labs
         else
         {
             ImGui::TextUnformatted("Result: not run");
-            ImGui::SliderInt("Verify frame", reinterpret_cast<int*>(&m_Settings.verifyFrame), 1, 30);
         }
+
+        ImGui::SeparatorText("Parameters");
+        m_Params.BuildUI();
 
         if (ImGui::Button("Save reconstructed data (PNG)"))
         {

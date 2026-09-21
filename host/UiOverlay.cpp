@@ -5,6 +5,8 @@
 
 #include <imgui.h>
 
+#include <algorithm>
+
 namespace renderlab::host
 {
     UiOverlay::UiOverlay(donut::app::DeviceManager* deviceManager, HostStats& stats, LabRenderPass& host)
@@ -15,11 +17,9 @@ namespace renderlab::host
         donut::app::ImGui_Console::Options consoleOptions;
         consoleOptions.show_info = true;
 
-        // 交互运行时日志转到控制台窗口；冒烟测试/截图运行时保留文件日志，
-        // 否则 CI 看不到初始化与自检的输出。
-        const CommandLine& commandLine = host.GetCommandLine();
-        const bool headlessRun = commandLine.smokeTest || !commandLine.capturePath.empty();
-        consoleOptions.capture_log = !headlessRun;
+        // 交互运行时日志转到控制台窗口；冒烟测试/截图/基准/参考图运行时保留文件日志，
+        // 否则 CI 看不到初始化、自检与指标输出。
+        consoleOptions.capture_log = !host.GetCommandLine().WantsHeadlessRun();
 
         m_Console = std::make_unique<donut::app::ImGui_Console>(
             std::make_shared<donut::engine::console::Interpreter>(),
@@ -42,6 +42,8 @@ namespace renderlab::host
         BuildCameraSection();
         BuildSceneSection();
         BuildTimingSection();
+        BuildDebugViewSection();
+        BuildMetricsSection();
 
         if (lab)
         {
@@ -141,5 +143,92 @@ namespace renderlab::host
 
             ImGui::Text("Measured total: %.3f ms", profiler->GetTotalMilliseconds());
         }
+    }
+
+    void UiOverlay::BuildDebugViewSection()
+    {
+        DebugViewRegistry& debugViews = m_Host.GetDebugViews();
+        const std::vector<DebugViewEntry>& entries = debugViews.GetEntries();
+
+        ImGui::SeparatorText("Debug view");
+
+        if (entries.empty())
+        {
+            ImGui::TextUnformatted("(the experiment publishes no intermediate results)");
+            return;
+        }
+
+        // 标签字符串必须先落到本地存储里：GetLabel() 返回的是临时对象。
+        std::vector<std::string> labelStorage;
+        labelStorage.reserve(entries.size());
+        for (const DebugViewEntry& entry : entries)
+            labelStorage.push_back(entry.GetLabel());
+
+        std::vector<const char*> labels;
+        labels.reserve(labelStorage.size() + 1);
+        labels.push_back("(experiment output)");
+        for (const std::string& label : labelStorage)
+            labels.push_back(label.c_str());
+
+        int selected = std::clamp(debugViews.GetSelectedIndex(), 0, int(labels.size()) - 1);
+
+        if (ImGui::Combo("Texture", &selected, labels.data(), int(labels.size())))
+            debugViews.SetSelectedIndex(selected);
+
+        if (debugViews.GetSelected())
+        {
+            gpu::DebugViewSettings settings = debugViews.GetSelectedSettings();
+
+            const char* const* modeNames = gpu::GetDebugViewModeNames();
+            int mode = int(settings.mode);
+
+            if (ImGui::Combo("Channel", &mode, modeNames, int(gpu::DebugViewMode::Count)))
+                settings.mode = gpu::DebugViewMode(mode);
+
+            ImGui::SliderFloat("Scale", &settings.scale, 0.01f, 16.f);
+            ImGui::SliderFloat("Bias", &settings.bias, -1.f, 1.f);
+
+            debugViews.SetSelectedSettings(settings);
+        }
+    }
+
+    void UiOverlay::BuildMetricsSection()
+    {
+        const Metrics& metrics = m_Host.GetMetrics();
+        const std::vector<Metrics::Series>& series = metrics.GetSeries();
+
+        if (series.empty())
+            return;
+
+        ImGui::SeparatorText("Metrics");
+
+        if (!ImGui::BeginTable("RenderLabMetrics", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV))
+            return;
+
+        ImGui::TableSetupColumn("Metric");
+        ImGui::TableSetupColumn("Last", ImGuiTableColumnFlags_WidthFixed, 70.f);
+        ImGui::TableSetupColumn("Mean", ImGuiTableColumnFlags_WidthFixed, 70.f);
+        ImGui::TableSetupColumn("Max", ImGuiTableColumnFlags_WidthFixed, 70.f);
+        ImGui::TableHeadersRow();
+
+        for (const Metrics::Series& item : series)
+        {
+            if (item.samples == 0)
+                continue;
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(item.name.c_str());
+            ImGui::TableNextColumn();
+            ImGui::Text("%.3f", item.last);
+            ImGui::TableNextColumn();
+            ImGui::Text("%.3f", item.mean);
+            ImGui::TableNextColumn();
+            ImGui::Text("%.3f", item.max);
+        }
+
+        ImGui::EndTable();
+
+        ImGui::Text("Measured frames: %llu", (unsigned long long)metrics.GetMeasuredFrameCount());
     }
 }

@@ -60,12 +60,16 @@ add_library(rl_nvrhi_common STATIC
     backends/nvrhi/common/Formats.cpp
     backends/nvrhi/common/ShaderLibrary.cpp
     backends/nvrhi/common/RenderTargetPool.cpp
+    backends/nvrhi/common/BufferPool.cpp
+    backends/nvrhi/common/ResourceTable.cpp
     backends/nvrhi/common/GpuProfiler.cpp
     backends/nvrhi/common/PipelineUtils.cpp
     backends/nvrhi/common/TextureReadback.cpp
+    backends/nvrhi/common/DebugView.cpp
 )
 target_include_directories(rl_nvrhi_common PUBLIC "${RL_ROOT}" "${RL_CONTRACTS_INCLUDE}")
-target_link_libraries(rl_nvrhi_common PUBLIC rl_contracts donut_core nvrhi)
+# rl_algorithms 提供算法侧共享头（例如 DebugView_cb.h）的包含路径与 shader 目录。
+target_link_libraries(rl_nvrhi_common PUBLIC rl_contracts rl_algorithms donut_core nvrhi)
 
 # Donut adapter: camera controller, configuration, scene sources, light and geometry conversion.
 add_library(rl_adapter_donut STATIC
@@ -88,6 +92,9 @@ target_link_libraries(rl_pipelines PUBLIC rl_contracts donut_render donut_engine
 # Host: window, device, swap chain, camera, scene, UI, GPU timing, frame loop, WinMain.
 add_library(rl_host STATIC
     host/CommandLine.cpp
+    host/Params.cpp
+    host/Metrics.cpp
+    host/ImageReference.cpp
     host/LabHost.cpp
     host/UiOverlay.cpp
     host/Application.cpp
@@ -106,6 +113,18 @@ endforeach()
 # ---------------------------------------------------------------------------
 # Experiments
 # ---------------------------------------------------------------------------
+include("${RL_ROOT}/cmake/renderlab.cmake")
+
+# 框架自带的 shader（公共调试视图）：所有实验共用，输出到与其他实验 shader 相同的目录。
+donut_compile_shaders(
+    TARGET RenderLabShaders
+    PROJECT_NAME "RenderLab framework shaders"
+    CONFIG "${RL_ROOT}/algorithms/shaders/RenderLab/Debug/shaders.cfg"
+    SOURCES "${RL_ROOT}/algorithms/shaders/RenderLab/Debug/DebugView.hlsl"
+    DXIL "${RL_LAB_SHADER_OUTPUT}/dxil"
+    INCLUDES "${RL_ALGORITHM_SHADERS}"
+    FOLDER "RenderLab")
+
 add_subdirectory(samples/starter)
 add_subdirectory(samples/lab_forward)
 add_subdirectory(samples/lab_contract)

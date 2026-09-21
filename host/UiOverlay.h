@@ -30,6 +30,8 @@ namespace renderlab::host
         void BuildCameraSection();
         void BuildSceneSection();
         void BuildTimingSection();
+        void BuildDebugViewSection();
+        void BuildMetricsSection();
 
         HostStats& m_Stats;
         LabRenderPass& m_Host;

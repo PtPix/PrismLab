@@ -7,12 +7,15 @@
 // blit to the swap chain, resize handling, jitter sequence, screenshots, smoke test and GPU timing.
 
 #include "CommandLine.h"
+#include "DebugViewRegistry.h"
 #include "Lab.h"
+#include "Metrics.h"
 
 #include <adapters/donut/CameraController.h>
 #include <adapters/donut/HostConfig.h>
 #include <adapters/donut/SceneHost.h>
 
+#include <backends/nvrhi/common/DebugView.h>
 #include <backends/nvrhi/common/GpuProfiler.h>
 #include <backends/nvrhi/common/RenderTargetPool.h>
 
@@ -60,6 +63,8 @@ namespace renderlab::host
         std::shared_ptr<donut::engine::CommonRenderPasses> commonPasses;
         gpu::ShaderLibrary* shaders = nullptr;
         gpu::RenderTargetPool* targets = nullptr;
+        gpu::BufferPool* buffers = nullptr;
+        gpu::ResourceTable* resources = nullptr;
         gpu::GpuProfiler* profiler = nullptr;
         pipeline::SceneForwardPipeline* scenePipeline = nullptr;
         adapter::SceneHost* sceneHost = nullptr;
@@ -88,6 +93,17 @@ namespace renderlab::host
         [[nodiscard]] bool HasFailed() const { return m_HasFailed; }
         [[nodiscard]] bool WasCaptured() const { return m_Captured; }
 
+        // 面板与退出码用的状态
+        [[nodiscard]] DebugViewRegistry& GetDebugViews() { return m_DebugViews; }
+        [[nodiscard]] Metrics& GetMetrics() { return m_Metrics; }
+        [[nodiscard]] bool IsDebugViewActive() const { return m_DebugViewActive; }
+
+        // 参考图比较失败、指标写不出等"运行时分析失败"，与实验失败一起决定退出码。
+        [[nodiscard]] bool HasAnalysisFailure() const { return m_AnalysisFailed; }
+
+        // 消息循环结束后由应用调用：把指标 CSV 写出来（--metrics / --bench）。
+        void WriteMetricsIfRequested();
+
         void RequestHistoryReset(renderlab::HistoryResetReason reason);
 
         // 结束消息循环（冒烟测试、截图完成或实验主动结束）
@@ -111,6 +127,9 @@ namespace renderlab::host
         void UpdateJitter();
         void UpdateRenderSize(Extent2D outputSize);
         bool HandleEndOfFrame(nvrhi::ICommandList* commands);
+        bool ApplyDebugView(const DebugViewEntry* entry);
+        void CollectFrameMetrics();
+        void AnalyzeReferenceImage();
 
         HostStats& m_Stats;
         std::unique_ptr<Lab> m_Lab;
@@ -142,5 +161,17 @@ namespace renderlab::host
         bool m_Captured = false;
         bool m_QuitRequested = false;
         bool m_ResolutionChanged = false;
+
+        // 公共调试视图：实验登记中间结果，宿主面板选择，选中时替换实验输出显示
+        gpu::DebugViewPass m_DebugViewPass;
+        DebugViewRegistry m_DebugViews;
+        gpu::TextureRequest m_DebugTargetRequest;
+        nvrhi::ITexture* m_DebugTarget = nullptr;
+        bool m_DebugViewActive = false;
+
+        // 指标与运行分析
+        Metrics m_Metrics;
+        bool m_MetricsWritten = false;
+        bool m_AnalysisFailed = false;
     };
 }

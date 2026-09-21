@@ -102,12 +102,40 @@ public:
 
 * `ShaderLibrary`：按 (路径, 入口, 类型, 宏) 缓存 shader 变体，shader 热重载时清缓存。
 * `RenderTargetPool`：按名字声明瞬态纹理（格式/用法/尺寸），尺寸变化自动重建，缓存 framebuffer。
+* `BufferPool`：同一套思路的结构化 / 常量 / 间接参数缓冲；元素数可以按渲染分辨率计算
+  （`elementsPerPixel`，例如每像素一个 reservoir）。
+* `ResourceTable`：把两个池包在一起，实验用**自己声明的槽位**取资源（`ResourceTable.h` 顶部有例子）。
+  资源身份是结构体字段，名字只用于调试与 UI；解析不做字符串查找。
 * `GpuProfiler` + `ScopedGpuScope`：分 Pass 的 GPU 时间戳（每槽位一个查询，结果可用后才复用），
   同时写 PIX/NSight 调试标记。
 * `TextureReadback`：`SaveTextureToImage`（人工查看）与 `ReadTexture`（数值验证）。
+* `DebugViewPass`：公共调试视图（框架自带 VS/PS，通道选择、缩放偏移、伪彩）。实验把中间纹理
+  发布到 `LabContext::debugViews`，宿主面板里选择显示，也可以 `--debug-view <n>` 直接截图。
 * `PipelineUtils`：compute/fullscreen 管线创建、全屏四边形绘制、`MakeFullViewportState`。
 * `GeometryBatch`：不含 Donut 类型的几何批次视图（缓冲组 + 绘制记录 + 世界包围盒），
   供阴影图、深度预pass、GBuffer 这类自绘 Pass 使用。
+
+`host/Params.h` 提供参数表：一份描述符同时驱动 ImGui 控件、JSON 读写和参数 hash。标了
+`ParamFlags::HistoryInvalidating` 的字段参与 hash，实验只要比较前后 hash 就能自动请求历史重置，
+不需要为每个参数写 UI、JSON 解析和失效判断。
+
+`host/Metrics.h` 与 `host/ImageReference.h` 是运行分析的两个工具：前者把宿主统计（CPU/GPU 时间、
+每个 Pass 的时间戳）和实验上报的数值整理成 CSV，后者读写 `.f32` 浮点参考图并做逐像素比较
+（含 inf/NaN 检测）。`cmake/renderlab.cmake` 的 `rl_add_target` 把"建库/建可执行文件 + 编译
+shader + 建立依赖"压成一次声明，新增实验的 CMake 从二十行降到一行。
+
+### 5.1 已预留的两个接缝
+
+这两个接缝只有接口、调用点和兜底行为，实现由使用者提供：
+
+| 接缝 | 接口 | 调用点 | 未实现时 |
+| --- | --- | --- | --- |
+| 显示链（曝光 / Bloom / Tone Mapping / 编码） | `host/DisplayChain.h` 的 `IDisplayChain` | `LabRenderPass::Render` 在实验输出之后、blit 之前调用 `Record`，把结果写进交换链 framebuffer | 直接 `BlitTexture`（线性 HDR，未做显示变换） |
+| 时域服务（历史资源、采样序列、像素种子） | `host/TemporalServices.h` 的 `ITemporalServices` | feature 通过 `LabContext::temporal` 取用；宿主在分辨率变化时调用 `OnRenderSizeChanged` | 指针为空；需要它的 feature 应明确报错，而不是临时自造一套 |
+
+约定写在两个头文件的顶部注释里：显示链只接受 `ColorSpace::SceneLinear`/`PreExposed` 的输入；
+历史的身份是 `(owner, viewId)`，同一帧的读写历史必须是不同纹理，`PixelSeed` 必须可复现。
+显示链返回错误时宿主会记录 error 并退回直接 blit，不会静默换算法。
 
 两条来自实战的硬性注意点：
 
@@ -150,22 +178,41 @@ Entry.cpp         共用的 WinMain（实验只提供 CreateLab()）
 
 ## 8. 新增一个实验
 
-1. `samples/lab_<name>/` 下放 `xxx_lab.h/.cpp`、`*.hlsl`（算法）、`shaders.cfg`、`CMakeLists.txt`。
-2. 实现 `Lab` 子类：`Initialize` 里建 shader/PSO/绑定并声明渲染目标；`Render` 里录制 Pass；
-   `BuildUI` 里画参数。
+1. `samples/lab_<name>/` 下放 `xxx_lab.h/.cpp`、`*.hlsl`（算法）、`shaders.cfg`、`CMakeLists.txt`；
+   CMakeLists 只需要一次 `rl_add_target` 声明（源文件、shader、cfg），框架库、shader 编译与依赖
+   关系都在函数里完成。
+2. 实现 `Lab` 子类：`Initialize` 里建 shader/PSO/绑定并用 `context.resources->Get(slot)` 声明资源；
+   `Render` 里录制 Pass；`BuildUI` 里 `m_Params.BuildUI()`；需要数值检查时用 `BeginFrame`。
 3. 提供工厂：`std::unique_ptr<renderlab::host::Lab> renderlab::host::CreateLab()`。
 4. 顶层 `CMakeLists.txt` 里 `add_subdirectory(samples/lab_<name>)`。
 
-一个最小实验的主体大致是这样（无需任何相机/场景/UI 代码）：
+一个最小实验的主体大致是这样（无需任何相机/场景/UI/参数/资源管理代码）：
 
 ```cpp
+// 资源声明：身份就是字段，名字只用于调试与 UI
+struct MyResources
+{
+    gpu::TextureSlot color{"My.Color", PixelFormat::RGBA16_FLOAT,
+                           gpu::TextureUsage::ShaderResource | gpu::TextureUsage::RenderTarget};
+};
+
+// 参数声明：字段、JSON 键、UI 标签与范围写在一起
+struct MySettings { int sampleCount = 4; float radius = 8.f; };
+inline const host::ParamDesc kMyParams[] = {
+    RL_PARAM_INT  (MySettings, sampleCount, "Sample count", 1, 32, host::ParamFlags::None),
+    RL_PARAM_FLOAT(MySettings, radius,      "Radius",       0, 64, host::ParamFlags::None),
+};
+
 Status MyLab::Initialize(host::LabContext& context)
 {
-    m_Color = { "MyColor", PixelFormat::RGBA16_FLOAT,
-                gpu::TextureUsage::ShaderResource | gpu::TextureUsage::RenderTarget };
-    context.targets->GetOrCreate(m_Color);
+    m_Params = host::ParamTable(kMyParams);
+    m_Params.Bind(&m_Settings);
+    Json::Value lab;
+    if (adapter::LoadLabSettings(*context.config, GetName(), lab))
+        m_Params.LoadJson(lab);
 
-    nvrhi::ShaderHandle ps = context.shaders->GetShader("renderlab/my_pass.hlsl", "main_ps", nvrhi::ShaderType::Pixel);
+    context.resources->Get(m_Resources.color);   // 声明即创建，尺寸变化自动重建
+
     m_Pipeline = gpu::CreateFullScreenPipeline(context.device, { context.commonPasses->m_FullscreenVS, ps, ... });
     return Status::Ok();
 }
@@ -175,16 +222,20 @@ nvrhi::ITexture* MyLab::Render(host::LabContext& context, const host::LabFrame& 
     gpu::ScopedGpuScope scope(*context.profiler, frame.commands, "My pass");
     // 需要场景时：context.scenePipeline->RenderScene(frame.commands, *context.scene->graph, *frame.view, ...);
     // 需要矩阵时：frame.camera.current.worldToClip / clipToWorld
-    gpu::DrawFullScreenQuad(frame.commands, m_Pipeline, framebuffer, m_BindingSet);
-    return context.targets->Find("MyColor");
+    nvrhi::ITexture* color = context.resources->Get(m_Resources.color);
+    gpu::DrawFullScreenQuad(frame.commands, m_Pipeline, context.resources->Framebuffer(m_Resources.color), m_BindingSet);
+    return color;
 }
+
+void MyLab::BuildUI(host::LabContext& context) { m_Params.BuildUI(); }
 ```
 
 已有实验：
 
 * `samples/lab_forward`（`PrismLabForward`）：共享前向管线 + 自己的调试视图 Pass
   （设备深度 / 线性深度 / 世界位置 / 深度导数法线）。
-* `samples/lab_contract`（`PrismLabContract`）：契约自检，见下一节。
+* `samples/lab_contract`（`PrismLabContract`）：契约自检，见下一节；它同时是参数表的用法示例
+  （`kContractParams` 驱动 UI、JSON 与 hash，没有逐参数的手写代码）。
 * `samples/starter`（`PrismLabStarter`）：不依赖框架的最小三角形成立示例。
 
 ## 9. 验证与诊断
@@ -192,9 +243,15 @@ nvrhi::ITexture* MyLab::Render(host::LabContext& context, const host::LabFrame& 
 * **契约自检**：`PrismLabContract` 用一个 compute Pass 从深度重建世界位置与线性深度，
   读回后由 CPU 校验：矩阵往返、深度往返、世界位置投影回原像素、CPU/GPU 重建一致。
   失败时进程返回非零退出码（`Lab::PassedVerification`）。
-* **截图**：`--capture <file> --capture-frame <n>`，或实验通过 `context.callbacks.saveTexture`。
-* **GPU 计时**：UI 里的 Pass 表 + `--no-timing` 关闭；冒烟测试用它做回归对比。
-* **日志**：所有 NVRHI/D3D12 校验信息通过消息回调进入同一份日志。
+* **数值回归**：`--write-reference <file.f32>` 建立浮点基线，`--reference <file.f32>` +
+  `--tolerance <v>` 比较；存在 inf/NaN 或最大差异超限都会返回非零退出码。
+  PNG 截图（`--capture`）只用于人眼查看，不参与判定。
+* **中间结果**：实验发布到 `debugViews` 的纹理可以在面板里切换查看，也可以用
+  `--debug-view <n> --capture <png>` 直接给第 n 个中间结果截图，便于写文档与回归对比。
+* **性能**：`--bench[=N] --bench-warmup[=M] --metrics <csv>` 预热后测量固定帧数，逐帧写出
+  指标并在文件末尾给出 mean/min/max 汇总；GPU 时间戳来自 `GpuProfiler`（`--no-timing` 关闭）。
+* **日志**：所有 NVRHI/D3D12 校验信息通过消息回调进入同一份日志；`--smoke-test` / `--bench` /
+  `--capture` 这类无人值守运行时日志写入 `bin/renderlab.log`，交互运行时进入应用内控制台。
 
 这套自检已经抓到两个真实问题（保留在这里作为"为什么要验证"的例子）：
 

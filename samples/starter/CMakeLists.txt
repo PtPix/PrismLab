@@ -10,5 +10,6 @@ add_executable(PrismLabStarter WIN32 main.cpp)
 target_link_libraries(PrismLabStarter PRIVATE donut_app donut_engine)
 add_dependencies(PrismLabStarter PrismLabStarterShaders)
 if(MSVC)
-    target_compile_options(PrismLabStarter PRIVATE /W4 /utf-8)
+    # /W4 for our own code, no warnings from Donut / NVRHI / imgui headers.
+    target_compile_options(PrismLabStarter PRIVATE /W4 /utf-8 /external:anglebrackets /external:W0)
 endif()
