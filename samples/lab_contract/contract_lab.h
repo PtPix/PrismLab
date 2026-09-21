@@ -10,12 +10,12 @@
 // plus pure CPU round trips for the matrices and the depth conversion.
 //
 // This is what a new data convention has to pass before an algorithm may rely on it, and it is the
-// template for the verification story of docs/architecture.md (section 10.1).
+// template for the project's verification story.
 //
 // It also demonstrates the parameter table: the settings below drive the ImGui panel, the JSON
 // section (labs.ContractLab) and the parameter hash without any per-parameter code.
 
-#include <host/Lab.h>
+#include <framework/host/Lab.h>
 
 #include <string>
 

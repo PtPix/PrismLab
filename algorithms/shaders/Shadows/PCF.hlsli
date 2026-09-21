@@ -4,7 +4,7 @@
 // 阴影算法核心（M2 的第一块），不依赖任何具体 PSO 或宿主的资源布局。
 //
 // 与宿主的耦合通过下面这组桥接函数完成：换阴影图布局、换滤波核或换宿主时只重写桥接层，
-// 比较与滤波逻辑保持不变（见 docs/architecture.md 第六章）。使用本文件的 shader 必须实现它们：
+// 比较与滤波逻辑保持不变。使用本文件的 shader 必须实现它们：
 //
 //   float RL_LoadShadowDepth(int2 texelCoord)         阴影图设备深度（光源裁剪空间）
 //   float RL_ShadowDepthFromWorld(float3 worldPos)    世界位置在阴影图中的设备深度

@@ -8,11 +8,7 @@
         {
             "name": "PrismLab (MSVC x64)",
             "includePath": [
-                "${workspaceFolder}/include",
-                "${workspaceFolder}/host",
-                "${workspaceFolder}/pipelines",
-                "${workspaceFolder}/adapters",
-                "${workspaceFolder}/backends",
+                "${workspaceFolder}",
                 "${workspaceFolder}/algorithms",
                 "${workspaceFolder}/samples",
 

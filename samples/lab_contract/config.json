@@ -1,0 +1,36 @@
+{
+    "camera": {
+        "position": [0.0, 1.7, -6.0],
+        "target": [0.0, 0.8, 0.0],
+        "fovDegrees": 60.0,
+        "zNear": 0.05,
+        "zFar": 100.0,
+        "moveSpeed": 2.0
+    },
+    "window": {
+        "width": 1280,
+        "height": 720,
+        "vsync": true
+    },
+    "lighting": {
+        "sunDirection": [0.45, -1.0, 0.35],
+        "sunIrradiance": 2.2,
+        "ambientIntensity": 0.18
+    },
+    "scene": {
+        "source": "procedural",
+        "asset": ""
+    },
+    "render": {
+        "renderScale": 1.0,
+        "enableGpuTiming": true
+    },
+    "labs": {
+        "ContractLab": {
+            "verifyFrame": 3,
+            "sampleStride": 32,
+            "toleranceMeters": 0.01,
+            "tolerancePixels": 0.05
+        }
+    }
+}

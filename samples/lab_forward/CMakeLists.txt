@@ -11,4 +11,6 @@ rl_add_target(PrismLabForward
         debug_view.hlsl
     CFG
         shaders.cfg
+    CONFIG
+        config.json
     PROJECT_NAME "RenderLab ForwardLab")

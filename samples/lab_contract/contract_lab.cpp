@@ -1,7 +1,7 @@
 #include "contract_lab.h"
 
-#include <backends/nvrhi/common/PipelineUtils.h>
-#include <backends/nvrhi/common/TextureReadback.h>
+#include <framework/nvrhi/PipelineUtils.h>
+#include <framework/nvrhi/TextureReadback.h>
 
 #include <donut/core/json.h>
 #include <donut/core/log.h>
@@ -354,7 +354,7 @@ namespace renderlab::labs
         if (!m_Report.passed && m_Report.sampledPixels > 0)
         {
             // 不静默通过：约定不一致必须让实验失败。
-            donut::log::error("ContractLab: the data contracts are not consistent, see docs/architecture.md section 3.");
+            donut::log::error("ContractLab: the data contracts are not consistent.");
         }
     }
 

@@ -1,9 +1,9 @@
 // PrismLab 工作区设置。
 //
-// 启动方式分三条路，全都调用 scripts/prismlab.ps1（找 cmake、按需 configure、构建、运行）：
+// 启动方式分三条路，全都调用根目录的 prismlab.ps1（找 cmake、按需 configure、构建、运行）：
 //   1. Code Runner 扩展：在任何 .cpp 上按 Run Code -> 构建并运行对应的实验程序；
 //   2. 运行任务（Ctrl+Shift+P -> Run Task）或 F5 调试：见 tasks.json / launch.json；
-//   3. 终端：powershell -NoProfile -File scripts/prismlab.ps1 -Target PrismLabForward
+//   3. 终端：powershell -NoProfile -File prismlab.ps1 -Target PrismLabForward
 //
 // 目标推断规则（未显式指定 -Target 时）：samples/lab_forward -> PrismLabForward，
 // samples/lab_contract -> PrismLabContract，samples/starter -> PrismLabStarter，
@@ -22,16 +22,16 @@
     "code-runner.ignoreSelection": true,
     "code-runner.fileDirectoryAsCwd": false,
     "code-runner.executorMap": {
-        "cpp": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$workspaceRoot/scripts/prismlab.ps1\" -SourceFile \"$fullFileName\" -TailLog"
+        "cpp": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$workspaceRoot/prismlab.ps1\" -SourceFile \"$fullFileName\" -TailLog"
     },
     "code-runner.executorMapByFileExtension": {
         // shader 不能单独运行：只重新构建（构建会顺带编译 shader）
-        ".hlsl": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$workspaceRoot/scripts/prismlab.ps1\" -Target PrismLabForward -NoRun",
-        ".hlsli": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$workspaceRoot/scripts/prismlab.ps1\" -Target PrismLabForward -NoRun",
+        ".hlsl": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$workspaceRoot/prismlab.ps1\" -Target PrismLabForward -NoRun",
+        ".hlsli": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$workspaceRoot/prismlab.ps1\" -Target PrismLabForward -NoRun",
         ".ps1": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$fullFileName\""
     },
     // Code Runner 的 "Run Custom Command"（默认快捷键未绑定）
-    "code-runner.customCommand": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$workspaceRoot/scripts/prismlab.ps1\" -Target All -NoRun",
+    "code-runner.customCommand": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$workspaceRoot/prismlab.ps1\" -Target All -NoRun",
 
     // ------------------------------------------------------------------
     // C/C++ 与 CMake

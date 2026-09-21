@@ -6,7 +6,7 @@
 // view of the depth buffer). There is no camera, scene, UI shell, timing or configuration code here:
 // the host provides all of it, which is what "only write the algorithm" means in practice.
 
-#include <host/Lab.h>
+#include <framework/host/Lab.h>
 
 namespace renderlab::labs
 {

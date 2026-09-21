@@ -11,4 +11,6 @@ rl_add_target(PrismLabContract
         contract_check.hlsl
     CFG
         shaders.cfg
+    CONFIG
+        config.json
     PROJECT_NAME "RenderLab ContractLab")

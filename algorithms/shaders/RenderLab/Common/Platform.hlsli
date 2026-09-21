@@ -1,7 +1,7 @@
 #ifndef RENDERLAB_PLATFORM_HLSLI
 #define RENDERLAB_PLATFORM_HLSLI
 
-// RenderLab 平台约定 v1（见 docs/architecture.md 第三章与 include/renderlab/contracts/Conventions.h）。
+// RenderLab 平台约定 v1（见 include/framework/types/Conventions.h）。
 // 每个实验 shader 的第一行都应该包含本文件。
 
 // 1) 矩阵打包为行主序，与 Donut 的 shader 以及 CPU 侧的 dm::float4x4 内存布局一致。

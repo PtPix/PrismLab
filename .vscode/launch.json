@@ -1,5 +1,5 @@
 // F5 调试配置（需要 ms-vscode.cpptools）。preLaunchTask 会先构建再启动，
-// 构建逻辑仍在 scripts/prismlab.ps1 里，这里不重复写 cmake 命令。
+// 构建逻辑仍在根目录的 prismlab.ps1 里，这里不重复写 cmake 命令。
 //
 // 程序是 WIN32 子系统：stdout 不可见，运行日志见 build/my-project/bin/renderlab.log
 // （无头参数运行时一定写文件；交互运行时日志显示在应用内控制台）。

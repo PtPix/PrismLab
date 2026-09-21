@@ -1,26 +1,29 @@
 # PrismLab
 
-D3D12 图形学实验平台。仓库提供一套分层框架（契约 / 算法 / 执行 / 适配 / 管线 / 宿主），
-写一个新实验只需要实现一个 Lab 子类和它的 shader：窗口、设备、相机、场景、UI、GPU 计时、
-配置、截图、清理顺序都由宿主提供。
+D3D12 图形学实验平台。仓库分成两半：`algorithms/` 是解耦的算法核心（HLSL 只通过 `RL_*`
+桥接函数接触宿主），`framework/` 是全部基于 Donut / NVRHI 的设施（类型、执行、适配、管线、
+宿主）。写一个新实验只需要实现一个 Lab 子类和它的 shader：窗口、设备、相机、场景、UI、
+GPU 计时、配置、截图、清理顺序都由框架提供。
 
-架构与分层规则见 [docs/architecture.md](docs/architecture.md)，研究方向见
-`E:/UE_5.8/RenderLabDocs/RenderLab_Architecture_and_Research_Roadmap.md`。
+研究方向见 `E:/UE_5.8/RenderLabDocs/RenderLab_Architecture_and_Research_Roadmap.md`。
 
 ## 目录
 
 ```text
 external/Donut-Samples/   官方仓库子模块，固定提交（Donut / NVRHI / glfw / imgui / cgltf）
-include/renderlab/        契约层：参数与语义，无 Donut 场景类型、无 NVRHI 对象
-algorithms/shaders/       算法层：可复用 HLSL 核心（用桥接函数与宿主解耦）
-backends/nvrhi/common/    执行层：shader 变体、命名瞬态资源、GPU 计时、读回、绘制辅助
-adapters/donut/           适配层：配置、相机、场景源、光源与几何转换
-pipelines/                管线层：可复用 Pass 接线（共享前向场景路径）
-host/                     宿主层：窗口、设备、相机、场景、UI、帧循环、命令行、WinMain
-samples/                  实验：lab_forward、lab_contract，以及最小的 starter
-configs/host/             宿主与实验的 JSON 配置
-docs/                     架构与依赖记录
+algorithms/shaders/       解耦核心：可复用 HLSL 算法（只通过 RL_* 桥接函数接触宿主）
+framework/types/          算法消费的数据类型（算法与框架共享，直接用 donut::math）
+framework/nvrhi/          执行设施：shader 变体、命名瞬态资源、GPU 计时、读回、绘制辅助
+framework/donut/          Donut 设施：配置、相机、场景源、光源与几何转换
+framework/pipelines/      管线接线：可复用 Pass（共享前向场景路径）
+framework/host/           应用宿主：窗口、设备、相机、场景、UI、帧循环、命令行、WinMain
+samples/                  实验：lab_forward、lab_contract、starter（每个实验自带 config.json）
+prismlab.ps1              唯一构建 / 运行入口（找 cmake、按需 configure、构建、启动）
 ```
+
+`algorithms/` 与 `framework/` 的边界是项目里唯一的解耦点：算法 shader 只能通过 `RL_*`
+桥接函数与宿主交互，换宿主时只重写桥接层；`framework/` 的 C++ 直接用 `donut::math` 与
+Donut / NVRHI 设施，不假装与引擎无关。
 
 Donut-Samples 的 `donut` 是嵌套子模块，NVRHI 等由它继续管理。主仓库只保存子模块提交引用，
 不复制第三方源码，也不修改官方示例。默认不初始化大型 glTF 示例资产，不构建官方示例。
@@ -58,18 +61,18 @@ cmake --build --preset my-project --parallel
 
 ### 一键构建 + 运行
 
-`scripts/prismlab.ps1` 是唯一入口（查找 cmake、按需 configure preset、构建、启动程序），
-编辑器里的运行任务、F5 调试与 Code Runner 都调用它：
+`prismlab.ps1` 是唯一入口（查找 cmake、按需 configure preset、构建、启动程序），
+编辑器里的运行任务、F5 调试与 Code Runner 都调用它；宿主参数用 `-AppArgs` 原样转发：
 
 ```powershell
 # 终端：构建并启动实验
-powershell -NoProfile -File scripts/prismlab.ps1 -Target PrismLabForward
+powershell -NoProfile -File prismlab.ps1 -Target PrismLabForward
 
 # 无头运行：跑 30 帧后退出，失败返回非零退出码，并回显日志尾部
-powershell -NoProfile -File scripts/prismlab.ps1 -Target PrismLabContract -SmokeTest 30 -TailLog
+powershell -NoProfile -File prismlab.ps1 -Target PrismLabContract -AppArgs --smoke-test=30 -TailLog
 
 # 性能测量：预热 30 帧后测量 120 帧，写出指标 CSV
-powershell -NoProfile -File scripts/prismlab.ps1 -Target PrismLabForward -Bench 120 -Metrics forward_bench.csv
+powershell -NoProfile -File prismlab.ps1 -Target PrismLabForward -AppArgs --bench=120 --metrics forward_bench.csv
 
 # 只构建（等价于 CMake preset 的 Debug / Release 变体）
 cmake --build --preset my-project-debug
@@ -84,12 +87,12 @@ cmake --build --preset my-project
 
 不指定 `-Target` 时按源文件推断：`samples/lab_forward` → `PrismLabForward`，
 `samples/lab_contract` → `PrismLabContract`，`samples/starter` → `PrismLabStarter`，
-框架代码（`host/`、`pipelines/`、`adapters/` 等）默认 `PrismLabForward`。
+框架代码（`framework/`、`algorithms/`）默认 `PrismLabForward`。
 
 ### 命令行
 
 ```powershell
---config <path>           指定 JSON 配置文件（默认 configs/host/camera_default.json）
+--config <path>           指定 JSON 配置文件（默认是实验自己的 samples/<lab>/config.json）
 --scene <source>          覆盖场景来源：procedural | gltf
 --asset <path>            覆盖场景资产（场景 .json、.gltf 或 .glb）
 --smoke-test[=N]          渲染 N 帧（默认 3）后退出，用于验证构建与初始化
@@ -138,12 +141,15 @@ git -C external/Donut-Samples submodule update --init media
 
 ## 写一个新实验
 
-1. `samples/lab_<name>/` 下放 `xxx_lab.h/.cpp`、自己的 `*.hlsl`、`shaders.cfg`、`CMakeLists.txt`。
+1. `samples/lab_<name>/` 下放 `xxx_lab.h/.cpp`、自己的 `*.hlsl`、`shaders.cfg`、`config.json`、
+   `CMakeLists.txt`。
 2. 继承 `renderlab::host::Lab`：`Initialize` 里用 `context.resources->Get(slot)` 声明资源、建 PSO，
    `Render` 录制 Pass，`BuildUI` 里 `m_Params.BuildUI()`；需要读回或数值验证时用 `BeginFrame`。
 3. 定义工厂 `std::unique_ptr<renderlab::host::Lab> renderlab::host::CreateLab()`。
-4. CMakeLists 写一次 `rl_add_target(<target> KIND EXECUTABLE SOURCES ... SHADERS ... CFG ...)`：
-   框架库、shader 编译与依赖关系都由它处理；顶层只需 `add_subdirectory(samples/lab_<name>)`。
+4. CMakeLists 写一次
+   `rl_add_target(<target> KIND EXECUTABLE SOURCES ... SHADERS ... CFG ... CONFIG config.json)`：
+   框架库、shader 编译、依赖关系与默认配置都由它处理；顶层只需
+   `add_subdirectory(samples/lab_<name>)`。
 
 `samples/lab_forward` 是最小完整例子（含自己的全屏 Pass、参数表和调试视图发布）；
 `samples/lab_contract` 展示了 GPU/CPU 数值自检的写法。shader 第一行要包含
@@ -162,7 +168,7 @@ git push -u origin main
 
 ## 来源
 
-host 层基于 Donut-Samples 的 `examples/basic_triangle` 与 Donut 的 device/UI 框架改写，
+`framework/host` 基于 Donut-Samples 的 `examples/basic_triangle` 与 Donut 的 device/UI 框架改写，
 保留其版权与 MIT 许可声明。第三方依赖遵循各自许可，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 ## 两种构建选项

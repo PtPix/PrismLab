@@ -1,6 +1,6 @@
 #include "forward_lab.h"
 
-#include <backends/nvrhi/common/PipelineUtils.h>
+#include <framework/nvrhi/PipelineUtils.h>
 
 #include <donut/core/json.h>
 #include <donut/core/log.h>
@@ -44,7 +44,7 @@ namespace renderlab::labs
         if (!context.device || !context.targets || !context.shaders)
             return Status::Error(ErrorCode::NotInitialized, "the host context is incomplete");
 
-        // 读取本实验自己的配置段（configs/host/camera_default.json 的 labs.ForwardLab）
+        // 读取本实验自己的配置段（samples/lab_forward/config.json 的 labs.ForwardLab）
         if (context.config)
         {
             Json::Value settings;
