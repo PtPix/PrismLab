@@ -2,9 +2,9 @@
 
 // Donut facilities: the shared experiment configuration (window, camera, lighting, scene, render).
 //
-// A lab does not read the JSON itself: it asks for its own section ("labs" -> "<lab name>") and keeps
+// An experiment does not read the JSON itself: it asks for its own section ("experiments" -> "<name>") and keeps
 // its parameters in the framework types. The default file is the experiment's own config.json, which
-// rl_add_target (CONFIG) copies next to the executable as <executable name>.json; --config overrides it.
+// prism_add_target (CONFIG) copies next to the executable as <executable name>.json; --config overrides it.
 
 #include <donut/core/math/math.h>
 
@@ -17,7 +17,7 @@ namespace Json
     class Value;
 }
 
-namespace renderlab::adapter
+namespace prism::adapter
 {
     struct HostCameraPreset
     {
@@ -81,7 +81,7 @@ namespace renderlab::adapter
     // 找不到时返回原路径，由加载方给出错误信息。
     std::filesystem::path ResolveAssetPath(const std::string& path);
 
-    // 读取实验自己的参数段：configs 中 "labs": { "<labName>": { ... } }。
+    // 读取实验自己的参数段：configs 中 "experiments": { "<experimentName>": { ... } }。
     // 返回 false 表示没有该段，实验应继续使用内置默认值。
-    bool LoadLabSettings(const HostConfig& config, const char* labName, Json::Value& outSettings);
+    bool LoadExperimentSettings(const HostConfig& config, const char* experimentName, Json::Value& outSettings);
 }

@@ -1,6 +1,6 @@
 #pragma once
 
-// Donut facilities: the scene handed to every lab.
+// Donut facilities: the scene handed to every experiment.
 //
 // The scene stays in Donut form (graph, buffers, materials) because the shared scene pipeline draws it
 // through Donut's passes; algorithm-side passes consume the shared data below: light records and the
@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 
-namespace renderlab::adapter
+namespace prism::adapter
 {
     struct SceneStats
     {
@@ -38,7 +38,7 @@ namespace renderlab::adapter
         std::vector<std::shared_ptr<donut::engine::Material>> materials;
 
         // 契约数据：算法只看到这些，不接触 Donut 场景类型。
-        std::vector<renderlab::LightRecord> lights;
+        std::vector<prism::LightRecord> lights;
 
         // 自绘 Pass（阴影图、深度预pass、GBuffer）使用的批次视图。
         gpu::GeometryBatch geometry;

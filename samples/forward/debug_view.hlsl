@@ -1,10 +1,10 @@
-// ForwardLab debug view: visualizes what the shared scene pipeline wrote into the depth buffer.
+// ForwardExperiment debug view: visualizes what the shared scene pipeline wrote into the depth buffer.
 //
 // This is the smallest useful example of an experiment-written pass: it owns its constant layout
 // (debug_view_cb.h), binds the pool's depth texture and renders with Donut's fullscreen VS.
 
 // 平台约定（矩阵行主序、深度约定、颜色空间）：必须最先包含
-#include "RenderLab/Common/Platform.hlsli"
+#include "Prism/Common/Platform.hlsli"
 
 #include "debug_view_cb.h"
 

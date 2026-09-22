@@ -3,7 +3,7 @@
 // Host 层：指标收集与导出。
 //
 // 宿主每帧收集帧统计（CPU 帧时间、GPU 总时间、每个 Pass 的时间戳），实验通过
-// LabContext::metrics 上报自己的数值（间接光均值、NaN 计数、reservoir 复用率……）。
+// ExperimentContext::metrics 上报自己的数值（间接光均值、NaN 计数、reservoir 复用率……）。
 //
 // 导出格式：CSV，逐帧一行，末尾以 '#' 开头写上下文与汇总（mean/min/max），
 // 既能直接看，也能被工具按 '#' 过滤后解析。性能记录需要的信息（GPU、分辨率、构建模式、
@@ -16,13 +16,13 @@
 #include <string>
 #include <vector>
 
-namespace renderlab::host
+namespace prism::host
 {
     class Metrics
     {
     public:
         void SetContext(
-            std::string labName,
+            std::string experimentName,
             std::string sceneDescription,
             std::string rendererDescription,
             Extent2D renderSize,
@@ -73,7 +73,7 @@ namespace renderlab::host
         uint64_t m_FrameCount = 0;
         bool m_FrameOpen = false;
 
-        std::string m_LabName = "(unknown)";
+        std::string m_ExperimentName = "(unknown)";
         std::string m_SceneDescription = "(unknown)";
         std::string m_RendererDescription = "(unknown)";
         Extent2D m_RenderSize;

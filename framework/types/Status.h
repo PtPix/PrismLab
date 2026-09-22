@@ -2,13 +2,13 @@
 
 // Framework types: error reporting without exceptions and without C++23 std::expected.
 //
-// A lab reports failure with a Status carrying the module name and a reason, so that a failed
+// An experiment reports failure with a Status carrying the module name and a reason, so that a failed
 // experiment is not silently replaced by a different algorithm.
 
 #include <string>
 #include <utility>
 
-namespace renderlab
+namespace prism
 {
     enum class ErrorCode
     {
@@ -70,7 +70,7 @@ namespace renderlab
             if (IsOk())
                 return "ok";
 
-            return std::string(renderlab::ToString(m_Code)) + ": " + m_Message;
+            return std::string(prism::ToString(m_Code)) + ": " + m_Message;
         }
 
         explicit operator bool() const { return IsOk(); }

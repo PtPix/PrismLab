@@ -1,19 +1,19 @@
-# Builds and runs a PrismLab experiment: the single entry point for VS Code tasks, F5 and terminals.
+# Builds and runs a Prism experiment: the single entry point for VS Code tasks, F5 and terminals.
 #
 # ASCII-only on purpose: Windows PowerShell 5.1 reads a BOM-less script as ANSI and would corrupt
 # non-ASCII literals.
 #
-#   powershell -NoProfile -File prismlab.ps1                                    # ForwardLab, Debug
-#   powershell -NoProfile -File prismlab.ps1 -Target All -Config Release -NoRun
-#   powershell -NoProfile -File prismlab.ps1 -Target PrismLabContract -AppArgs --smoke-test=30 -TailLog
-#   powershell -NoProfile -File prismlab.ps1 -Target PrismLabForward -AppArgs --bench=120 --metrics forward_bench.csv
+#   powershell -NoProfile -File prism.ps1                                    # ForwardExperiment, Debug
+#   powershell -NoProfile -File prism.ps1 -Target All -Config Release -NoRun
+#   powershell -NoProfile -File prism.ps1 -Target PrismContract -AppArgs --smoke-test=30 -TailLog
+#   powershell -NoProfile -File prism.ps1 -Target PrismForward -AppArgs --bench=120 --metrics forward_bench.csv
 
 param(
     # Source file that triggered the run (Code Runner passes $fullFileName); picks a target when
     # -Target is empty.
     [string]$SourceFile = '',
 
-    [ValidateSet('', 'PrismLabForward', 'PrismLabContract', 'PrismLabStarter', 'All')]
+    [ValidateSet('', 'PrismForward', 'PrismContract', 'PrismStarter', 'All')]
     [string]$Target = '',
 
     [ValidateSet('Debug', 'Release')]
@@ -59,22 +59,22 @@ function Find-CMake {
 
 function Resolve-Target([string]$file) {
     if ([string]::IsNullOrEmpty($file)) {
-        return 'PrismLabForward'
+        return 'PrismForward'
     }
 
     switch -Regex ($file -replace '\\', '/') {
-        '/samples/lab_forward/'  { return 'PrismLabForward' }
-        '/samples/lab_contract/' { return 'PrismLabContract' }
-        '/samples/starter/'      { return 'PrismLabStarter' }
-        default                  { return 'PrismLabForward' }
+        '/samples/forward/'  { return 'PrismForward' }
+        '/samples/contract/' { return 'PrismContract' }
+        '/samples/starter/'      { return 'PrismStarter' }
+        default                  { return 'PrismForward' }
     }
 }
 
 $cmake = Find-CMake
-Write-Host ('[prismlab] cmake : ' + $cmake)
+Write-Host ('[prism] cmake : ' + $cmake)
 
 if (-not (Test-Path (Join-Path $buildDir 'CMakeCache.txt'))) {
-    Write-Host ('[prismlab] configuring ' + $Preset)
+    Write-Host ('[prism] configuring ' + $Preset)
     Push-Location $root
     try {
         & $cmake --preset $Preset
@@ -96,9 +96,9 @@ if ([string]::IsNullOrEmpty($Target)) {
 }
 
 if (-not $NoBuild) {
-    $targets = if ($Target -eq 'All') { @('PrismLabForward', 'PrismLabContract', 'PrismLabStarter') } else { @($Target) }
+    $targets = if ($Target -eq 'All') { @('PrismForward', 'PrismContract', 'PrismStarter') } else { @($Target) }
 
-    Write-Host ('[prismlab] building ' + ($targets -join ', ') + ' (' + $Config + ')')
+    Write-Host ('[prism] building ' + ($targets -join ', ') + ' (' + $Config + ')')
     & $cmake --build $buildDir --config $Config --target $targets --parallel
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
@@ -109,7 +109,7 @@ if ($NoRun) {
     exit 0
 }
 
-$runTarget = if ($Target -eq 'All') { 'PrismLabForward' } else { $Target }
+$runTarget = if ($Target -eq 'All') { 'PrismForward' } else { $Target }
 $executable = Join-Path $binDir ($runTarget + '.exe')
 if (-not (Test-Path $executable)) {
     Write-Error ('executable not found: ' + $executable)
@@ -125,7 +125,7 @@ foreach ($argument in $AppArgs) {
     }
 }
 
-Write-Host ('[prismlab] running ' + $runTarget + '.exe ' + ($AppArgs -join ' '))
+Write-Host ('[prism] running ' + $runTarget + '.exe ' + ($AppArgs -join ' '))
 
 $startParameters = @{ FilePath = $executable; WorkingDirectory = $binDir; PassThru = $true }
 if ($AppArgs.Count -gt 0) {
@@ -140,14 +140,14 @@ $process = Start-Process @startParameters
 $exitCode = 0
 if ($headless) {
     $exitCode = $process.ExitCode
-    Write-Host ('[prismlab] exit code : ' + $exitCode)
+    Write-Host ('[prism] exit code : ' + $exitCode)
 }
 
 # Headless runs write the host log next to the executable.
 if ($TailLog -or $headless) {
-    $logPath = Join-Path $binDir 'renderlab.log'
+    $logPath = Join-Path $binDir 'prism.log'
     if (Test-Path $logPath) {
-        Write-Host '[prismlab] --- renderlab.log (tail) ---'
+        Write-Host '[prism] --- prism.log (tail) ---'
         Get-Content $logPath -Tail 15 | ForEach-Object { Write-Host ('    ' + $_) }
     }
 }

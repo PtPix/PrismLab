@@ -1,6 +1,6 @@
 #pragma once
 
-// Host layer: command line parsing shared by all labs.
+// Host layer: command line parsing shared by all experiments.
 //
 //   --config <path>      使用指定配置文件
 //   --scene <source>     覆盖配置中的场景来源（procedural | gltf）
@@ -24,7 +24,7 @@
 #include <string>
 #include <vector>
 
-namespace renderlab::host
+namespace prism::host
 {
     struct CommandLine
     {

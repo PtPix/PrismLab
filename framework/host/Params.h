@@ -9,17 +9,17 @@
 //
 //   struct GiSettings { bool enabled = true; int candidateSamples = 4; float temporalWeight = 0.9f; };
 //
-//   inline const renderlab::host::ParamDesc kGiParams[] = {
-//       RL_PARAM_BOOL (GiSettings, enabled,          "Enable GI",       renderlab::host::ParamFlags::None),
-//       RL_PARAM_INT  (GiSettings, candidateSamples, "Candidates", 1, 32, renderlab::host::ParamFlags::HistoryInvalidating),
-//       RL_PARAM_FLOAT(GiSettings, temporalWeight,   "Temporal w", 0,  1,  renderlab::host::ParamFlags::HistoryInvalidating),
+//   inline const prism::host::ParamDesc kGiParams[] = {
+//       PRISM_PARAM_BOOL (GiSettings, enabled,          "Enable GI",       prism::host::ParamFlags::None),
+//       PRISM_PARAM_INT  (GiSettings, candidateSamples, "Candidates", 1, 32, prism::host::ParamFlags::HistoryInvalidating),
+//       PRISM_PARAM_FLOAT(GiSettings, temporalWeight,   "Temporal w", 0,  1,  prism::host::ParamFlags::HistoryInvalidating),
 //   };
 //
 // 使用（feature 的 Initialize / BuildUI / Render）：
 //
 //   m_Params = host::ParamTable(kGiParams);
 //   m_Params.Bind(&m_Settings);
-//   Json::Value lab; if (adapter::LoadLabSettings(*context.config, GetName(), lab)) m_Params.LoadJson(lab);
+//   Json::Value settings; if (adapter::LoadExperimentSettings(*context.config, GetName(), settings)) m_Params.LoadJson(settings);
 //
 //   void BuildUI(...) override { m_Params.BuildUI(); }
 //
@@ -27,7 +27,7 @@
 //   if (m_Params.WasEdited())
 //   {
 //       const uint64_t hash = m_Params.ComputeHash();
-//       if (hash != m_LastParamHash) { m_LastParamHash = hash; context.callbacks.requestHistoryReset(HistoryResetReason::SettingsChange); }
+//       if (hash != m_LastParamHash) { m_LastParamHash = hash; context.output.callbacks.requestHistoryReset(HistoryResetReason::SettingsChange); }
 //       m_Params.ClearEdited();
 //   }
 
@@ -44,7 +44,7 @@ namespace Json
     class Value;
 }
 
-namespace renderlab::host
+namespace prism::host
 {
     enum class ParamKind : uint32_t
     {
@@ -124,15 +124,15 @@ namespace renderlab::host
     };
 
     // 字段描述符：把设置结构体字段、JSON 键、UI 标签和标志绑在一起。
-    #define RL_PARAM_BOOL(StructType, member, label, flags)                                              \
-        ::renderlab::host::ParamDesc{ #member, label, ::renderlab::host::ParamKind::Bool,                \
+    #define PRISM_PARAM_BOOL(StructType, member, label, flags)                                              \
+        ::prism::host::ParamDesc{ #member, label, ::prism::host::ParamKind::Bool,                \
             uint32_t(offsetof(StructType, member)), 0.f, 1.f, (flags), nullptr }
 
-    #define RL_PARAM_INT(StructType, member, label, minValue, maxValue, flags)                            \
-        ::renderlab::host::ParamDesc{ #member, label, ::renderlab::host::ParamKind::Int,                  \
+    #define PRISM_PARAM_INT(StructType, member, label, minValue, maxValue, flags)                            \
+        ::prism::host::ParamDesc{ #member, label, ::prism::host::ParamKind::Int,                  \
             uint32_t(offsetof(StructType, member)), float(minValue), float(maxValue), (flags), nullptr }
 
-    #define RL_PARAM_FLOAT(StructType, member, label, minValue, maxValue, flags)                          \
-        ::renderlab::host::ParamDesc{ #member, label, ::renderlab::host::ParamKind::Float,                \
+    #define PRISM_PARAM_FLOAT(StructType, member, label, minValue, maxValue, flags)                          \
+        ::prism::host::ParamDesc{ #member, label, ::prism::host::ParamKind::Float,                \
             uint32_t(offsetof(StructType, member)), float(minValue), float(maxValue), (flags), nullptr }
 }

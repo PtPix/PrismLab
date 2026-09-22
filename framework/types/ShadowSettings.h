@@ -24,7 +24,7 @@
 
 #include <cstdint>
 
-namespace renderlab
+namespace prism
 {
     enum class ShadowFilter : uint32_t
     {
@@ -96,7 +96,7 @@ namespace renderlab
 
         [[nodiscard]] float LinearizeDepth(float deviceDepth) const
         {
-            return renderlab::LinearizeDepth(deviceDepth, nearPlaneMeters, farPlaneMeters, depthConvention);
+            return prism::LinearizeDepth(deviceDepth, nearPlaneMeters, farPlaneMeters, depthConvention);
         }
     };
 

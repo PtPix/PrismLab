@@ -2,7 +2,7 @@
 
 // Framework types: the project-wide semantic conventions, version 1.
 //
-// These are RenderLab's own rules, not Donut's or UE's defaults. The Donut facilities convert host
+// These are Prism's own rules, not Donut's or UE's defaults. The Donut facilities convert host
 // data into these conventions; if a host value is passed through unconverted, the interface
 // metadata must say so and the verification code must check it.
 //
@@ -24,7 +24,7 @@
 
 #include <cmath>
 
-namespace renderlab
+namespace prism
 {
     // --- depth ---
 

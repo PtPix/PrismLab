@@ -4,7 +4,7 @@
 //
 // This directory is part of the Donut-managed half and uses donut::math directly; it does not
 // pretend to be engine-agnostic. The decoupled half is algorithms/, whose HLSL reaches its host
-// only through RL_* bridge functions.
+// only through PRISM_* bridge functions.
 //
 // Rules for this directory:
 //   * No Donut scene/app types, no NVRHI objects, no ImGui: those live in framework/donut,
@@ -18,7 +18,7 @@
 
 namespace dm = donut::math;
 
-namespace renderlab
+namespace prism
 {
     using ViewId = uint32_t;
     constexpr ViewId kPrimaryViewId = 0;

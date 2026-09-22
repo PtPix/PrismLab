@@ -16,7 +16,7 @@
 
 #include <cstdint>
 
-namespace renderlab::gpu
+namespace prism::gpu
 {
     enum class DebugViewMode : uint32_t
     {
@@ -66,7 +66,7 @@ namespace renderlab::gpu
     class DebugViewPass
     {
     public:
-        // 加载框架自带的 shader（renderlab/DebugView.hlsl 的 main_vs / main_ps）。
+        // 加载框架自带的 shader（prism/DebugView.hlsl 的 main_vs / main_ps）。
         bool Initialize(nvrhi::IDevice* device, ShaderLibrary& shaders);
 
         // 把 source 画到 target。source 或 target 变化时内部重建绑定集与管线对象。

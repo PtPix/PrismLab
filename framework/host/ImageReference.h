@@ -5,7 +5,7 @@
 // 分工：
 //   * PNG 截图（--capture）用于人眼看，不做像素级比较；
 //   * 参考图（--write-reference / --reference）是 .f32 文件，用于数值回归（路线图 §10.1）。
-// 格式：文本头 "RLFLOAT1\n<width> <height> <channels>\n" + 原始 float32 负载（RGBA 顺序）。
+// 格式：文本头 "PRISM1\n<width> <height> <channels>\n" + 原始 float32 负载（RGBA 顺序）。
 
 #include <framework/types/Status.h>
 #include <framework/types/Types.h>
@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-namespace renderlab::host
+namespace prism::host
 {
     struct FloatImage
     {

@@ -5,8 +5,8 @@
 // 时域基础设施（历史纹理的分配与交换、采样序列、像素种子、重置规则）由使用者实现
 // （路线图 §3.2 帧与视图信息、§5.5 时域功能的额外接口、方向 06）。宿主只定义接缝：
 //
-//   * Lab::Initialize 里创建实现并把指针写进 LabContext::temporal；
-//   * feature 通过 LabContext::temporal 取历史与种子，不自己发明一套；
+//   * Experiment::Initialize 里创建实现并把指针写进 ExperimentContext::temporal；
+//   * feature 通过 ExperimentContext::temporal 取历史与种子，不自己发明一套；
 //   * 宿主在渲染分辨率变化时调用 OnRenderSizeChanged，让实现丢弃按分辨率分配的历史。
 //
 // 约定：
@@ -25,9 +25,9 @@
 
 #include <cstdint>
 
-namespace renderlab::host
+namespace prism::host
 {
-    struct LabContext;   // 定义在 host/Lab.h；实现方需要包含它
+    struct ExperimentContext;   // 定义在 host/Experiment.h；实现方需要包含它
 
     class ITemporalServices
     {
@@ -35,16 +35,16 @@ namespace renderlab::host
         virtual ~ITemporalServices() = default;
 
         // 创建历史资源与内部状态。
-        virtual Status Initialize(LabContext& context) = 0;
+        virtual Status Initialize(ExperimentContext& context) = 0;
 
         // 丢弃某个 owner 的历史（例如实验改了滤波参数、或某个光源被移除）。
-        virtual void ResetHistory(const char* owner, renderlab::ViewId viewId, renderlab::HistoryResetReason reason) = 0;
+        virtual void ResetHistory(const char* owner, prism::ViewId viewId, prism::HistoryResetReason reason) = 0;
 
         // 本帧该 owner 的历史是否在开始时被判定为无效（feature 据此走首帧路径）。
-        virtual bool WasResetThisFrame(const char* owner, renderlab::ViewId viewId) const = 0;
+        virtual bool WasResetThisFrame(const char* owner, prism::ViewId viewId) const = 0;
 
         // 本帧应使用的采样索引；sampleCount 由 feature 决定（例如 8 或 16 个样本一个周期）。
-        virtual uint32_t SampleIndex(renderlab::ViewId viewId, uint32_t sampleCount) = 0;
+        virtual uint32_t SampleIndex(prism::ViewId viewId, uint32_t sampleCount) = 0;
 
         // 稳定像素种子：同一 (frame, pixel, stream) 必须给出相同结果。
         virtual uint32_t PixelSeed(dm::uint2 pixel, uint32_t stream) const = 0;
@@ -53,6 +53,6 @@ namespace renderlab::host
         virtual void OnRenderSizeChanged(const Extent2D& renderSize) = 0;
 
         // 时域相关的调试信息（历史有效性、样本索引、复用的采样数）在宿主面板里显示。
-        virtual void BuildUI(LabContext& context) = 0;
+        virtual void BuildUI(ExperimentContext& context) = 0;
     };
 }

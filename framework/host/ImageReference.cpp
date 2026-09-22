@@ -9,7 +9,7 @@
 #include <cmath>
 #include <cstdio>
 
-namespace renderlab::host
+namespace prism::host
 {
     namespace
     {
@@ -69,28 +69,28 @@ namespace renderlab::host
     {
         if (!image.IsValid())
         {
-            donut::log::error("RenderLab: refusing to save an invalid reference image.");
+            donut::log::error("Prism: refusing to save an invalid reference image.");
             return false;
         }
 
         FILE* file = nullptr;
         if (_wfopen_s(&file, path.c_str(), L"wb") != 0 || !file)
         {
-            donut::log::error("RenderLab: cannot write the reference image to %s", path.string().c_str());
+            donut::log::error("Prism: cannot write the reference image to %s", path.string().c_str());
             return false;
         }
 
-        fprintf(file, "RLFLOAT1\n%u %u %u\n", image.size.width, image.size.height, image.channels);
+        fprintf(file, "PRISM1\n%u %u %u\n", image.size.width, image.size.height, image.channels);
         const size_t written = fwrite(image.pixels.data(), sizeof(float), image.pixels.size(), file);
         fclose(file);
 
         if (written != image.pixels.size())
         {
-            donut::log::error("RenderLab: short write for %s", path.string().c_str());
+            donut::log::error("Prism: short write for %s", path.string().c_str());
             return false;
         }
 
-        donut::log::info("RenderLab: reference image written to %s (%u x %u, %u channels).",
+        donut::log::info("Prism: reference image written to %s (%u x %u, %u channels).",
             path.string().c_str(), image.size.width, image.size.height, image.channels);
         return true;
     }
@@ -102,11 +102,11 @@ namespace renderlab::host
             return Status::Error(ErrorCode::ResourceMissing, "cannot open the reference image: " + path.string());
 
         char magic[16] = {};
-        if (fscanf_s(file, "%15s", magic, unsigned(_countof(magic))) != 1 || strcmp(magic, "RLFLOAT1") != 0)
+        if (fscanf_s(file, "%15s", magic, unsigned(_countof(magic))) != 1 || strcmp(magic, "PRISM1") != 0)
         {
             fclose(file);
             return Status::Error(ErrorCode::FormatMismatch,
-                "not a RenderLab reference image (expected the RLFLOAT1 header): " + path.string());
+                "not a Prism reference image (expected the PRISM1 header): " + path.string());
         }
 
         uint32_t width = 0;

@@ -1,6 +1,6 @@
 #include "Formats.h"
 
-namespace renderlab::gpu
+namespace prism::gpu
 {
     nvrhi::Format ToNvrhiFormat(PixelFormat format)
     {

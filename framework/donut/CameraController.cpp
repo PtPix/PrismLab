@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-namespace renderlab::adapter
+namespace prism::adapter
 {
     void CameraController::Initialize(const HostCameraPreset& preset)
     {
@@ -53,7 +53,7 @@ namespace renderlab::adapter
         // 环绕相机需要视口与投影矩阵才能把拖拽增量转换成旋转
         m_Camera.GetThirdPersonCamera().SetView(m_View);
 
-        m_CameraData.current = renderlab::ViewMatrices::Build(m_View.GetViewMatrix(), m_View.GetProjectionMatrix(false));
+        m_CameraData.current = prism::ViewMatrices::Build(m_View.GetViewMatrix(), m_View.GetProjectionMatrix(false));
 
         if (const donut::app::BaseCamera* camera = m_Camera.GetActiveUserCamera())
         {

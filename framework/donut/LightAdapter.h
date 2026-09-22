@@ -12,10 +12,10 @@
 
 #include <vector>
 
-namespace renderlab::adapter
+namespace prism::adapter
 {
-    std::vector<renderlab::LightRecord> CollectLights(const donut::engine::SceneGraph& graph);
+    std::vector<prism::LightRecord> CollectLights(const donut::engine::SceneGraph& graph);
 
     // GPU 布局：把 LightRecord 转成固定对齐的结构，供常量/结构化缓冲上传。
-    renderlab::GpuLight ToGpuLight(const renderlab::LightRecord& light);
+    prism::GpuLight ToGpuLight(const prism::LightRecord& light);
 }

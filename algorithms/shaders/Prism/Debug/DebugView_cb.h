@@ -3,8 +3,8 @@
 // 调试视图只做"通道选择 + 缩放偏移 + 伪彩"，不做任何解码或物理含义推断：
 // 语义由发布纹理的 feature 在其文档与 UI 标签里说明。
 
-#ifndef RENDERLAB_DEBUG_VIEW_CB_H
-#define RENDERLAB_DEBUG_VIEW_CB_H
+#ifndef PRISM_DEBUG_VIEW_CB_H
+#define PRISM_DEBUG_VIEW_CB_H
 
 struct DebugViewConstants
 {
@@ -16,4 +16,4 @@ struct DebugViewConstants
     float2 reserved1;
 };
 
-#endif // RENDERLAB_DEBUG_VIEW_CB_H
+#endif // PRISM_DEBUG_VIEW_CB_H

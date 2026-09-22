@@ -10,11 +10,11 @@ namespace dm = donut::math;
 using namespace donut::math;
 
 // 共享常量布局：需要 donut 数学类型在全局可见（与 Donut 自己的 shared header 用法一致）
-#include "RenderLab/Debug/DebugView_cb.h"
+#include "Prism/Debug/DebugView_cb.h"
 
 static_assert(sizeof(DebugViewConstants) == 32, "DebugViewConstants layout changed; update DebugView.hlsl");
 
-namespace renderlab::gpu
+namespace prism::gpu
 {
     bool DebugViewPass::Initialize(nvrhi::IDevice* device, ShaderLibrary& shaders)
     {
@@ -24,14 +24,14 @@ namespace renderlab::gpu
         m_Device = device;
         m_Shaders = &shaders;
 
-        m_VertexShader = shaders.GetShader("renderlab/DebugView.hlsl", "main_vs", nvrhi::ShaderType::Vertex);
-        m_PixelShader = shaders.GetShader("renderlab/DebugView.hlsl", "main_ps", nvrhi::ShaderType::Pixel);
+        m_VertexShader = shaders.GetShader("prism/DebugView.hlsl", "main_vs", nvrhi::ShaderType::Vertex);
+        m_PixelShader = shaders.GetShader("prism/DebugView.hlsl", "main_ps", nvrhi::ShaderType::Pixel);
 
         if (!m_VertexShader || !m_PixelShader)
             return false;
 
         m_ConstantBuffer = device->createBuffer(
-            nvrhi::utils::CreateVolatileConstantBufferDesc(sizeof(DebugViewConstants), "RenderLab.DebugView", 8));
+            nvrhi::utils::CreateVolatileConstantBufferDesc(sizeof(DebugViewConstants), "Prism.DebugView", 8));
 
         m_PointClampSampler = device->createSampler(
             nvrhi::SamplerDesc()

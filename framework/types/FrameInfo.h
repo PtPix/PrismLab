@@ -9,7 +9,7 @@
 
 #include <string>
 
-namespace renderlab
+namespace prism
 {
     enum class HistoryResetReason : uint32_t
     {

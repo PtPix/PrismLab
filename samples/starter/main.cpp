@@ -20,7 +20,7 @@
 * DEALINGS IN THE SOFTWARE.
 */
 
-// Adapted from Donut-Samples basic_triangle for PrismLab.
+// Adapted from Donut-Samples basic_triangle for Prism.
 #include <donut/app/ApplicationBase.h>
 #include <donut/app/DeviceManager.h>
 #include <donut/core/log.h>
@@ -32,7 +32,7 @@
 #include <memory>
 
 using namespace donut;
-constexpr const char* WindowTitle = "PrismLab | Starter";
+constexpr const char* WindowTitle = "Prism | Starter";
 
 class Starter final : public app::IRenderPass
 {

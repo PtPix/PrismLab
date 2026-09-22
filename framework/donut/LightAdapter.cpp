@@ -4,11 +4,11 @@
 
 #include <cmath>
 
-namespace renderlab::adapter
+namespace prism::adapter
 {
-    std::vector<renderlab::LightRecord> CollectLights(const donut::engine::SceneGraph& graph)
+    std::vector<prism::LightRecord> CollectLights(const donut::engine::SceneGraph& graph)
     {
-        std::vector<renderlab::LightRecord> records;
+        std::vector<prism::LightRecord> records;
         const auto& lights = graph.GetLights();
         records.reserve(lights.size());
 
@@ -17,7 +17,7 @@ namespace renderlab::adapter
             if (!light)
                 continue;
 
-            renderlab::LightRecord record;
+            prism::LightRecord record;
             record.name = light->GetName();
             record.stableId = uint64_t(records.size());   // 场景内稳定：同一场景内顺序不变
             record.color = light->color;
@@ -26,14 +26,14 @@ namespace renderlab::adapter
 
             if (const auto* directional = dynamic_cast<const donut::engine::DirectionalLight*>(light.get()))
             {
-                record.type = renderlab::LightType::Directional;
+                record.type = prism::LightType::Directional;
                 record.intensity = directional->irradiance;
                 record.angularRadiusRadians = dm::radians(directional->angularSize);
                 record.radius = 0.f;
             }
             else if (const auto* spot = dynamic_cast<const donut::engine::SpotLight*>(light.get()))
             {
-                record.type = renderlab::LightType::Spot;
+                record.type = prism::LightType::Spot;
                 record.intensity = spot->intensity;
                 record.radius = spot->radius;
                 record.coneAngleOuterRadians = dm::radians(spot->outerAngle) * 0.5f;   // Donut 存的是全锥角
@@ -41,13 +41,13 @@ namespace renderlab::adapter
             }
             else if (const auto* point = dynamic_cast<const donut::engine::PointLight*>(light.get()))
             {
-                record.type = renderlab::LightType::Point;
+                record.type = prism::LightType::Point;
                 record.intensity = point->intensity;
                 record.radius = point->radius;
             }
             else
             {
-                donut::log::warning("RenderLab: unsupported light type for '%s', skipping.", record.name.c_str());
+                donut::log::warning("Prism: unsupported light type for '%s', skipping.", record.name.c_str());
                 continue;
             }
 
@@ -60,9 +60,9 @@ namespace renderlab::adapter
         return records;
     }
 
-    renderlab::GpuLight ToGpuLight(const renderlab::LightRecord& light)
+    prism::GpuLight ToGpuLight(const prism::LightRecord& light)
     {
-        renderlab::GpuLight gpu = {};
+        prism::GpuLight gpu = {};
 
         gpu.positionRadius = dm::float4(light.position, light.radius);
         gpu.directionAngularSize = dm::float4(light.direction, light.angularRadiusRadians);

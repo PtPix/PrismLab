@@ -3,8 +3,8 @@
 // Kept deliberately tiny: the contract check only needs the inverse view-projection, the render size
 // and the depth convention, because its job is to reconstruct a value that the CPU can verify.
 
-#ifndef RENDERLAB_LAB_CONTRACT_CHECK_CB_H
-#define RENDERLAB_LAB_CONTRACT_CHECK_CB_H
+#ifndef PRISM_CONTRACT_CHECK_CB_H
+#define PRISM_CONTRACT_CHECK_CB_H
 
 struct ContractCheckConstants
 {
@@ -17,4 +17,4 @@ struct ContractCheckConstants
     int pad0;
 };
 
-#endif // RENDERLAB_LAB_CONTRACT_CHECK_CB_H
+#endif // PRISM_CONTRACT_CHECK_CB_H

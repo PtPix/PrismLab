@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 
-namespace renderlab::gpu
+namespace prism::gpu
 {
     enum class BufferUsage : uint32_t
     {

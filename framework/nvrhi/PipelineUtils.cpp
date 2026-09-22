@@ -4,7 +4,7 @@
 
 #include <nvrhi/utils.h>
 
-namespace renderlab::gpu
+namespace prism::gpu
 {
     nvrhi::BindingSetHandle CreateBindingSet(
         nvrhi::IDevice* device,

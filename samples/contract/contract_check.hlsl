@@ -8,7 +8,7 @@
 // Nothing here depends on the scene: the outputs are compared against the CPU's own math.
 
 // 平台约定（矩阵行主序、深度约定、颜色空间）：必须最先包含
-#include "RenderLab/Common/Platform.hlsli"
+#include "Prism/Common/Platform.hlsli"
 
 #include "contract_check_cb.h"
 

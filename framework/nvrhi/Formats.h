@@ -2,7 +2,7 @@
 
 // NVRHI layer: format and usage translation.
 //
-// The framework types name formats without a graphics API (renderlab::PixelFormat); this is the only
+// The framework types name formats without a graphics API (prism::PixelFormat); this is the only
 // place that knows how they map onto NVRHI. Extend both enums together.
 
 #include <framework/types/PixelFormat.h>
@@ -11,7 +11,7 @@
 
 #include <cstdint>
 
-namespace renderlab::gpu
+namespace prism::gpu
 {
     enum class TextureUsage : uint32_t
     {

@@ -9,7 +9,7 @@
 #include "Conventions.h"
 #include "Types.h"
 
-namespace renderlab
+namespace prism
 {
     struct ViewMatrices
     {
@@ -60,7 +60,7 @@ namespace renderlab
         // 设备深度 -> 相机前方线性距离（米）
         [[nodiscard]] float LinearizeDepth(float deviceDepth) const
         {
-            return renderlab::LinearizeDepth(deviceDepth, zNearMeters, zFarMeters, depthConvention);
+            return prism::LinearizeDepth(deviceDepth, zNearMeters, zFarMeters, depthConvention);
         }
 
         // uv 原点在左上；返回值可能落在 [0,1] 之外，表示视锥外

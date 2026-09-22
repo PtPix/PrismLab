@@ -7,7 +7,7 @@
 
 #include <cstdint>
 
-namespace renderlab
+namespace prism
 {
     enum class ColorSpace : uint32_t
     {

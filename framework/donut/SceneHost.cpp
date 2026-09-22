@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-namespace renderlab::adapter
+namespace prism::adapter
 {
     namespace
     {
@@ -47,7 +47,7 @@ namespace renderlab::adapter
             m_LoadedScene = std::make_unique<donut::engine::Scene>(
                 device, *shaderFactory, fileSystem, m_TextureCache, nullptr, nullptr);
 
-            donut::log::info("RenderLab: loading scene asset '%s'...", config.scene.asset.c_str());
+            donut::log::info("Prism: loading scene asset '%s'...", config.scene.asset.c_str());
 
             if (!m_LoadedScene->Load(config.scene.asset))
             {
@@ -73,7 +73,7 @@ namespace renderlab::adapter
             BuildGeometryBatchFromSceneGraph();
             CollectStats();
 
-            donut::log::info("RenderLab: asset scene ready -- %u meshes / %u instances / %u lights / %u triangles.",
+            donut::log::info("Prism: asset scene ready -- %u meshes / %u instances / %u lights / %u triangles.",
                 m_Scene.stats.meshes, m_Scene.stats.instances, m_Scene.stats.lights, m_Scene.stats.triangles);
 
             return Status::Ok();

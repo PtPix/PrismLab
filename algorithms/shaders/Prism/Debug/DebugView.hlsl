@@ -3,7 +3,7 @@
 // 自带顶点着色器（不依赖 Donut 的全屏 VS）：输出 4 个顶点，配合 TriangleStrip。
 // 输出已经是显示空间的数据（不是线性辐射），显示链应按 ColorSpace::DisplayEncoded 处理。
 
-#include "RenderLab/Common/Platform.hlsli"
+#include "Prism/Common/Platform.hlsli"
 #include "DebugView_cb.h"
 
 ConstantBuffer<DebugViewConstants> g_Debug : register(b0);

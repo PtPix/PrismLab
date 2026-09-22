@@ -6,7 +6,7 @@
 //   * procedural  —— built in code, no assets (default for algorithm work)
 //   * gltf        —— loaded through Donut's scene loader, for realism later on
 //
-// Everything the labs see goes through SceneData: the Donut graph for the shared scene pipeline, plus
+// Everything the experiments see goes through SceneData: the Donut graph for the shared scene pipeline, plus
 // contract-level light records and a geometry batch for algorithm-side passes.
 
 #include "HostConfig.h"
@@ -25,7 +25,7 @@ namespace donut::vfs
     class IFileSystem;
 }
 
-namespace renderlab::adapter
+namespace prism::adapter
 {
     class SceneHost
     {

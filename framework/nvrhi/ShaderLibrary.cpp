@@ -2,7 +2,7 @@
 
 #include <donut/core/log.h>
 
-namespace renderlab::gpu
+namespace prism::gpu
 {
     namespace
     {
@@ -70,7 +70,7 @@ namespace renderlab::gpu
         if (!shader)
         {
             m_LastError = std::string("failed to load ") + virtualPath + " (" + entryName + ", " + ToString(type) + ")";
-            donut::log::error("RenderLab: %s", m_LastError.c_str());
+            donut::log::error("Prism: %s", m_LastError.c_str());
             return nullptr;
         }
 
@@ -103,7 +103,7 @@ namespace renderlab::gpu
         if (!library)
         {
             m_LastError = std::string("failed to load shader library ") + virtualPath;
-            donut::log::error("RenderLab: %s", m_LastError.c_str());
+            donut::log::error("Prism: %s", m_LastError.c_str());
             return nullptr;
         }
 

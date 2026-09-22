@@ -1,7 +1,7 @@
 #include "Application.h"
 
 #include "CommandLine.h"
-#include "LabHost.h"
+#include "ExperimentHost.h"
 #include "UiOverlay.h"
 
 #include <framework/donut/HostConfig.h>
@@ -25,14 +25,14 @@
 #include <memory>
 #include <string>
 
-namespace renderlab::host
+namespace prism::host
 {
     namespace
     {
         // GUI 应用没有控制台，把日志同时写进可执行文件旁边的文件。
         void LogToFile(donut::log::Severity, const char* message)
         {
-            static const std::filesystem::path logPath = donut::app::GetDirectoryWithExecutable() / "renderlab.log";
+            static const std::filesystem::path logPath = donut::app::GetDirectoryWithExecutable() / "prism.log";
 
             FILE* file = nullptr;
             if (_wfopen_s(&file, logPath.c_str(), L"a") == 0 && file != nullptr)
@@ -85,7 +85,7 @@ namespace renderlab::host
         }
     }
 
-    int RunApplication(std::unique_ptr<Lab> lab, int argc, char** argv)
+    int RunApplication(std::unique_ptr<Experiment> experiment, int argc, char** argv)
     {
         donut::log::EnableOutputToMessageBox(false);
         donut::log::SetCallback(&LogToFile);
@@ -93,12 +93,12 @@ namespace renderlab::host
         const CommandLine commandLine = ParseCommandLine(argc, argv);
         if (commandLine.showHelp)
         {
-            donut::log::info("RenderLab\n%s", GetCommandLineUsage().c_str());
+            donut::log::info("Prism\n%s", GetCommandLineUsage().c_str());
             return 0;
         }
 
-        const std::string labName = lab ? lab->GetName() : "Lab";
-        donut::log::info("RenderLab: starting %s", labName.c_str());
+        const std::string experimentName = experiment ? experiment->GetName() : "Experiment";
+        donut::log::info("Prism: starting %s", experimentName.c_str());
 
         // --- configuration -----------------------------------------------------
         const std::filesystem::path executablePath =
@@ -127,7 +127,7 @@ namespace renderlab::host
         if (!config.scene.asset.empty())
             config.scene.asset = adapter::ResolveAssetPath(config.scene.asset).string();
 
-        const std::string applicationName = "RenderLab | " + labName;
+        const std::string applicationName = "Prism | " + experimentName;
 
         // --- device and swap chain --------------------------------------------
         donut::app::DeviceCreationParameters deviceParams;
@@ -151,7 +151,7 @@ namespace renderlab::host
 
         if (!deviceManager || !deviceManager->CreateWindowDeviceAndSwapChain(deviceParams, applicationName.c_str()))
         {
-            donut::log::fatal("RenderLab: failed to create the D3D12 device or swap chain.");
+            donut::log::fatal("Prism: failed to create the D3D12 device or swap chain.");
             return 1;
         }
 
@@ -161,13 +161,13 @@ namespace renderlab::host
 
         // --- shader mounts ----------------------------------------------------
         // /shaders/donut      : Donut 框架 shader（blit、forward shading、UI）
-        // /shaders/renderlab  : 本仓库编译出的 HLSL（见 algorithms/shaders 与各 samples 的 shaders.cfg）
+        // /shaders/prism  : 本仓库编译出的 HLSL（见 algorithms/shaders 与各 samples 的 shaders.cfg）
         const std::filesystem::path shaderTypeName = donut::app::GetShaderTypeName(deviceManager->GetGraphicsAPI());
         const std::filesystem::path shaderRoot = donut::app::GetDirectoryWithExecutable() / "shaders";
 
         auto rootFileSystem = std::make_shared<donut::vfs::RootFileSystem>();
         rootFileSystem->mount("/shaders/donut", shaderRoot / "framework" / shaderTypeName);
-        rootFileSystem->mount("/shaders/renderlab", shaderRoot / "renderlab" / shaderTypeName);
+        rootFileSystem->mount("/shaders/prism", shaderRoot / "prism" / shaderTypeName);
 
         auto shaderFactory = std::make_shared<donut::engine::ShaderFactory>(device, rootFileSystem, "/shaders");
         auto commonPasses = std::make_shared<donut::engine::CommonRenderPasses>(device, shaderFactory);
@@ -183,7 +183,7 @@ namespace renderlab::host
         pipeline::SceneForwardPipeline scenePipeline;
         if (!scenePipeline.Initialize(device, shaderFactory))
         {
-            donut::log::fatal("RenderLab: failed to initialize the shared scene pipeline.");
+            donut::log::fatal("Prism: failed to initialize the shared scene pipeline.");
             deviceManager->Shutdown();
             return 1;
         }
@@ -194,7 +194,7 @@ namespace renderlab::host
             const Status sceneStatus = sceneHost.Load(device, shaderFactory, sceneFileSystem, config);
             if (sceneStatus.IsError())
             {
-                donut::log::fatal("RenderLab: scene setup failed -- %s", sceneStatus.ToStringWithCode().c_str());
+                donut::log::fatal("Prism: scene setup failed -- %s", sceneStatus.ToStringWithCode().c_str());
                 deviceManager->Shutdown();
                 return 1;
             }
@@ -222,50 +222,50 @@ namespace renderlab::host
         services.assetsDirectory = FindAssetsDirectory();
 
         // --- render passes ----------------------------------------------------
-        auto labPass = std::make_shared<LabRenderPass>(
-            deviceManager.get(), stats, std::move(lab), services, commandLine);
+        auto experimentPass = std::make_shared<ExperimentRenderPass>(
+            deviceManager.get(), stats, std::move(experiment), services, commandLine);
 
-        const Status labStatus = labPass->Initialize();
-        if (labStatus.IsError())
+        const Status experimentStatus = experimentPass->Initialize();
+        if (experimentStatus.IsError())
         {
-            donut::log::fatal("RenderLab: %s", labStatus.ToStringWithCode().c_str());
-            labPass.reset();
+            donut::log::fatal("Prism: %s", experimentStatus.ToStringWithCode().c_str());
+            experimentPass.reset();
             deviceManager->Shutdown();
             return 1;
         }
 
-        auto uiPass = std::make_shared<UiOverlay>(deviceManager.get(), stats, *labPass);
+        auto uiPass = std::make_shared<UiOverlay>(deviceManager.get(), stats, *experimentPass);
         if (!uiPass->Initialize(shaderFactory))
         {
-            donut::log::fatal("RenderLab: failed to initialize the UI overlay.");
+            donut::log::fatal("Prism: failed to initialize the UI overlay.");
             uiPass.reset();
-            labPass.reset();
+            experimentPass.reset();
             deviceManager->Shutdown();
             return 1;
         }
 
         // Order: the scene renders first, the UI second; input events are dispatched in the reverse
         // order so the UI gets the first chance to consume them.
-        deviceManager->AddRenderPassToBack(labPass.get());
+        deviceManager->AddRenderPassToBack(experimentPass.get());
         deviceManager->AddRenderPassToBack(uiPass.get());
 
-        donut::log::info("RenderLab: startup complete.");
+        donut::log::info("Prism: startup complete.");
 
         deviceManager->RunMessageLoop();
 
         deviceManager->RemoveRenderPass(uiPass.get());
-        deviceManager->RemoveRenderPass(labPass.get());
+        deviceManager->RemoveRenderPass(experimentPass.get());
 
         // 指标 CSV：--bench 在测量结束时已经写过，这里兜住 --metrics 的其他用法。
-        labPass->WriteMetricsIfRequested();
+        experimentPass->WriteMetricsIfRequested();
 
-        const bool labFailed = labPass->HasFailed();
-        const bool verificationFailed = labPass->GetLab() && !labPass->GetLab()->PassedVerification();
-        const bool analysisFailed = labPass->HasAnalysisFailure();
+        const bool experimentFailed = experimentPass->HasFailed();
+        const bool verificationFailed = experimentPass->GetExperiment() && !experimentPass->GetExperiment()->PassedVerification();
+        const bool analysisFailed = experimentPass->HasAnalysisFailure();
 
         // Passes and the shader factory own NVRHI objects, so they must be gone before the device dies.
         uiPass.reset();
-        labPass.reset();
+        experimentPass.reset();
 
         // The console installs a global log callback pointing into its own buffer, so replace it
         // before logging again, otherwise the message lands in freed memory.
@@ -278,13 +278,13 @@ namespace renderlab::host
         // without that call tears the framebuffers down after the device resources are already gone.
         deviceManager->Shutdown();
 
-        const bool failed = labFailed || verificationFailed || analysisFailed;
-        donut::log::info("RenderLab: exited %s.", failed ? "with errors" : "cleanly");
+        const bool failed = experimentFailed || verificationFailed || analysisFailed;
+        donut::log::info("Prism: exited %s.", failed ? "with errors" : "cleanly");
         return failed ? 1 : 0;
     }
 
     int Run(int argc, char** argv)
     {
-        return RunApplication(CreateLab(), argc, argv);
+        return RunApplication(CreateExperiment(), argc, argv);
     }
 }

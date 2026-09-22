@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-namespace renderlab::gpu
+namespace prism::gpu
 {
     uint64_t BufferRequest::ResolveByteSize(const Extent2D& renderSize) const
     {

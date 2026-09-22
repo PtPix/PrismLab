@@ -26,7 +26,7 @@ namespace donut::engine
     class CommonRenderPasses;
 }
 
-namespace renderlab::gpu
+namespace prism::gpu
 {
     // 图像格式由扩展名决定（PNG/BMP/JPG/TGA）。
     bool SaveTextureToImage(

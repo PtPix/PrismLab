@@ -2,7 +2,7 @@
 
 // Donut facilities: the shared camera.
 //
-// The host owns one controller; labs never create a camera, never build a projection matrix and
+// The host owns one controller; experiments never create a camera, never build a projection matrix and
 // never touch the Donut camera classes. They receive CameraData (contracts) from the frame context.
 
 #include "HostConfig.h"
@@ -13,7 +13,7 @@
 #include <donut/app/Camera.h>
 #include <donut/engine/View.h>
 
-namespace renderlab::adapter
+namespace prism::adapter
 {
     class CameraController
     {
@@ -35,7 +35,7 @@ namespace renderlab::adapter
         [[nodiscard]] donut::engine::PlanarView& GetView() { return m_View; }
         [[nodiscard]] const donut::engine::PlanarView& GetView() const { return m_View; }
 
-        [[nodiscard]] const renderlab::CameraData& GetCameraData() const { return m_CameraData; }
+        [[nodiscard]] const prism::CameraData& GetCameraData() const { return m_CameraData; }
         [[nodiscard]] dm::float3 GetPosition() const { return m_CameraData.position; }
         [[nodiscard]] dm::float3 GetDirection() const { return m_CameraData.forward; }
         [[nodiscard]] float GetDistance() const { return dm::length(m_CameraData.position - m_TargetPosition); }
@@ -49,7 +49,7 @@ namespace renderlab::adapter
         donut::app::SwitchableCamera m_Camera;
         donut::engine::PlanarView m_View;
 
-        renderlab::CameraData m_CameraData;
+        prism::CameraData m_CameraData;
         HostCameraPreset m_Preset;
 
         dm::float3 m_TargetPosition = dm::float3(0.f);

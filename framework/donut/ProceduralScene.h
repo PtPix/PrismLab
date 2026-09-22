@@ -11,7 +11,7 @@
 
 #include <nvrhi/nvrhi.h>
 
-namespace renderlab::adapter
+namespace prism::adapter
 {
     // Must be called with an already open() command list: the first uploads of geometry,
     // material constants and instance data are all recorded into it.

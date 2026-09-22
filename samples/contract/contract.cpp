@@ -1,4 +1,4 @@
-#include "contract_lab.h"
+#include "contract.h"
 
 #include <framework/nvrhi/PipelineUtils.h>
 #include <framework/nvrhi/TextureReadback.h>
@@ -19,7 +19,7 @@ using namespace donut::math;
 
 static_assert(sizeof(ContractCheckConstants) == 96, "ContractCheckConstants layout changed; update contract_check.hlsl");
 
-namespace renderlab::labs
+namespace prism::experiments
 {
     namespace
     {
@@ -27,15 +27,15 @@ namespace renderlab::labs
         constexpr uint32_t kThreadGroupSize = 8;
     }
 
-    const char* ContractLab::GetDescription() const
+    const char* ContractExperiment::GetDescription() const
     {
         return "Verifies the data contracts end to end: matrix convention, depth convention and CPU/GPU "
                "reconstruction agreement, with JPEG-free numeric readback of the reconstructed data.";
     }
 
-    Status ContractLab::Initialize(host::LabContext& context)
+    Status ContractExperiment::Initialize(host::ExperimentContext& context)
     {
-        if (!context.device || !context.targets || !context.shaders)
+        if (!context.gpu.device || !context.gpu.targets || !context.gpu.shaders)
             return Status::Error(ErrorCode::NotInitialized, "the host context is incomplete");
 
         // 参数表：JSON 读取 + UI + hash 都由描述符驱动，加参数不需要写这里的代码。
@@ -45,7 +45,7 @@ namespace renderlab::labs
         if (context.config)
         {
             Json::Value settings;
-            if (adapter::LoadLabSettings(*context.config, GetName(), settings))
+            if (adapter::LoadExperimentSettings(*context.config, GetName(), settings))
                 m_Params.LoadJson(settings);
         }
 
@@ -71,25 +71,25 @@ namespace renderlab::labs
         m_DepthCopyRequest.usage = gpu::TextureUsage::ShaderResource | gpu::TextureUsage::UnorderedAccess;
         m_DepthCopyRequest.hasClearValue = false;
 
-        if (!context.targets->GetOrCreate(m_ColorRequest) || !context.targets->GetOrCreate(m_DepthRequest))
+        if (!context.gpu.targets->GetOrCreate(m_ColorRequest) || !context.gpu.targets->GetOrCreate(m_DepthRequest))
             return Status::Error(ErrorCode::DeviceError, "failed to create the scene render targets");
 
-        m_CheckConstantBuffer = context.device->createBuffer(
-            nvrhi::utils::CreateVolatileConstantBufferDesc(sizeof(ContractCheckConstants), "ContractLabCheck", 4));
+        m_CheckConstantBuffer = context.gpu.device->createBuffer(
+            nvrhi::utils::CreateVolatileConstantBufferDesc(sizeof(ContractCheckConstants), "ContractExperimentCheck", 4));
 
         if (!m_CheckConstantBuffer)
             return Status::Error(ErrorCode::DeviceError, "failed to create the contract check constant buffer");
 
-        donut::log::info("ContractLab: ready (verification at frame %d, sample stride %d).",
+        donut::log::info("ContractExperiment: ready (verification at frame %d, sample stride %d).",
             m_Settings.verifyFrame, m_Settings.sampleStride);
 
         return Status::Ok();
     }
 
-    bool ContractLab::EnsureCheckPass(host::LabContext& context, nvrhi::ITexture* depth)
+    bool ContractExperiment::EnsureCheckPass(host::ExperimentContext& context, nvrhi::ITexture* depth)
     {
-        nvrhi::ITexture* positionTarget = context.targets->GetOrCreate(m_PositionRequest);
-        nvrhi::ITexture* depthTarget = context.targets->GetOrCreate(m_DepthCopyRequest);
+        nvrhi::ITexture* positionTarget = context.gpu.targets->GetOrCreate(m_PositionRequest);
+        nvrhi::ITexture* depthTarget = context.gpu.targets->GetOrCreate(m_DepthCopyRequest);
 
         if (!positionTarget || !depthTarget)
             return false;
@@ -105,7 +105,7 @@ namespace renderlab::labs
             };
 
             if (!nvrhi::utils::CreateBindingSetAndLayout(
-                    context.device, nvrhi::ShaderType::Compute, 0, bindingSetDesc, m_CheckBindingLayout, m_CheckBindingSet))
+                    context.gpu.device, nvrhi::ShaderType::Compute, 0, bindingSetDesc, m_CheckBindingLayout, m_CheckBindingSet))
             {
                 return false;
             }
@@ -117,13 +117,13 @@ namespace renderlab::labs
 
         if (!m_CheckPipeline)
         {
-            nvrhi::ShaderHandle computeShader = context.shaders->GetShader(
-                "renderlab/contract_check.hlsl", "main_cs", nvrhi::ShaderType::Compute);
+            nvrhi::ShaderHandle computeShader = context.gpu.shaders->GetShader(
+                "prism/contract_check.hlsl", "main_cs", nvrhi::ShaderType::Compute);
 
             if (!computeShader)
                 return false;
 
-            m_CheckPipeline = gpu::CreateComputePipeline(context.device, computeShader, m_CheckBindingLayout);
+            m_CheckPipeline = gpu::CreateComputePipeline(context.gpu.device, computeShader, m_CheckBindingLayout);
             if (!m_CheckPipeline)
                 return false;
         }
@@ -131,7 +131,7 @@ namespace renderlab::labs
         return true;
     }
 
-    void ContractLab::BeginFrame(host::LabContext& context, const host::LabFrame& frame)
+    void ContractExperiment::BeginFrame(host::ExperimentContext& context, const host::ExperimentFrame& frame)
     {
         if (!m_HasVerifiedCamera)
             return;
@@ -146,9 +146,9 @@ namespace renderlab::labs
         RunVerification(context);
     }
 
-    nvrhi::ITexture* ContractLab::Render(host::LabContext& context, const host::LabFrame& frame)
+    nvrhi::ITexture* ContractExperiment::Render(host::ExperimentContext& context, const host::ExperimentFrame& frame)
     {
-        gpu::RenderTargetPool& targets = *context.targets;
+        gpu::RenderTargetPool& targets = *context.gpu.targets;
 
         nvrhi::ITexture* color = targets.GetOrCreate(m_ColorRequest);
         nvrhi::ITexture* depth = targets.GetOrCreate(m_DepthRequest);
@@ -163,35 +163,35 @@ namespace renderlab::labs
             m_ColorRequest.clearColor.x, m_ColorRequest.clearColor.y, m_ColorRequest.clearColor.z, m_ColorRequest.clearColor.w));
         commands->clearDepthStencilTexture(depth, subresources, true, kDepthClearValue, false, 0);
 
-        if (context.scenePipeline && context.scene && context.scene->graph)
+        if (context.scene.pipeline && context.scene.data && context.scene.data->graph)
         {
-            gpu::ScopedGpuScope scope(*context.profiler, commands, "Forward scene");
+            gpu::ScopedGpuScope scope(*context.gpu.profiler, commands, "Forward scene");
 
-            context.scenePipeline->RenderScene(
+            context.scene.pipeline->RenderScene(
                 commands,
-                *context.scene->graph,
+                *context.scene.data->graph,
                 *frame.view,
                 *frame.previousView,
                 targets.GetFramebuffer(color, depth),
-                context.ambientTop,
-                context.ambientBottom);
+                context.scene.ambientTop,
+                context.scene.ambientBottom);
         }
 
         if (!EnsureCheckPass(context, depth))
             return color;
 
         // 中间结果发布给宿主面板：任何一张都可以被公共调试视图显示。
-        if (context.debugViews)
+        if (context.output.debugViews)
         {
-            context.debugViews->Publish(GetName(), "Scene color", color);
-            context.debugViews->Publish(GetName(), "Scene depth (1 - device Z)", depth,
+            context.output.debugViews->Publish(GetName(), "Scene color", color);
+            context.output.debugViews->Publish(GetName(), "Scene depth (1 - device Z)", depth,
                 { gpu::DebugViewMode::OneMinusR, 20.f, 0.f });
-            context.debugViews->Publish(GetName(), "Reconstructed world position",
-                context.targets->Find(m_PositionRequest.name.c_str()));
-            context.debugViews->Publish(GetName(), "Linear depth (meters)",
-                context.targets->Find(m_PositionRequest.name.c_str()), { gpu::DebugViewMode::A, 0.1f, 0.f });
-            context.debugViews->Publish(GetName(), "Device depth copy",
-                context.targets->Find(m_DepthCopyRequest.name.c_str()));
+            context.output.debugViews->Publish(GetName(), "Reconstructed world position",
+                context.gpu.targets->Find(m_PositionRequest.name.c_str()));
+            context.output.debugViews->Publish(GetName(), "Linear depth (meters)",
+                context.gpu.targets->Find(m_PositionRequest.name.c_str()), { gpu::DebugViewMode::A, 0.1f, 0.f });
+            context.output.debugViews->Publish(GetName(), "Device depth copy",
+                context.gpu.targets->Find(m_DepthCopyRequest.name.c_str()));
         }
 
         ContractCheckConstants constants = {};
@@ -207,7 +207,7 @@ namespace renderlab::labs
         commands->writeBuffer(m_CheckConstantBuffer, &constants, sizeof(constants));
 
         {
-            gpu::ScopedGpuScope scope(*context.profiler, commands, "Contract check");
+            gpu::ScopedGpuScope scope(*context.gpu.profiler, commands, "Contract check");
 
             const dm::uint3 groups(
                 (frame.renderSize.width + kThreadGroupSize - 1) / kThreadGroupSize,
@@ -224,7 +224,7 @@ namespace renderlab::labs
         return color;
     }
 
-    void ContractLab::VerifyCpuMath(const renderlab::CameraData& camera)
+    void ContractExperiment::VerifyCpuMath(const prism::CameraData& camera)
     {
         // 矩阵往返：world -> clip -> world
         const dm::float3 probes[] = {
@@ -249,39 +249,39 @@ namespace renderlab::labs
         for (int step = 0; step <= 9; ++step)
         {
             const float deviceDepth = float(step) / 10.f;
-            const float linearDepth = renderlab::LinearizeDepth(
+            const float linearDepth = prism::LinearizeDepth(
                 deviceDepth, camera.zNearMeters, camera.zFarMeters, camera.depthConvention);
-            const float roundTrip = renderlab::DeviceDepthFromLinear(
+            const float roundTrip = prism::DeviceDepthFromLinear(
                 linearDepth, camera.zNearMeters, camera.zFarMeters, camera.depthConvention);
 
             m_Report.maxDepthRoundTripError = std::max(m_Report.maxDepthRoundTripError, std::fabs(roundTrip - deviceDepth));
         }
     }
 
-    void ContractLab::RunVerification(host::LabContext& context)
+    void ContractExperiment::RunVerification(host::ExperimentContext& context)
     {
-        const renderlab::CameraData& camera = m_VerifiedCamera;
+        const prism::CameraData& camera = m_VerifiedCamera;
 
         m_Report = ContractVerificationReport{};
         VerifyCpuMath(camera);
 
-        nvrhi::ITexture* positionTarget = context.targets->Find(m_PositionRequest.name.c_str());
-        nvrhi::ITexture* depthTarget = context.targets->Find(m_DepthCopyRequest.name.c_str());
+        nvrhi::ITexture* positionTarget = context.gpu.targets->Find(m_PositionRequest.name.c_str());
+        nvrhi::ITexture* depthTarget = context.gpu.targets->Find(m_DepthCopyRequest.name.c_str());
 
         if (!positionTarget || !depthTarget)
         {
             m_Report.summary = "the contract targets are missing";
-            donut::log::error("ContractLab: %s", m_Report.summary.c_str());
+            donut::log::error("ContractExperiment: %s", m_Report.summary.c_str());
             return;
         }
 
-        const Result<gpu::TextureData> positions = gpu::ReadTexture(context.device, positionTarget, PixelFormat::RGBA32_FLOAT);
-        const Result<gpu::TextureData> depths = gpu::ReadTexture(context.device, depthTarget, PixelFormat::R32_FLOAT);
+        const Result<gpu::TextureData> positions = gpu::ReadTexture(context.gpu.device, positionTarget, PixelFormat::RGBA32_FLOAT);
+        const Result<gpu::TextureData> depths = gpu::ReadTexture(context.gpu.device, depthTarget, PixelFormat::R32_FLOAT);
 
         if (!positions.IsOk() || !depths.IsOk())
         {
             m_Report.summary = "texture readback failed";
-            donut::log::error("ContractLab: %s", m_Report.summary.c_str());
+            donut::log::error("ContractExperiment: %s", m_Report.summary.c_str());
             return;
         }
 
@@ -341,7 +341,7 @@ namespace renderlab::labs
 
         m_Report.summary = m_Report.passed ? "passed" : "failed";
 
-        donut::log::info("ContractLab: verification %s -- samples %u, uv error %.4f px, position error %.5f m, "
+        donut::log::info("ContractExperiment: verification %s -- samples %u, uv error %.4f px, position error %.5f m, "
             "linear depth error %.6f m, matrix round trip %.6f, depth round trip %.3e",
             m_Report.summary.c_str(),
             m_Report.sampledPixels,
@@ -354,11 +354,11 @@ namespace renderlab::labs
         if (!m_Report.passed && m_Report.sampledPixels > 0)
         {
             // 不静默通过：约定不一致必须让实验失败。
-            donut::log::error("ContractLab: the data contracts are not consistent.");
+            donut::log::error("ContractExperiment: the data contracts are not consistent.");
         }
     }
 
-    void ContractLab::BuildUI(host::LabContext& context)
+    void ContractExperiment::BuildUI(host::ExperimentContext& context)
     {
         ImGui::TextWrapped("A GPU pass reconstructs world position and linear depth from the depth buffer; "
             "the CPU verifies matrix and depth conventions against its own math.");
@@ -389,13 +389,13 @@ namespace renderlab::labs
 
         if (ImGui::Button("Save reconstructed data (PNG)"))
         {
-            if (nvrhi::ITexture* target = context.targets->Find(m_PositionRequest.name.c_str()))
+            if (nvrhi::ITexture* target = context.gpu.targets->Find(m_PositionRequest.name.c_str()))
             {
                 const std::filesystem::path path = std::filesystem::path(context.assetsDirectory).empty()
                     ? std::filesystem::path("contract_position.png")
                     : context.assetsDirectory.parent_path() / "contract_position.png";
 
-                context.callbacks.saveTexture(target, path, nvrhi::ResourceStates::UnorderedAccess);
+                context.output.callbacks.saveTexture(target, path, nvrhi::ResourceStates::UnorderedAccess);
             }
         }
 
@@ -403,7 +403,7 @@ namespace renderlab::labs
         ImGui::TextDisabled("(needs GPU idle, off the frame path)");
     }
 
-    void ContractLab::OnResize(host::LabContext& context, const Extent2D& renderSize, const Extent2D& outputSize)
+    void ContractExperiment::OnResize(host::ExperimentContext& context, const Extent2D& renderSize, const Extent2D& outputSize)
     {
         (void)context;
         (void)renderSize;
@@ -417,7 +417,7 @@ namespace renderlab::labs
     }
 }
 
-std::unique_ptr<renderlab::host::Lab> renderlab::host::CreateLab()
+std::unique_ptr<prism::host::Experiment> prism::host::CreateExperiment()
 {
-    return std::make_unique<renderlab::labs::ContractLab>();
+    return std::make_unique<prism::experiments::ContractExperiment>();
 }

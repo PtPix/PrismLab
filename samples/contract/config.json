@@ -25,10 +25,12 @@
         "renderScale": 1.0,
         "enableGpuTiming": true
     },
-    "labs": {
-        "ForwardLab": {
-            "debugMode": 0,
-            "depthScale": 1.0
+    "experiments": {
+        "ContractExperiment": {
+            "verifyFrame": 3,
+            "sampleStride": 32,
+            "toleranceMeters": 0.01,
+            "tolerancePixels": 0.05
         }
     }
 }

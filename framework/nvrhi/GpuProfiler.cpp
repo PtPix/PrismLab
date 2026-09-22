@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-namespace renderlab::gpu
+namespace prism::gpu
 {
     GpuProfiler::GpuProfiler(nvrhi::IDevice* device, uint32_t maxScopes)
         : m_Device(device)

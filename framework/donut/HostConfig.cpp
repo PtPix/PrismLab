@@ -8,7 +8,7 @@
 namespace
 {
     // Search upwards from the executable directory: binaries land in build/<preset>/bin while the
-    // experiment's config.json sits next to its sources in samples/<lab>/.
+    // experiment's config.json sits next to its sources in samples/<name>/.
     std::filesystem::path FindFileUpwards(
         const std::filesystem::path& startDirectory,
         const std::filesystem::path& relativeFilePath,
@@ -33,7 +33,7 @@ namespace
     }
 }
 
-namespace renderlab::adapter
+namespace prism::adapter
 {
     HostConfig LoadHostConfig(
         const std::filesystem::path& explicitPath,
@@ -44,7 +44,7 @@ namespace renderlab::adapter
         std::filesystem::path configPath = explicitPath;
         if (configPath.empty() && !executablePath.empty())
         {
-            // The experiment's own config.json, copied next to the executable by rl_add_target.
+            // The experiment's own config.json, copied next to the executable by prism_add_target.
             std::filesystem::path fileName = executablePath.filename();
             fileName.replace_extension(".json");
 
@@ -55,13 +55,13 @@ namespace renderlab::adapter
 
         if (configPath.empty())
         {
-            donut::log::warning("RenderLab: no config next to the executable, using built-in defaults.");
+            donut::log::warning("Prism: no config next to the executable, using built-in defaults.");
             return config;
         }
 
         if (!std::filesystem::exists(configPath))
         {
-            donut::log::warning("RenderLab: config file does not exist: %s, using built-in defaults.", configPath.string().c_str());
+            donut::log::warning("Prism: config file does not exist: %s, using built-in defaults.", configPath.string().c_str());
             return config;
         }
 
@@ -69,7 +69,7 @@ namespace renderlab::adapter
         Json::Value root;
         if (!donut::json::LoadFromFile(fileSystem, configPath, root))
         {
-            donut::log::warning("RenderLab: failed to parse config file: %s, using built-in defaults.", configPath.string().c_str());
+            donut::log::warning("Prism: failed to parse config file: %s, using built-in defaults.", configPath.string().c_str());
             return config;
         }
 
@@ -145,9 +145,9 @@ namespace renderlab::adapter
         return candidate;
     }
 
-    bool LoadLabSettings(const HostConfig& config, const char* labName, Json::Value& outSettings)
+    bool LoadExperimentSettings(const HostConfig& config, const char* experimentName, Json::Value& outSettings)
     {
-        if (!config.loadedFromFile || !labName)
+        if (!config.loadedFromFile || !experimentName)
             return false;
 
         donut::vfs::NativeFileSystem fileSystem;
@@ -155,14 +155,14 @@ namespace renderlab::adapter
         if (!donut::json::LoadFromFile(fileSystem, config.sourcePath, root))
             return false;
 
-        if (!root.isMember("labs"))
+        if (!root.isMember("experiments"))
             return false;
 
-        const Json::Value& labs = root["labs"];
-        if (!labs.isMember(labName))
+        const Json::Value& experiments = root["experiments"];
+        if (!experiments.isMember(experimentName))
             return false;
 
-        outSettings = labs[labName];
+        outSettings = experiments[experimentName];
         return true;
     }
 }

@@ -7,9 +7,9 @@
 
 #include <algorithm>
 
-namespace renderlab::host
+namespace prism::host
 {
-    UiOverlay::UiOverlay(donut::app::DeviceManager* deviceManager, HostStats& stats, LabRenderPass& host)
+    UiOverlay::UiOverlay(donut::app::DeviceManager* deviceManager, HostStats& stats, ExperimentRenderPass& host)
         : donut::app::ImGui_Renderer(deviceManager)
         , m_Stats(stats)
         , m_Host(host)
@@ -33,10 +33,10 @@ namespace renderlab::host
 
     void UiOverlay::buildUI()
     {
-        Lab* lab = m_Host.GetLab();
+        Experiment* experiment = m_Host.GetExperiment();
 
         ImGui::SetNextWindowPos(ImVec2(20.f, 20.f), ImGuiCond_FirstUseEver);
-        ImGui::Begin("RenderLab", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Begin("Prism", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
         BuildHeaderSection();
         BuildCameraSection();
@@ -45,13 +45,13 @@ namespace renderlab::host
         BuildDebugViewSection();
         BuildMetricsSection();
 
-        if (lab)
+        if (experiment)
         {
             ImGui::SeparatorText("Experiment");
-            if (lab->GetDescription() && lab->GetDescription()[0] != '\0')
-                ImGui::TextWrapped("%s", lab->GetDescription());
+            if (experiment->GetDescription() && experiment->GetDescription()[0] != '\0')
+                ImGui::TextWrapped("%s", experiment->GetDescription());
 
-            lab->BuildUI(m_Host.GetContext());
+            experiment->BuildUI(m_Host.GetContext());
         }
 
         ImGui::SeparatorText("Controls");
@@ -66,7 +66,7 @@ namespace renderlab::host
 
     void UiOverlay::BuildHeaderSection()
     {
-        ImGui::Text("Experiment: %s", m_Host.GetLab() ? m_Host.GetLab()->GetName() : "(none)");
+        ImGui::Text("Experiment: %s", m_Host.GetExperiment() ? m_Host.GetExperiment()->GetName() : "(none)");
         ImGui::Text("Renderer: %s", m_Stats.rendererDescription.c_str());
         ImGui::Text("Render: %u x %u   Output: %u x %u",
             m_Stats.renderSize.width, m_Stats.renderSize.height,
@@ -104,7 +104,7 @@ namespace renderlab::host
 
     void UiOverlay::BuildTimingSection()
     {
-        gpu::GpuProfiler* profiler = m_Host.GetContext().profiler;
+        gpu::GpuProfiler* profiler = m_Host.GetContext().gpu.profiler;
         if (!profiler)
             return;
 
@@ -158,11 +158,11 @@ namespace renderlab::host
             return;
         }
 
-        // 标签字符串必须先落到本地存储里：GetLabel() 返回的是临时对象。
+        // 标签字符串必须先落到本地存储里：GetExperimentel() 返回的是临时对象。
         std::vector<std::string> labelStorage;
         labelStorage.reserve(entries.size());
         for (const DebugViewEntry& entry : entries)
-            labelStorage.push_back(entry.GetLabel());
+            labelStorage.push_back(entry.GetExperimentel());
 
         std::vector<const char*> labels;
         labels.reserve(labelStorage.size() + 1);
@@ -202,7 +202,7 @@ namespace renderlab::host
 
         ImGui::SeparatorText("Metrics");
 
-        if (!ImGui::BeginTable("RenderLabMetrics", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV))
+        if (!ImGui::BeginTable("PrismMetrics", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV))
             return;
 
         ImGui::TableSetupColumn("Metric");

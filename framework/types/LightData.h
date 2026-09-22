@@ -11,7 +11,7 @@
 #include <cstdint>
 #include <string>
 
-namespace renderlab
+namespace prism
 {
     enum class LightType : uint32_t
     {

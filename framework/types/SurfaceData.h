@@ -3,13 +3,13 @@
 // Framework types: surface and GBuffer semantics.
 //
 // Same names, different meanings: a "normal" target can be world space, view space, octahedral or
-// reconstructed. Every GBuffer-like interface in RenderLab states the meaning explicitly, and the
+// reconstructed. Every GBuffer-like interface in Prism states the meaning explicitly, and the
 // shader headers under algorithms/shaders use the same names.
 
 #include "PixelFormat.h"
 #include "Types.h"
 
-namespace renderlab
+namespace prism
 {
     enum class NormalSpace : uint32_t
     {

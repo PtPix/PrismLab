@@ -2,7 +2,7 @@
 
 // Pipelines layer: the shared "scene -> texture" draw path.
 //
-// A lab that needs a rendered scene (shadow receivers, AO, SSR, tonemapping experiments) does not
+// An experiment that needs a rendered scene (shadow receivers, AO, SSR, tonemapping experiments) does not
 // wire up geometry passes: it declares a render target and calls RenderScene. The pass split inside
 // this pipeline is Donut's forward shading, which is the baseline the roadmap compares against.
 
@@ -16,7 +16,7 @@
 
 #include <memory>
 
-namespace renderlab::pipeline
+namespace prism::pipeline
 {
     class SceneForwardPipeline
     {

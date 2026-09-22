@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-namespace renderlab::gpu
+namespace prism::gpu
 {
     RenderTargetPool::RenderTargetPool(nvrhi::IDevice* device)
         : m_Device(device)

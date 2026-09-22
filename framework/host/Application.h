@@ -4,14 +4,14 @@
 //
 // RunApplication() builds the device, the shader mounts, the shared services, the scene and the two
 // render passes, then runs the message loop and tears everything down in the order the graphics API
-// requires. A lab executable is three lines: see host/Entry.cpp.
+// requires. An experiment executable is three lines: see host/Entry.cpp.
 
-#include "Lab.h"
+#include "Experiment.h"
 
-namespace renderlab::host
+namespace prism::host
 {
-    int RunApplication(std::unique_ptr<Lab> lab, int argc, char** argv);
+    int RunApplication(std::unique_ptr<Experiment> experiment, int argc, char** argv);
 
-    // 由 Entry.cpp 使用：调用实验的 CreateLab() 工厂。
+    // 由 Entry.cpp 使用：调用实验的 CreateExperiment() 工厂。
     int Run(int argc, char** argv);
 }

@@ -1,4 +1,4 @@
-#include "LabHost.h"
+#include "ExperimentHost.h"
 
 #include "ImageReference.h"
 
@@ -11,7 +11,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace renderlab::host
+namespace prism::host
 {
     namespace
     {
@@ -32,26 +32,26 @@ namespace renderlab::host
         }
     }
 
-    LabRenderPass::LabRenderPass(
+    ExperimentRenderPass::ExperimentRenderPass(
         donut::app::DeviceManager* deviceManager,
         HostStats& stats,
-        std::unique_ptr<Lab> lab,
+        std::unique_ptr<Experiment> experiment,
         const HostServices& services,
         const CommandLine& commandLine)
         : donut::app::IRenderPass(deviceManager)
         , m_Stats(stats)
-        , m_Lab(std::move(lab))
+        , m_Experiment(std::move(experiment))
         , m_Services(services)
         , m_CommandLine(commandLine)
     {
     }
 
-    LabRenderPass::~LabRenderPass() = default;
+    ExperimentRenderPass::~ExperimentRenderPass() = default;
 
-    Status LabRenderPass::Initialize()
+    Status ExperimentRenderPass::Initialize()
     {
-        if (!m_Lab)
-            return Status::Error(ErrorCode::InvalidArgument, "no lab was created");
+        if (!m_Experiment)
+            return Status::Error(ErrorCode::InvalidArgument, "no experiment was created");
 
         if (!m_Services.device || !m_Services.shaders || !m_Services.targets || !m_Services.profiler)
             return Status::Error(ErrorCode::NotInitialized, "the host services are incomplete");
@@ -59,25 +59,25 @@ namespace renderlab::host
         m_CommandList = m_Services.device->createCommandList();
         m_BindingCache = std::make_unique<donut::engine::BindingCache>(m_Services.device);
 
-        m_Context.device = m_Services.device;
-        m_Context.shaderFactory = m_Services.shaderFactory.get();
-        m_Context.commonPasses = m_Services.commonPasses.get();
-        m_Context.shaders = m_Services.shaders;
-        m_Context.targets = m_Services.targets;
-        m_Context.buffers = m_Services.buffers;
-        m_Context.resources = m_Services.resources;
-        m_Context.profiler = m_Services.profiler;
-        m_Context.scenePipeline = m_Services.scenePipeline;
-        m_Context.scene = m_Services.sceneHost ? &m_Services.sceneHost->GetData() : nullptr;
+        m_Context.gpu.device = m_Services.device;
+        m_Context.gpu.shaderFactory = m_Services.shaderFactory.get();
+        m_Context.gpu.commonPasses = m_Services.commonPasses.get();
+        m_Context.gpu.shaders = m_Services.shaders;
+        m_Context.gpu.targets = m_Services.targets;
+        m_Context.gpu.buffers = m_Services.buffers;
+        m_Context.gpu.resources = m_Services.resources;
+        m_Context.gpu.profiler = m_Services.profiler;
+        m_Context.scene.pipeline = m_Services.scenePipeline;
+        m_Context.scene.data = m_Services.sceneHost ? &m_Services.sceneHost->GetData() : nullptr;
         m_Context.config = m_Services.config;
         m_Context.assetsDirectory = m_Services.assetsDirectory;
 
-        m_Context.callbacks.requestHistoryReset = [this](renderlab::HistoryResetReason reason)
+        m_Context.output.callbacks.requestHistoryReset = [this](prism::HistoryResetReason reason)
         {
             RequestHistoryReset(reason);
         };
 
-        m_Context.callbacks.saveTexture = [this](nvrhi::ITexture* texture, const std::filesystem::path& path, nvrhi::ResourceStates state)
+        m_Context.output.callbacks.saveTexture = [this](nvrhi::ITexture* texture, const std::filesystem::path& path, nvrhi::ResourceStates state)
         {
             if (!texture)
                 return false;
@@ -86,17 +86,17 @@ namespace renderlab::host
             return gpu::SaveTextureToImage(m_Services.device, m_Services.commonPasses.get(), texture, state, path, true);
         };
 
-        m_Context.callbacks.requestQuit = [this]()
+        m_Context.output.callbacks.requestQuit = [this]()
         {
             RequestQuit();
         };
 
-        m_Context.debugViews = &m_DebugViews;
-        m_Context.metrics = &m_Metrics;
+        m_Context.output.debugViews = &m_DebugViews;
+        m_Context.output.metrics = &m_Metrics;
 
         // 公共调试视图的显示 Pass（框架自带 shader；不存在时只是没有该功能，不影响实验）
         if (!m_DebugViewPass.Initialize(m_Services.device, *m_Services.shaders))
-            donut::log::warning("RenderLab: the shared debug view pass is unavailable (renderlab/DebugView.hlsl).");
+            donut::log::warning("Prism: the shared debug view pass is unavailable (prism/DebugView.hlsl).");
 
         m_DebugTargetRequest.name = "DebugView.Output";
         m_DebugTargetRequest.format = PixelFormat::RGBA16_FLOAT;
@@ -105,8 +105,8 @@ namespace renderlab::host
 
         if (m_Services.config)
         {
-            m_Context.ambientTop = dm::float3(m_Services.config->lighting.ambientIntensity);
-            m_Context.ambientBottom = dm::float3(m_Services.config->lighting.ambientIntensity * 0.6f);
+            m_Context.scene.ambientTop = dm::float3(m_Services.config->lighting.ambientIntensity);
+            m_Context.scene.ambientBottom = dm::float3(m_Services.config->lighting.ambientIntensity * 0.6f);
 
             m_Camera.Initialize(m_Services.config->camera);
             m_OutputSize = Extent2D{ std::max(m_Services.config->window.width, 1u), std::max(m_Services.config->window.height, 1u) };
@@ -127,7 +127,7 @@ namespace renderlab::host
             m_Services.targets->SetRenderSize(m_RenderSize);
 
         m_Metrics.SetContext(
-            m_Lab->GetName(),
+            m_Experiment->GetName(),
             m_Stats.sceneDescription,
             m_Stats.rendererDescription,
             m_RenderSize,
@@ -136,9 +136,9 @@ namespace renderlab::host
         // 命令行指定了调试视图：条目在实验第一次 Publish 之后才存在，索引会保留到这里生效。
         m_DebugViews.SetSelectedIndex(m_CommandLine.debugView);
 
-        const Status status = m_Lab->Initialize(m_Context);
+        const Status status = m_Experiment->Initialize(m_Context);
         if (status.IsError())
-            return WithContext(status, std::string(m_Lab->GetName()) + " initialization failed");
+            return WithContext(status, std::string(m_Experiment->GetName()) + " initialization failed");
 
         // 相机在实验初始化之前就已经就位：把首帧的相机数据补上。
         m_Camera.Update(0.f, m_RenderSize);
@@ -146,21 +146,21 @@ namespace renderlab::host
         m_Initialized = true;
         m_HistoryResetFlags = HistoryResetBit(HistoryResetReason::FirstFrame);
 
-        if (m_Context.jitterSampleCount > 0)
+        if (m_Context.output.jitterSampleCount > 0)
             m_HistoryResetFlags |= HistoryResetBit(HistoryResetReason::SettingsChange);
 
-        donut::log::info("RenderLab: %s initialized (render %u x %u, output %u x %u).",
-            m_Lab->GetName(), m_RenderSize.width, m_RenderSize.height, m_OutputSize.width, m_OutputSize.height);
+        donut::log::info("Prism: %s initialized (render %u x %u, output %u x %u).",
+            m_Experiment->GetName(), m_RenderSize.width, m_RenderSize.height, m_OutputSize.width, m_OutputSize.height);
 
         return Status::Ok();
     }
 
-    void LabRenderPass::RequestHistoryReset(renderlab::HistoryResetReason reason)
+    void ExperimentRenderPass::RequestHistoryReset(prism::HistoryResetReason reason)
     {
-        m_HistoryResetFlags |= renderlab::HistoryResetBit(reason);
+        m_HistoryResetFlags |= prism::HistoryResetBit(reason);
     }
 
-    void LabRenderPass::RequestQuit()
+    void ExperimentRenderPass::RequestQuit()
     {
         if (m_QuitRequested)
             return;
@@ -171,24 +171,24 @@ namespace renderlab::host
             glfwSetWindowShouldClose(window, GLFW_TRUE);
     }
 
-    void LabRenderPass::UpdateJitter()
+    void ExperimentRenderPass::UpdateJitter()
     {
         m_PreviousJitter = m_Jitter;
 
-        if (m_Context.jitterSampleCount == 0)
+        if (m_Context.output.jitterSampleCount == 0)
         {
             m_Jitter = dm::float2(0.f);
             return;
         }
 
         // 以抖动序列的第一个样本开始，保证历史有效时序列可复现。
-        const uint32_t index = uint32_t((m_FrameCounter % m_Context.jitterSampleCount) + 1);
+        const uint32_t index = uint32_t((m_FrameCounter % m_Context.output.jitterSampleCount) + 1);
         m_Jitter = dm::float2(
             Halton(index, 2) - 0.5f,
             Halton(index, 3) - 0.5f);
     }
 
-    void LabRenderPass::UpdateRenderSize(Extent2D outputSize)
+    void ExperimentRenderPass::UpdateRenderSize(Extent2D outputSize)
     {
         if (!outputSize.IsValid())
             outputSize = Extent2D{ 1, 1 };
@@ -211,7 +211,7 @@ namespace renderlab::host
         }
     }
 
-    void LabRenderPass::Animate(float elapsedTimeSeconds)
+    void ExperimentRenderPass::Animate(float elapsedTimeSeconds)
     {
         if (!m_Initialized || m_HasFailed)
             return;
@@ -228,8 +228,8 @@ namespace renderlab::host
             RequestHistoryReset(HistoryResetReason::ResolutionChange);
             m_ResolutionChanged = false;
 
-            if (m_Lab)
-                m_Lab->OnResize(m_Context, m_RenderSize, m_OutputSize);
+            if (m_Experiment)
+                m_Experiment->OnResize(m_Context, m_RenderSize, m_OutputSize);
         }
 
         UpdateJitter();
@@ -250,24 +250,24 @@ namespace renderlab::host
         m_Stats.cameraDistance = m_Camera.GetDistance();
         m_Stats.frameIndex = m_FrameCounter;
 
-        renderlab::FrameInfo historyResetInfo;
+        prism::FrameInfo historyResetInfo;
         historyResetInfo.historyResetFlags = m_HistoryResetFlags;
         m_Stats.historyResetDescription = historyResetInfo.DescribeHistoryReset();
     }
 
-    void LabRenderPass::Render(nvrhi::IFramebuffer* framebuffer)
+    void ExperimentRenderPass::Render(nvrhi::IFramebuffer* framebuffer)
     {
         if (!m_Initialized || m_HasFailed || !framebuffer)
             return;
 
         auto device = GetDevice();
 
-        m_Frame = LabFrame{};
+        m_Frame = ExperimentFrame{};
         m_Frame.commands = m_CommandList;
         m_Frame.frame.frameIndex = m_FrameCounter;
         m_Frame.frame.deltaTimeSeconds = float(GetDeviceManager()->GetAverageFrameTimeSeconds());
         m_Frame.frame.timeSeconds = float(m_TimeSeconds);
-        m_Frame.frame.viewId = renderlab::kPrimaryViewId;
+        m_Frame.frame.viewId = prism::kPrimaryViewId;
         m_Frame.frame.renderSize = m_RenderSize;
         m_Frame.frame.outputSize = m_OutputSize;
         m_Frame.frame.jitter = m_Jitter;
@@ -287,8 +287,8 @@ namespace renderlab::host
 
         // 命令列表还没打开：实验可以在这里做读回与数值验证。
         m_Frame.commands = nullptr;
-        if (m_Lab)
-            m_Lab->BeginFrame(m_Context, m_Frame);
+        if (m_Experiment)
+            m_Experiment->BeginFrame(m_Context, m_Frame);
         m_Frame.commands = m_CommandList;
 
         m_DebugViews.BeginFrame();
@@ -302,11 +302,11 @@ namespace renderlab::host
             m_Services.sceneHost->Update(m_CommandList, uint32_t(m_FrameCounter));
 
         m_OutputTexture = nullptr;
-        if (m_Lab)
+        if (m_Experiment)
         {
-            gpu::ScopedGpuScope scope(*m_Services.profiler, m_CommandList, m_Lab->GetName());
-            m_OutputTexture = m_Lab->Render(m_Context, m_Frame);
-            ++m_Stats.labFrames;
+            gpu::ScopedGpuScope scope(*m_Services.profiler, m_CommandList, m_Experiment->GetName());
+            m_OutputTexture = m_Experiment->Render(m_Context, m_Frame);
+            ++m_Stats.experimentFrames;
         }
 
         // 调试视图：选中的中间结果替换实验输出（调试图已经是显示空间的数据）
@@ -320,29 +320,29 @@ namespace renderlab::host
         if (m_OutputTexture)
         {
             // 显示链接缝：实现了就交给它（曝光 / Bloom / Tone Mapping），否则退回直接 blit。
-            if (m_Context.displayChain)
+            if (m_Context.output.displayChain)
             {
                 DisplayInput displayInput;
                 displayInput.sceneColor = m_OutputTexture;
                 displayInput.colorSpace = m_DebugViewActive
-                    ? renderlab::ColorSpace::DisplayEncoded
-                    : m_Context.outputColorSpace;
+                    ? prism::ColorSpace::DisplayEncoded
+                    : m_Context.output.colorSpace;
                 displayInput.outputTarget = framebuffer;
                 displayInput.outputSize = m_OutputSize;
                 displayInput.deltaTimeSeconds = m_Frame.frame.deltaTimeSeconds;
                 displayInput.frameIndex = m_Frame.frame.frameIndex;
 
-                const Status displayStatus = m_Context.displayChain->Record(m_Context, m_CommandList, displayInput);
+                const Status displayStatus = m_Context.output.displayChain->Record(m_Context, m_CommandList, displayInput);
                 if (displayStatus.IsError())
                 {
                     // 不静默替换算法：报错并关闭显示链，本帧起退回宿主的直接 blit。
-                    donut::log::error("RenderLab: the display chain failed, falling back to a direct blit: %s",
+                    donut::log::error("Prism: the display chain failed, falling back to a direct blit: %s",
                         displayStatus.ToStringWithCode().c_str());
-                    m_Context.displayChain = nullptr;
+                    m_Context.output.displayChain = nullptr;
                 }
             }
 
-            if (!m_Context.displayChain)
+            if (!m_Context.output.displayChain)
                 m_Services.commonPasses->BlitTexture(m_CommandList, framebuffer, m_OutputTexture, m_BindingCache.get());
         }
 
@@ -357,7 +357,7 @@ namespace renderlab::host
         HandleEndOfFrame(m_CommandList);
     }
 
-    bool LabRenderPass::ApplyDebugView(const DebugViewEntry* entry)
+    bool ExperimentRenderPass::ApplyDebugView(const DebugViewEntry* entry)
     {
         if (!entry || !entry->texture || !m_DebugViewPass.IsValid() || !m_Services.targets)
             return false;
@@ -379,9 +379,9 @@ namespace renderlab::host
         return true;
     }
 
-    void LabRenderPass::CollectFrameMetrics()
+    void ExperimentRenderPass::CollectFrameMetrics()
     {
-        // 宿主负责的每帧统计；实验自己的数值由 context.metrics 上报。
+        // 宿主负责的每帧统计；实验自己的数值由 context.output.metrics 上报。
         m_Metrics.Set("cpu.frame_ms", double(m_Stats.frameTimeMs));
         m_Metrics.Set("gpu.total_ms", double(m_Services.profiler->GetTotalMilliseconds()));
 
@@ -398,7 +398,7 @@ namespace renderlab::host
             m_Metrics.Set("debug_view_active", 1.0);
     }
 
-    void LabRenderPass::WriteMetricsIfRequested()
+    void ExperimentRenderPass::WriteMetricsIfRequested()
     {
         if (m_MetricsWritten || m_CommandLine.metricsPath.empty())
             return;
@@ -406,7 +406,7 @@ namespace renderlab::host
         m_MetricsWritten = m_Metrics.WriteCsv(m_CommandLine.metricsPath);
     }
 
-    bool LabRenderPass::HandleEndOfFrame(nvrhi::ICommandList* commands)
+    bool ExperimentRenderPass::HandleEndOfFrame(nvrhi::ICommandList* commands)
     {
         (void)commands;
 
@@ -442,7 +442,7 @@ namespace renderlab::host
             }
             else
             {
-                donut::log::warning("RenderLab: capture requested but the lab produced no output texture.");
+                donut::log::warning("Prism: capture requested but the experiment produced no output texture.");
                 m_AnalysisFailed = true;
             }
 
@@ -458,19 +458,19 @@ namespace renderlab::host
             if (m_FrameCounter == measuredStart)
             {
                 m_Metrics.Reset();
-                donut::log::info("RenderLab: benchmark warmup finished, measuring %u frames.", m_CommandLine.benchFrames);
+                donut::log::info("Prism: benchmark warmup finished, measuring %u frames.", m_CommandLine.benchFrames);
             }
 
             if (m_FrameCounter >= measuredStart + uint64_t(m_CommandLine.benchFrames))
             {
                 const std::filesystem::path path = m_CommandLine.metricsPath.empty()
-                    ? std::filesystem::path("renderlab_metrics.csv")
+                    ? std::filesystem::path("prism_metrics.csv")
                     : m_CommandLine.metricsPath;
 
                 m_MetricsWritten = m_Metrics.WriteCsv(path);
 
                 if (m_CommandLine.metricsPath.empty())
-                    donut::log::info("RenderLab: benchmark finished (use --metrics to choose the CSV path).");
+                    donut::log::info("Prism: benchmark finished (use --metrics to choose the CSV path).");
 
                 RequestQuit();
                 return true;
@@ -479,7 +479,7 @@ namespace renderlab::host
 
         if (m_CommandLine.smokeTest && m_FrameCounter >= m_CommandLine.smokeTestFrames)
         {
-            donut::log::info("RenderLab: smoke test finished %llu frames, shutting down.", (unsigned long long)m_FrameCounter);
+            donut::log::info("Prism: smoke test finished %llu frames, shutting down.", (unsigned long long)m_FrameCounter);
             RequestQuit();
             return true;
         }
@@ -487,12 +487,12 @@ namespace renderlab::host
         return false;
     }
 
-    void LabRenderPass::AnalyzeReferenceImage()
+    void ExperimentRenderPass::AnalyzeReferenceImage()
     {
         const Result<FloatImage> current = ReadTextureAsFloat(GetDevice(), m_OutputTexture);
         if (!current.IsOk())
         {
-            donut::log::error("RenderLab: cannot read back the output for the reference image: %s",
+            donut::log::error("Prism: cannot read back the output for the reference image: %s",
                 current.GetStatus().ToStringWithCode().c_str());
             m_AnalysisFailed = true;
             return;
@@ -512,7 +512,7 @@ namespace renderlab::host
         const Result<FloatImage> reference = LoadFloatImage(m_CommandLine.referencePath);
         if (!reference.IsOk())
         {
-            donut::log::error("RenderLab: cannot load the reference image: %s",
+            donut::log::error("Prism: cannot load the reference image: %s",
                 reference.GetStatus().ToStringWithCode().c_str());
             m_AnalysisFailed = true;
             return;
@@ -522,12 +522,12 @@ namespace renderlab::host
 
         if (!comparison.valid)
         {
-            donut::log::error("RenderLab: the reference image comparison failed: %s", comparison.message.c_str());
+            donut::log::error("Prism: the reference image comparison failed: %s", comparison.message.c_str());
             m_AnalysisFailed = true;
             return;
         }
 
-        donut::log::info("RenderLab: reference comparison -- differing pixels %u, non-finite pixels %u, "
+        donut::log::info("Prism: reference comparison -- differing pixels %u, non-finite pixels %u, "
             "max |diff| %.6f, mean |diff| %.6f (tolerance %.6f).",
             comparison.differingPixels, comparison.nonFinitePixels,
             comparison.maxAbsolute, comparison.meanAbsolute, m_CommandLine.tolerance);
@@ -535,15 +535,15 @@ namespace renderlab::host
         if (!comparison.Passed(m_CommandLine.tolerance))
         {
             if (comparison.nonFinitePixels > 0)
-                donut::log::error("RenderLab: the output contains %u non-finite pixels (inf / NaN).", comparison.nonFinitePixels);
+                donut::log::error("Prism: the output contains %u non-finite pixels (inf / NaN).", comparison.nonFinitePixels);
             else
-                donut::log::error("RenderLab: the output differs from the reference image beyond the tolerance.");
+                donut::log::error("Prism: the output differs from the reference image beyond the tolerance.");
 
             m_AnalysisFailed = true;
         }
     }
 
-    void LabRenderPass::BackBufferResizing()
+    void ExperimentRenderPass::BackBufferResizing()
     {
         // 等待 GPU：命令列表返回不代表 GPU 已经用完这些资源。
         GetDevice()->waitForIdle();
@@ -557,52 +557,52 @@ namespace renderlab::host
         m_OutputTexture = nullptr;
     }
 
-    void LabRenderPass::BackBufferResized(const uint32_t width, const uint32_t height, const uint32_t sampleCount)
+    void ExperimentRenderPass::BackBufferResized(const uint32_t width, const uint32_t height, const uint32_t sampleCount)
     {
         (void)sampleCount;
 
         UpdateRenderSize(Extent2D{ std::max(width, 1u), std::max(height, 1u) });
 
         // 接缝通知：时域实现需要丢弃按分辨率分配的历史，显示链需要重建输出尺寸相关的资源。
-        if (m_Context.temporal)
-            m_Context.temporal->OnRenderSizeChanged(m_RenderSize);
+        if (m_Context.output.temporal)
+            m_Context.output.temporal->OnRenderSizeChanged(m_RenderSize);
 
-        if (m_Context.displayChain)
-            m_Context.displayChain->OnOutputResized(m_Context, m_OutputSize);
+        if (m_Context.output.displayChain)
+            m_Context.output.displayChain->OnOutputResized(m_Context, m_OutputSize);
 
-        donut::log::info("RenderLab: output resized to %u x %u (render %u x %u).",
+        donut::log::info("Prism: output resized to %u x %u (render %u x %u).",
             m_OutputSize.width, m_OutputSize.height, m_RenderSize.width, m_RenderSize.height);
     }
 
-    bool LabRenderPass::KeyboardUpdate(int key, int scancode, int action, int mods)
+    bool ExperimentRenderPass::KeyboardUpdate(int key, int scancode, int action, int mods)
     {
-        if (m_Lab && m_Initialized && m_Lab->OnKey(m_Context, key, action, mods))
+        if (m_Experiment && m_Initialized && m_Experiment->OnKey(m_Context, key, action, mods))
             return true;
 
         return m_Camera.KeyboardUpdate(key, scancode, action, mods);
     }
 
-    bool LabRenderPass::MousePosUpdate(double xpos, double ypos)
+    bool ExperimentRenderPass::MousePosUpdate(double xpos, double ypos)
     {
         return m_Camera.MousePosUpdate(xpos, ypos);
     }
 
-    bool LabRenderPass::MouseButtonUpdate(int button, int action, int mods)
+    bool ExperimentRenderPass::MouseButtonUpdate(int button, int action, int mods)
     {
         return m_Camera.MouseButtonUpdate(button, action, mods);
     }
 
-    bool LabRenderPass::MouseScrollUpdate(double xoffset, double yoffset)
+    bool ExperimentRenderPass::MouseScrollUpdate(double xoffset, double yoffset)
     {
         return m_Camera.MouseScrollUpdate(xoffset, yoffset);
     }
 
-    bool LabRenderPass::ShouldAnimateUnfocused()
+    bool ExperimentRenderPass::ShouldAnimateUnfocused()
     {
         return m_CommandLine.WantsHeadlessRun();
     }
 
-    bool LabRenderPass::ShouldRenderUnfocused()
+    bool ExperimentRenderPass::ShouldRenderUnfocused()
     {
         return m_CommandLine.WantsHeadlessRun();
     }

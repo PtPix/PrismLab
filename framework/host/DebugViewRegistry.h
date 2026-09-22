@@ -12,16 +12,16 @@
 #include <string>
 #include <vector>
 
-namespace renderlab::host
+namespace prism::host
 {
     struct DebugViewEntry
     {
-        std::string group;      // 例如 "ForwardLab"
+        std::string group;      // 例如 "ForwardExperiment"
         std::string name;       // 例如 "Depth"
         nvrhi::ITexture* texture = nullptr;
         gpu::DebugViewSettings settings;
 
-        [[nodiscard]] std::string GetLabel() const { return group + " / " + name; }
+        [[nodiscard]] std::string GetExperimentel() const { return group + " / " + name; }
     };
 
     class DebugViewRegistry

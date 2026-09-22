@@ -1,4 +1,4 @@
-#include "forward_lab.h"
+#include "forward.h"
 
 #include <framework/nvrhi/PipelineUtils.h>
 
@@ -18,7 +18,7 @@ using namespace donut::math;
 
 static_assert(sizeof(DebugViewConstants) == 96, "DebugViewConstants layout changed; update debug_view.hlsl");
 
-namespace renderlab::labs
+namespace prism::experiments
 {
     namespace
     {
@@ -33,22 +33,22 @@ namespace renderlab::labs
         };
     }
 
-    const char* ForwardLab::GetDescription() const
+    const char* ForwardExperiment::GetDescription() const
     {
         return "Shared forward scene path plus a debug view pass written by the experiment (depth "
                "decode, world position reconstruction and depth-derived normals).";
     }
 
-    Status ForwardLab::Initialize(host::LabContext& context)
+    Status ForwardExperiment::Initialize(host::ExperimentContext& context)
     {
-        if (!context.device || !context.targets || !context.shaders)
+        if (!context.gpu.device || !context.gpu.targets || !context.gpu.shaders)
             return Status::Error(ErrorCode::NotInitialized, "the host context is incomplete");
 
-        // 读取本实验自己的配置段（samples/lab_forward/config.json 的 labs.ForwardLab）
+        // 读取本实验自己的配置段（samples/forward/config.json 的 experiments.ForwardExperiment）
         if (context.config)
         {
             Json::Value settings;
-            if (adapter::LoadLabSettings(*context.config, GetName(), settings))
+            if (adapter::LoadExperimentSettings(*context.config, GetName(), settings))
             {
                 settings["debugMode"] >> m_Settings.debugMode;
                 settings["depthScale"] >> m_Settings.depthScale;
@@ -70,20 +70,20 @@ namespace renderlab::labs
         m_DebugRequest.usage = gpu::TextureUsage::ShaderResource | gpu::TextureUsage::RenderTarget;
         m_DebugRequest.clearColor = dm::float4(0.02f, 0.02f, 0.03f, 1.f);
 
-        if (!context.targets->GetOrCreate(m_ColorRequest) || !context.targets->GetOrCreate(m_DepthRequest))
+        if (!context.gpu.targets->GetOrCreate(m_ColorRequest) || !context.gpu.targets->GetOrCreate(m_DepthRequest))
             return Status::Error(ErrorCode::DeviceError, "failed to create the scene render targets");
 
-        m_DebugConstantBuffer = context.device->createBuffer(
-            nvrhi::utils::CreateVolatileConstantBufferDesc(sizeof(DebugViewConstants), "ForwardLabDebugView", 4));
+        m_DebugConstantBuffer = context.gpu.device->createBuffer(
+            nvrhi::utils::CreateVolatileConstantBufferDesc(sizeof(DebugViewConstants), "ForwardExperimentDebugView", 4));
 
         if (!m_DebugConstantBuffer)
             return Status::Error(ErrorCode::DeviceError, "failed to create the debug view constant buffer");
 
-        donut::log::info("ForwardLab: ready (debug mode %d).", m_Settings.debugMode);
+        donut::log::info("ForwardExperiment: ready (debug mode %d).", m_Settings.debugMode);
         return Status::Ok();
     }
 
-    bool ForwardLab::EnsureDebugPass(host::LabContext& context, nvrhi::ITexture* depth)
+    bool ForwardExperiment::EnsureDebugPass(host::ExperimentContext& context, nvrhi::ITexture* depth)
     {
         // 绑定集引用池里的深度纹理：纹理被重建时（窗口缩放）需要重建绑定集。
         if (!m_DebugBindingSet || m_BoundDepthTexture != depth)
@@ -92,11 +92,11 @@ namespace renderlab::labs
             bindingSetDesc.bindings = {
                 nvrhi::BindingSetItem::ConstantBuffer(0, m_DebugConstantBuffer),
                 nvrhi::BindingSetItem::Texture_SRV(0, depth),
-                nvrhi::BindingSetItem::Sampler(0, context.commonPasses->m_PointClampSampler),
+                nvrhi::BindingSetItem::Sampler(0, context.gpu.commonPasses->m_PointClampSampler),
             };
 
             if (!nvrhi::utils::CreateBindingSetAndLayout(
-                    context.device, nvrhi::ShaderType::Pixel, 0, bindingSetDesc, m_DebugBindingLayout, m_DebugBindingSet))
+                    context.gpu.device, nvrhi::ShaderType::Pixel, 0, bindingSetDesc, m_DebugBindingLayout, m_DebugBindingSet))
             {
                 return false;
             }
@@ -110,19 +110,19 @@ namespace renderlab::labs
         {
             m_DebugFramebufferTarget = target;
 
-            nvrhi::ShaderHandle pixelShader = context.shaders->GetShader(
-                "renderlab/debug_view.hlsl", "main_ps", nvrhi::ShaderType::Pixel);
+            nvrhi::ShaderHandle pixelShader = context.gpu.shaders->GetShader(
+                "prism/debug_view.hlsl", "main_ps", nvrhi::ShaderType::Pixel);
 
             if (!pixelShader)
                 return false;
 
             gpu::FullScreenPipelineDesc pipelineDesc;
-            pipelineDesc.vertexShader = context.commonPasses->m_FullscreenVS;
+            pipelineDesc.vertexShader = context.gpu.commonPasses->m_FullscreenVS;
             pipelineDesc.pixelShader = pixelShader;
             pipelineDesc.framebuffer = m_DebugFramebuffer;
             pipelineDesc.bindingLayout = m_DebugBindingLayout;
 
-            m_DebugPipeline = gpu::CreateFullScreenPipeline(context.device, pipelineDesc);
+            m_DebugPipeline = gpu::CreateFullScreenPipeline(context.gpu.device, pipelineDesc);
             if (!m_DebugPipeline)
                 return false;
         }
@@ -130,9 +130,9 @@ namespace renderlab::labs
         return true;
     }
 
-    nvrhi::ITexture* ForwardLab::Render(host::LabContext& context, const host::LabFrame& frame)
+    nvrhi::ITexture* ForwardExperiment::Render(host::ExperimentContext& context, const host::ExperimentFrame& frame)
     {
-        gpu::RenderTargetPool& targets = *context.targets;
+        gpu::RenderTargetPool& targets = *context.gpu.targets;
 
         nvrhi::ITexture* color = targets.GetOrCreate(m_ColorRequest);
         nvrhi::ITexture* depth = targets.GetOrCreate(m_DepthRequest);
@@ -147,28 +147,28 @@ namespace renderlab::labs
             m_ColorRequest.clearColor.x, m_ColorRequest.clearColor.y, m_ColorRequest.clearColor.z, m_ColorRequest.clearColor.w));
         commands->clearDepthStencilTexture(depth, subresources, true, kDepthClearValue, false, 0);
 
-        if (!context.scenePipeline || !context.scene || !context.scene->graph)
+        if (!context.scene.pipeline || !context.scene.data || !context.scene.data->graph)
             return color;
 
         {
-            gpu::ScopedGpuScope scope(*context.profiler, commands, "Forward scene");
+            gpu::ScopedGpuScope scope(*context.gpu.profiler, commands, "Forward scene");
 
-            context.scenePipeline->RenderScene(
+            context.scene.pipeline->RenderScene(
                 commands,
-                *context.scene->graph,
+                *context.scene.data->graph,
                 *frame.view,
                 *frame.previousView,
                 targets.GetFramebuffer(color, depth),
-                context.ambientTop,
-                context.ambientBottom);
+                context.scene.ambientTop,
+                context.scene.ambientBottom);
         }
 
         // 中间结果发布给宿主面板（顺序每帧固定）
-        if (context.debugViews)
+        if (context.output.debugViews)
         {
-            context.debugViews->Publish(GetName(), "Scene color", color);
+            context.output.debugViews->Publish(GetName(), "Scene color", color);
             // 设备深度是 forward-Z：远平面接近 1，用 1 - R 才有对比度
-            context.debugViews->Publish(GetName(), "Scene depth (1 - device Z)", depth,
+            context.output.debugViews->Publish(GetName(), "Scene depth (1 - device Z)", depth,
                 { gpu::DebugViewMode::OneMinusR, 20.f, 0.f });
         }
 
@@ -200,7 +200,7 @@ namespace renderlab::labs
         commands->writeBuffer(m_DebugConstantBuffer, &constants, sizeof(constants));
 
         {
-            gpu::ScopedGpuScope scope(*context.profiler, commands, "Debug view");
+            gpu::ScopedGpuScope scope(*context.gpu.profiler, commands, "Debug view");
 
             commands->clearTextureFloat(debugTarget, subresources, nvrhi::Color(
                 m_DebugRequest.clearColor.x, m_DebugRequest.clearColor.y, m_DebugRequest.clearColor.z, m_DebugRequest.clearColor.w));
@@ -211,11 +211,11 @@ namespace renderlab::labs
         return debugTarget;
     }
 
-    void ForwardLab::BuildUI(host::LabContext& context)
+    void ForwardExperiment::BuildUI(host::ExperimentContext& context)
     {
         (void)context;
 
-        ImGui::Text("Passes: forward scene (shared) + debug view (this lab)");
+        ImGui::Text("Passes: forward scene (shared) + debug view (this experiment)");
 
         int debugMode = m_Settings.debugMode;
         if (ImGui::Combo("Debug view", &debugMode, kDebugModeNames, int(std::size(kDebugModeNames))))
@@ -225,7 +225,7 @@ namespace renderlab::labs
             ImGui::SliderFloat("Depth scale", &m_Settings.depthScale, 0.01f, 4.f);
     }
 
-    void ForwardLab::OnResize(host::LabContext& context, const Extent2D& renderSize, const Extent2D& outputSize)
+    void ForwardExperiment::OnResize(host::ExperimentContext& context, const Extent2D& renderSize, const Extent2D& outputSize)
     {
         (void)context;
         (void)renderSize;
@@ -240,7 +240,7 @@ namespace renderlab::labs
     }
 }
 
-std::unique_ptr<renderlab::host::Lab> renderlab::host::CreateLab()
+std::unique_ptr<prism::host::Experiment> prism::host::CreateExperiment()
 {
-    return std::make_unique<renderlab::labs::ForwardLab>();
+    return std::make_unique<prism::experiments::ForwardExperiment>();
 }

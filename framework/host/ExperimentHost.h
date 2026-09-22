@@ -2,13 +2,13 @@
 
 // Host layer: the frame driver.
 //
-// LabRenderPass owns the per-frame state (frame info, camera, profiler, render target pool) and calls
-// the lab once per frame. Everything a lab should not have to write lives here: command list lifetime,
+// ExperimentRenderPass owns the per-frame state (frame info, camera, profiler, render target pool) and calls
+// the experiment once per frame. Everything an experiment should not have to write lives here: command list lifetime,
 // blit to the swap chain, resize handling, jitter sequence, screenshots, smoke test and GPU timing.
 
 #include "CommandLine.h"
 #include "DebugViewRegistry.h"
-#include "Lab.h"
+#include "Experiment.h"
 #include "Metrics.h"
 
 #include <framework/donut/CameraController.h>
@@ -27,7 +27,7 @@
 #include <memory>
 #include <string>
 
-namespace renderlab::host
+namespace prism::host
 {
     struct HostStats
     {
@@ -49,7 +49,7 @@ namespace renderlab::host
         std::string rendererDescription;
 
         uint64_t frameIndex = 0;
-        uint64_t labFrames = 0;
+        uint64_t experimentFrames = 0;
         std::string historyResetDescription = "none";
 
         Extent2D outputCaptureSize;
@@ -72,23 +72,23 @@ namespace renderlab::host
         std::filesystem::path assetsDirectory;
     };
 
-    class LabRenderPass final : public donut::app::IRenderPass
+    class ExperimentRenderPass final : public donut::app::IRenderPass
     {
     public:
-        LabRenderPass(
+        ExperimentRenderPass(
             donut::app::DeviceManager* deviceManager,
             HostStats& stats,
-            std::unique_ptr<Lab> lab,
+            std::unique_ptr<Experiment> experiment,
             const HostServices& services,
             const CommandLine& commandLine);
 
-        ~LabRenderPass() override;
+        ~ExperimentRenderPass() override;
 
         Status Initialize();
 
-        [[nodiscard]] LabContext& GetContext() { return m_Context; }
+        [[nodiscard]] ExperimentContext& GetContext() { return m_Context; }
         [[nodiscard]] adapter::CameraController& GetCamera() { return m_Camera; }
-        [[nodiscard]] Lab* GetLab() { return m_Lab.get(); }
+        [[nodiscard]] Experiment* GetExperiment() { return m_Experiment.get(); }
         [[nodiscard]] const CommandLine& GetCommandLine() const { return m_CommandLine; }
         [[nodiscard]] bool HasFailed() const { return m_HasFailed; }
         [[nodiscard]] bool WasCaptured() const { return m_Captured; }
@@ -104,7 +104,7 @@ namespace renderlab::host
         // 消息循环结束后由应用调用：把指标 CSV 写出来（--metrics / --bench）。
         void WriteMetricsIfRequested();
 
-        void RequestHistoryReset(renderlab::HistoryResetReason reason);
+        void RequestHistoryReset(prism::HistoryResetReason reason);
 
         // 结束消息循环（冒烟测试、截图完成或实验主动结束）
         void RequestQuit();
@@ -132,12 +132,12 @@ namespace renderlab::host
         void AnalyzeReferenceImage();
 
         HostStats& m_Stats;
-        std::unique_ptr<Lab> m_Lab;
+        std::unique_ptr<Experiment> m_Experiment;
         HostServices m_Services;
         CommandLine m_CommandLine;
 
-        LabContext m_Context;
-        LabFrame m_Frame;
+        ExperimentContext m_Context;
+        ExperimentFrame m_Frame;
 
         adapter::CameraController m_Camera;
         donut::engine::PlanarView m_PreviousView;

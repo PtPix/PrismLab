@@ -3,7 +3,7 @@
 #include <donut/core/log.h>
 #include <donut/render/GeometryPasses.h>
 
-namespace renderlab::pipeline
+namespace prism::pipeline
 {
     bool SceneForwardPipeline::Initialize(
         nvrhi::IDevice* device,

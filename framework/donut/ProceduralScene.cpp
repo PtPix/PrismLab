@@ -20,7 +20,7 @@ using namespace donut::math;
 #include <donut/shaders/bindless.h>
 #include <donut/shaders/material_cb.h>
 
-namespace renderlab::adapter
+namespace prism::adapter
 {
 namespace
 {
@@ -451,7 +451,7 @@ SceneData CreateProceduralScene(
         const int index = instances[i]->GetInstanceIndex();
         if (index < 0 || uint32_t(index) >= instanceCount)
         {
-            donut::log::error("RenderLab: instance %u did not receive a valid instance index (%d).", i, index);
+            donut::log::error("Prism: instance %u did not receive a valid instance index (%d).", i, index);
             continue;
         }
 
@@ -517,7 +517,7 @@ SceneData CreateProceduralScene(
     scene.stats.vertices = vertexCount;
     scene.stats.triangles = indexCount / 3;
 
-    donut::log::info("RenderLab: procedural scene ready -- %u meshes / %u instances / %u lights / %u vertices / %u triangles.",
+    donut::log::info("Prism: procedural scene ready -- %u meshes / %u instances / %u lights / %u vertices / %u triangles.",
         scene.stats.meshes, scene.stats.instances, scene.stats.lights, scene.stats.vertices, scene.stats.triangles);
 
     return scene;

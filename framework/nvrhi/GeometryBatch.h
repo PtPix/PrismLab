@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-namespace renderlab::gpu
+namespace prism::gpu
 {
     // 一组顶点/索引缓冲及其属性布局。glTF 场景可能包含多个缓冲组（每个模型一组），
     // 所以批次用下标引用它们，而不是假定全场只有一个缓冲。

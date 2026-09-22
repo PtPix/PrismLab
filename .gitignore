@@ -7,4 +7,4 @@
 *.suo
 
 # runtime log written next to the executable by the host
-renderlab.log
+prism.log

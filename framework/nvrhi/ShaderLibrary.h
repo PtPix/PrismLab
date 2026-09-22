@@ -14,7 +14,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace renderlab::gpu
+namespace prism::gpu
 {
     using ShaderMacroList = std::vector<donut::engine::ShaderMacro>;
 
@@ -23,7 +23,7 @@ namespace renderlab::gpu
     public:
         ShaderLibrary(nvrhi::IDevice* device, std::shared_ptr<donut::engine::ShaderFactory> shaderFactory);
 
-        // virtualPath is relative to the mounted /shaders root, e.g. "renderlab/forward/forward.hlsl".
+        // virtualPath is relative to the mounted /shaders root, e.g. "prism/forward/forward.hlsl".
         // Returns nullptr on failure; the reason is kept in GetLastError().
         nvrhi::ShaderHandle GetShader(
             const char* virtualPath,

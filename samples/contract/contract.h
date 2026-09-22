@@ -1,6 +1,6 @@
 #pragma once
 
-// ContractLab: the M1 contract check.
+// ContractExperiment: the M1 contract check.
 //
 // A GPU pass decodes the depth buffer and writes the reconstructed world position, the linear depth
 // and the raw device depth. The CPU then verifies, on a sparse set of pixels:
@@ -13,13 +13,13 @@
 // template for the project's verification story.
 //
 // It also demonstrates the parameter table: the settings below drive the ImGui panel, the JSON
-// section (labs.ContractLab) and the parameter hash without any per-parameter code.
+// section (experiments.ContractExperiment) and the parameter hash without any per-parameter code.
 
-#include <framework/host/Lab.h>
+#include <framework/host/Experiment.h>
 
 #include <string>
 
-namespace renderlab::labs
+namespace prism::experiments
 {
     struct ContractVerificationReport
     {
@@ -37,7 +37,7 @@ namespace renderlab::labs
         std::string summary = "not run";
     };
 
-    class ContractLab final : public renderlab::host::Lab
+    class ContractExperiment final : public prism::host::Experiment
     {
     public:
         // 参数结构体保持普通 POD：描述符表（kContractParams）负责 UI、JSON 与 hash。
@@ -49,21 +49,21 @@ namespace renderlab::labs
             float tolerancePixels = 0.05f;
         };
 
-        [[nodiscard]] const char* GetName() const override { return "ContractLab"; }
+        [[nodiscard]] const char* GetName() const override { return "ContractExperiment"; }
         [[nodiscard]] const char* GetDescription() const override;
 
-        Status Initialize(host::LabContext& context) override;
-        void BeginFrame(host::LabContext& context, const host::LabFrame& frame) override;
-        nvrhi::ITexture* Render(host::LabContext& context, const host::LabFrame& frame) override;
-        void BuildUI(host::LabContext& context) override;
-        void OnResize(host::LabContext& context, const Extent2D& renderSize, const Extent2D& outputSize) override;
+        Status Initialize(host::ExperimentContext& context) override;
+        void BeginFrame(host::ExperimentContext& context, const host::ExperimentFrame& frame) override;
+        nvrhi::ITexture* Render(host::ExperimentContext& context, const host::ExperimentFrame& frame) override;
+        void BuildUI(host::ExperimentContext& context) override;
+        void OnResize(host::ExperimentContext& context, const Extent2D& renderSize, const Extent2D& outputSize) override;
 
         [[nodiscard]] bool PassedVerification() const override { return !m_Report.ran || m_Report.passed; }
 
     private:
-        bool EnsureCheckPass(host::LabContext& context, nvrhi::ITexture* depth);
-        void RunVerification(host::LabContext& context);
-        void VerifyCpuMath(const renderlab::CameraData& camera);
+        bool EnsureCheckPass(host::ExperimentContext& context, nvrhi::ITexture* depth);
+        void RunVerification(host::ExperimentContext& context);
+        void VerifyCpuMath(const prism::CameraData& camera);
 
         Settings m_Settings;
         host::ParamTable m_Params;
@@ -83,16 +83,16 @@ namespace renderlab::labs
         nvrhi::ITexture* m_BoundPositionTarget = nullptr;
         nvrhi::ITexture* m_BoundDepthTarget = nullptr;
 
-        renderlab::CameraData m_VerifiedCamera;
+        prism::CameraData m_VerifiedCamera;
         bool m_HasVerifiedCamera = false;
         bool m_VerificationRequested = false;
     };
 
     // 参数描述符：字段、JSON 键、UI 标签与范围写在一起，加参数不需要写额外代码。
-    inline const renderlab::host::ParamDesc kContractParams[] = {
-        RL_PARAM_INT(ContractLab::Settings, verifyFrame, "Verify frame", 1, 60, renderlab::host::ParamFlags::None),
-        RL_PARAM_INT(ContractLab::Settings, sampleStride, "Sample stride", 2, 128, renderlab::host::ParamFlags::None),
-        RL_PARAM_FLOAT(ContractLab::Settings, toleranceMeters, "Tolerance (m)", 0.0001f, 0.5f, renderlab::host::ParamFlags::None),
-        RL_PARAM_FLOAT(ContractLab::Settings, tolerancePixels, "Tolerance (px)", 0.001f, 2.f, renderlab::host::ParamFlags::None),
+    inline const prism::host::ParamDesc kContractParams[] = {
+        PRISM_PARAM_INT(ContractExperiment::Settings, verifyFrame, "Verify frame", 1, 60, prism::host::ParamFlags::None),
+        PRISM_PARAM_INT(ContractExperiment::Settings, sampleStride, "Sample stride", 2, 128, prism::host::ParamFlags::None),
+        PRISM_PARAM_FLOAT(ContractExperiment::Settings, toleranceMeters, "Tolerance (m)", 0.0001f, 0.5f, prism::host::ParamFlags::None),
+        PRISM_PARAM_FLOAT(ContractExperiment::Settings, tolerancePixels, "Tolerance (px)", 0.001f, 2.f, prism::host::ParamFlags::None),
     };
 }

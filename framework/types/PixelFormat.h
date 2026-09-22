@@ -4,11 +4,11 @@
 //
 // The NVRHI layer converts these to nvrhi::Format (see framework/nvrhi/Formats.h), so that a
 // resource request can be described without naming a graphics API type. Only the formats that the
-// lab actually uses for scene data, debug output and readback are listed here.
+// experiment actually uses for scene data, debug output and readback are listed here.
 
 #include <cstdint>
 
-namespace renderlab
+namespace prism
 {
     enum class PixelFormat : uint32_t
     {

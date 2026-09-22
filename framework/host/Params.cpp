@@ -7,7 +7,7 @@
 
 #include <cstring>
 
-namespace renderlab::host
+namespace prism::host
 {
     namespace
     {
@@ -124,7 +124,7 @@ namespace renderlab::host
             {
                 if (!value.isBool())
                 {
-                    donut::log::warning("RenderLab: parameter '%s' expects %s in the config, ignoring.",
+                    donut::log::warning("Prism: parameter '%s' expects %s in the config, ignoring.",
                         descriptor.name, ToString(descriptor.kind));
                     break;
                 }
@@ -139,7 +139,7 @@ namespace renderlab::host
             {
                 if (!value.isInt())
                 {
-                    donut::log::warning("RenderLab: parameter '%s' expects %s in the config, ignoring.",
+                    donut::log::warning("Prism: parameter '%s' expects %s in the config, ignoring.",
                         descriptor.name, ToString(descriptor.kind));
                     break;
                 }
@@ -154,7 +154,7 @@ namespace renderlab::host
             {
                 if (!value.isNumeric())
                 {
-                    donut::log::warning("RenderLab: parameter '%s' expects %s in the config, ignoring.",
+                    donut::log::warning("Prism: parameter '%s' expects %s in the config, ignoring.",
                         descriptor.name, ToString(descriptor.kind));
                     break;
                 }

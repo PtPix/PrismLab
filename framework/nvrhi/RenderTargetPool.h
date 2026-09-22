@@ -2,9 +2,9 @@
 
 // NVRHI layer: named transient render targets.
 //
-// Labs declare the textures they need (name, format, usage, size relative to the render resolution);
+// Experiments declare the textures they need (name, format, usage, size relative to the render resolution);
 // the pool creates them, hands out framebuffers and rebuilds everything when the render size changes.
-// This is what keeps window resizing, format plumbing and framebuffer caching out of lab code.
+// This is what keeps window resizing, format plumbing and framebuffer caching out of experiment code.
 //
 // Ownership rules: the pool owns the textures for the frame; a pass only
 // borrows them for the duration of the GPU work it records. Textures are released in Clear(), which
@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-namespace renderlab::gpu
+namespace prism::gpu
 {
     struct TextureRequest
     {

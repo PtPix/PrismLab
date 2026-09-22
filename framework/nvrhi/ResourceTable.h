@@ -34,7 +34,7 @@
 #include <string>
 #include <vector>
 
-namespace renderlab::gpu
+namespace prism::gpu
 {
     class TextureSlot
     {

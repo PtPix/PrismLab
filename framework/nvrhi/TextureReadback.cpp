@@ -6,7 +6,7 @@
 #include <cmath>
 #include <cstring>
 
-namespace renderlab::gpu
+namespace prism::gpu
 {
     bool SaveTextureToImage(
         nvrhi::IDevice* device,
@@ -32,7 +32,7 @@ namespace renderlab::gpu
             return false;
         }
 
-        donut::log::info("RenderLab: wrote %s", fileName.c_str());
+        donut::log::info("Prism: wrote %s", fileName.c_str());
         return true;
     }
 

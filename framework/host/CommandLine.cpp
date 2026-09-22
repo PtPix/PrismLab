@@ -4,7 +4,7 @@
 
 #include <cstdlib>
 
-namespace renderlab::host
+namespace prism::host
 {
     namespace
     {
@@ -129,7 +129,7 @@ namespace renderlab::host
     std::string GetCommandLineUsage()
     {
         return
-            "Usage: <lab executable> [options]\n"
+            "Usage: <experiment executable> [options]\n"
             "  --config <path>        use a specific JSON config file\n"
             "  --scene <source>       override the scene source: procedural | gltf\n"
             "  --asset <path>         override the scene asset (scene .json, .gltf or .glb)\n"

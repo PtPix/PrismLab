@@ -2,7 +2,7 @@
 
 #include <cstdio>
 
-namespace renderlab::gpu
+namespace prism::gpu
 {
     namespace
     {

@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cstdio>
 
-namespace renderlab::host
+namespace prism::host
 {
     namespace
     {
@@ -29,13 +29,13 @@ namespace renderlab::host
     }
 
     void Metrics::SetContext(
-        std::string labName,
+        std::string experimentName,
         std::string sceneDescription,
         std::string rendererDescription,
         Extent2D renderSize,
         Extent2D outputSize)
     {
-        m_LabName = std::move(labName);
+        m_ExperimentName = std::move(experimentName);
         m_SceneDescription = std::move(sceneDescription);
         m_RendererDescription = std::move(rendererDescription);
         m_RenderSize = renderSize;
@@ -153,7 +153,7 @@ namespace renderlab::host
         FILE* file = nullptr;
         if (_wfopen_s(&file, path.c_str(), L"w") != 0 || !file)
         {
-            donut::log::error("RenderLab: cannot write metrics to %s", path.string().c_str());
+            donut::log::error("Prism: cannot write metrics to %s", path.string().c_str());
             return false;
         }
 
@@ -176,7 +176,7 @@ namespace renderlab::host
         }
 
         // 上下文与汇总（以 '#' 开头，便于解析时过滤）
-        fprintf(file, "# lab,%s\n", EscapeCsv(m_LabName).c_str());
+        fprintf(file, "# experiment,%s\n", EscapeCsv(m_ExperimentName).c_str());
         fprintf(file, "# scene,%s\n", EscapeCsv(m_SceneDescription).c_str());
         fprintf(file, "# renderer,%s\n", EscapeCsv(m_RendererDescription).c_str());
         fprintf(file, "# render_size,%ux%u\n", m_RenderSize.width, m_RenderSize.height);
@@ -195,7 +195,7 @@ namespace renderlab::host
 
         fclose(file);
 
-        donut::log::info("RenderLab: metrics written to %s (%llu measured frames).",
+        donut::log::info("Prism: metrics written to %s (%llu measured frames).",
             path.string().c_str(), (unsigned long long)m_FrameCount);
         return true;
     }
