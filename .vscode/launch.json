@@ -1,7 +1,7 @@
 // F5 调试配置（需要 ms-vscode.cpptools）。preLaunchTask 会先构建再启动，
 // 构建逻辑仍在根目录的 prism.ps1 里，这里不重复写 cmake 命令。
 //
-// 程序是 WIN32 子系统：stdout 不可见，运行日志见 build/my-project/bin/prism.log
+// 程序是 WIN32 子系统：stdout 不可见，运行日志见 build/my-project/bin/Debug/prism.log
 // （无头参数运行时一定写文件；交互运行时日志显示在应用内控制台）。
 {
     "version": "0.2.0",
@@ -10,9 +10,9 @@
             "name": "Prism: ForwardExperiment",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/my-project/bin/PrismForward.exe",
+            "program": "${workspaceFolder}/build/my-project/bin/Debug/PrismForward.exe",
             "args": [],
-            "cwd": "${workspaceFolder}/build/my-project/bin",
+            "cwd": "${workspaceFolder}/build/my-project/bin/Debug",
             "console": "internalConsole",
             "preLaunchTask": "Prism: build (Debug)",
             "stopAtEntry": false
@@ -21,9 +21,9 @@
             "name": "Prism: ForwardExperiment (smoke test 30)",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/my-project/bin/PrismForward.exe",
+            "program": "${workspaceFolder}/build/my-project/bin/Debug/PrismForward.exe",
             "args": [ "--smoke-test=30" ],
-            "cwd": "${workspaceFolder}/build/my-project/bin",
+            "cwd": "${workspaceFolder}/build/my-project/bin/Debug",
             "console": "internalConsole",
             "preLaunchTask": "Prism: build (Debug)",
             "stopAtEntry": false
@@ -32,9 +32,9 @@
             "name": "Prism: ForwardExperiment (capture frame 4)",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/my-project/bin/PrismForward.exe",
+            "program": "${workspaceFolder}/build/my-project/bin/Debug/PrismForward.exe",
             "args": [ "--capture", "forward_capture.png", "--capture-frame", "4" ],
-            "cwd": "${workspaceFolder}/build/my-project/bin",
+            "cwd": "${workspaceFolder}/build/my-project/bin/Debug",
             "console": "internalConsole",
             "preLaunchTask": "Prism: build (Debug)",
             "stopAtEntry": false
@@ -43,9 +43,9 @@
             "name": "Prism: ContractExperiment (self check 30)",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/my-project/bin/PrismContract.exe",
+            "program": "${workspaceFolder}/build/my-project/bin/Debug/PrismContract.exe",
             "args": [ "--smoke-test=30" ],
-            "cwd": "${workspaceFolder}/build/my-project/bin",
+            "cwd": "${workspaceFolder}/build/my-project/bin/Debug",
             "console": "internalConsole",
             "preLaunchTask": "Prism: build (Debug)",
             "stopAtEntry": false
@@ -54,9 +54,9 @@
             "name": "Prism: Starter",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/my-project/bin/PrismStarter.exe",
+            "program": "${workspaceFolder}/build/my-project/bin/Debug/PrismStarter.exe",
             "args": [],
-            "cwd": "${workspaceFolder}/build/my-project/bin",
+            "cwd": "${workspaceFolder}/build/my-project/bin/Debug",
             "console": "internalConsole",
             "preLaunchTask": "Prism: build (Debug)",
             "stopAtEntry": false

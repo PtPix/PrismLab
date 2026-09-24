@@ -1,6 +1,7 @@
 #include "forward.h"
 
-#include <framework/nvrhi/PipelineUtils.h>
+#include <framework/tools/replay/ReplayController.h>
+#include <framework/tools/comparison/ComparisonController.h>
 
 #include <donut/core/json.h>
 #include <donut/core/log.h>
@@ -44,11 +45,18 @@ namespace prism::experiments
         if (!context.gpu.device || !context.gpu.targets || !context.gpu.shaders)
             return Status::Error(ErrorCode::NotInitialized, "the host context is incomplete");
 
+        const host::HostConfig defaults;
+        const auto& config = context.config ? *context.config : defaults;
+        auto sceneStatus = m_Scene.Initialize(context.gpu, config.scene, config.lighting);
+        if (!sceneStatus) return sceneStatus;
+        context.scene.stats = m_Scene.Data().stats;
+        context.scene.description = m_Scene.Data().description;
+
         // 读取本实验自己的配置段（samples/forward/config.json 的 experiments.ForwardExperiment）
         if (context.config)
         {
             Json::Value settings;
-            if (adapter::LoadExperimentSettings(*context.config, GetName(), settings))
+            if (host::LoadExperimentSettings(*context.config, GetName(), settings))
             {
                 settings["debugMode"] >> m_Settings.debugMode;
                 settings["depthScale"] >> m_Settings.depthScale;
@@ -79,60 +87,40 @@ namespace prism::experiments
         if (!m_DebugConstantBuffer)
             return Status::Error(ErrorCode::DeviceError, "failed to create the debug view constant buffer");
 
+        context.tools.replay->captureParameters = [this]()
+        { Json::Value p; p["debugMode"] = m_Settings.debugMode; p["depthScale"] = m_Settings.depthScale; return p; };
+        context.tools.replay->restoreParameters = [this](const Json::Value& p)
+        { if (p["debugMode"].isInt()) m_Settings.debugMode = p["debugMode"].asInt();
+          if (p["depthScale"].isNumeric()) m_Settings.depthScale = p["depthScale"].asFloat(); };
+
         donut::log::info("ForwardExperiment: ready (debug mode %d).", m_Settings.debugMode);
         return Status::Ok();
     }
 
     bool ForwardExperiment::EnsureDebugPass(host::ExperimentContext& context, nvrhi::ITexture* depth)
     {
-        // 绑定集引用池里的深度纹理：纹理被重建时（窗口缩放）需要重建绑定集。
-        if (!m_DebugBindingSet || m_BoundDepthTexture != depth)
+        if (!m_DebugReady)
         {
-            nvrhi::BindingSetDesc bindingSetDesc;
-            bindingSetDesc.bindings = {
-                nvrhi::BindingSetItem::ConstantBuffer(0, m_DebugConstantBuffer),
-                nvrhi::BindingSetItem::Texture_SRV(0, depth),
-                nvrhi::BindingSetItem::Sampler(0, context.gpu.commonPasses->m_PointClampSampler),
-            };
-
-            if (!nvrhi::utils::CreateBindingSetAndLayout(
-                    context.gpu.device, nvrhi::ShaderType::Pixel, 0, bindingSetDesc, m_DebugBindingLayout, m_DebugBindingSet))
-            {
-                return false;
-            }
-
-            m_BoundDepthTexture = depth;
+            nvrhi::BindingLayoutDesc layout; layout.visibility = nvrhi::ShaderType::Pixel;
+            layout.bindings = {nvrhi::BindingLayoutItem::VolatileConstantBuffer(0),
+                nvrhi::BindingLayoutItem::Texture_SRV(0), nvrhi::BindingLayoutItem::Sampler(0)};
+            m_DebugBindingLayout = context.gpu.device->createBindingLayout(layout);
+            if (!m_DebugBindingLayout) return false;
+            auto status = m_DebugPass.Initialize(context.gpu.device, *context.gpu.shaders, *context.gpu.commonPasses,
+                {"prism/PrismForward/debug_view.hlsl", "main_ps", nvrhi::ShaderType::Pixel, {}}, {m_DebugBindingLayout});
+            if (!status) return false;
+            m_DebugReady = true;
         }
-
-        nvrhi::ITexture* target = m_DebugFramebuffer ? m_DebugFramebuffer->getDesc().colorAttachments[0].texture : nullptr;
-
-        if (!m_DebugPipeline || m_DebugFramebufferTarget != target)
-        {
-            m_DebugFramebufferTarget = target;
-
-            nvrhi::ShaderHandle pixelShader = context.gpu.shaders->GetShader(
-                "prism/debug_view.hlsl", "main_ps", nvrhi::ShaderType::Pixel);
-
-            if (!pixelShader)
-                return false;
-
-            gpu::FullScreenPipelineDesc pipelineDesc;
-            pipelineDesc.vertexShader = context.gpu.commonPasses->m_FullscreenVS;
-            pipelineDesc.pixelShader = pixelShader;
-            pipelineDesc.framebuffer = m_DebugFramebuffer;
-            pipelineDesc.bindingLayout = m_DebugBindingLayout;
-
-            m_DebugPipeline = gpu::CreateFullScreenPipeline(context.gpu.device, pipelineDesc);
-            if (!m_DebugPipeline)
-                return false;
-        }
-
+        nvrhi::BindingSetDesc bindings;
+        bindings.bindings = {nvrhi::BindingSetItem::ConstantBuffer(0, m_DebugConstantBuffer),
+            nvrhi::BindingSetItem::Texture_SRV(0, depth), nvrhi::BindingSetItem::Sampler(0, context.gpu.commonPasses->m_PointClampSampler)};
+        m_DebugBindingSet = m_DebugPass.Bindings(bindings, m_DebugBindingLayout);
         return true;
     }
 
     nvrhi::ITexture* ForwardExperiment::Render(host::ExperimentContext& context, const host::ExperimentFrame& frame)
     {
-        gpu::RenderTargetPool& targets = *context.gpu.targets;
+        gpu::TextureCache& targets = *context.gpu.targets;
 
         nvrhi::ITexture* color = targets.GetOrCreate(m_ColorRequest);
         nvrhi::ITexture* depth = targets.GetOrCreate(m_DepthRequest);
@@ -147,31 +135,25 @@ namespace prism::experiments
             m_ColorRequest.clearColor.x, m_ColorRequest.clearColor.y, m_ColorRequest.clearColor.z, m_ColorRequest.clearColor.w));
         commands->clearDepthStencilTexture(depth, subresources, true, kDepthClearValue, false, 0);
 
-        if (!context.scene.pipeline || !context.scene.data || !context.scene.data->graph)
+        if (!m_Scene.Data().graph)
             return color;
 
         {
             gpu::ScopedGpuScope scope(*context.gpu.profiler, commands, "Forward scene");
 
-            context.scene.pipeline->RenderScene(
-                commands,
-                *context.scene.data->graph,
-                *frame.view,
-                *frame.previousView,
-                targets.GetFramebuffer(color, depth),
-                context.scene.ambientTop,
-                context.scene.ambientBottom);
+            m_Scene.Record(commands, frame.frame.submissionIndex, *frame.view, *frame.previousView, targets.GetFramebuffer(color, depth));
         }
 
         // 中间结果发布给宿主面板（顺序每帧固定）
-        if (context.output.debugViews)
+        if (context.tools.debugViews)
         {
-            context.output.debugViews->Publish(GetName(), "Scene color", color);
+            context.tools.debugViews->Publish(GetName(), "Scene color", color);
             // 设备深度是 forward-Z：远平面接近 1，用 1 - R 才有对比度
-            context.output.debugViews->Publish(GetName(), "Scene depth (1 - device Z)", depth,
+            context.tools.debugViews->Publish(GetName(), "Scene depth (1 - device Z)", depth,
                 { gpu::DebugViewMode::OneMinusR, 20.f, 0.f });
         }
 
+        context.tools.comparison->Publish("Scene color", {color, ColorSpace::SceneLinear});
         if (m_Settings.debugMode <= 0)
             return color;
 
@@ -205,7 +187,7 @@ namespace prism::experiments
             commands->clearTextureFloat(debugTarget, subresources, nvrhi::Color(
                 m_DebugRequest.clearColor.x, m_DebugRequest.clearColor.y, m_DebugRequest.clearColor.z, m_DebugRequest.clearColor.w));
 
-            gpu::DrawFullScreenQuad(commands, m_DebugPipeline, m_DebugFramebuffer, m_DebugBindingSet);
+            m_DebugPass.Record(commands, m_DebugFramebuffer, {m_DebugBindingSet});
         }
 
         return debugTarget;
@@ -232,11 +214,9 @@ namespace prism::experiments
         (void)outputSize;
 
         // 池里的纹理会被重建：这些缓存引用必须失效。
-        m_DebugPipeline = nullptr;
+        m_DebugPass.ClearBindings();
         m_DebugFramebuffer = nullptr;
-        m_DebugFramebufferTarget = nullptr;
         m_DebugBindingSet = nullptr;
-        m_BoundDepthTexture = nullptr;
     }
 }
 

@@ -1,6 +1,10 @@
 {
   "version": 3,
-  "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
   "configurePresets": [
     {
       "name": "windows-base",
@@ -33,20 +37,30 @@
       "displayName": "Prism only (Release)",
       "configurePreset": "my-project",
       "configuration": "Release",
-      "targets": ["PrismForward", "PrismContract", "PrismStarter"]
+      "targets": [
+        "PrismForward",
+        "PrismContract",
+        "PrismStarter"
+      ]
     },
     {
       "name": "my-project-debug",
       "displayName": "Prism only (Debug)",
       "configurePreset": "my-project",
       "configuration": "Debug",
-      "targets": ["PrismForward", "PrismContract", "PrismStarter"]
+      "targets": [
+        "PrismForward",
+        "PrismContract",
+        "PrismStarter"
+      ]
     },
     {
       "name": "all-projects",
       "configurePreset": "all-projects",
       "configuration": "Release",
-      "targets": ["PrismForward", "PrismContract", "PrismStarter"]
+      "targets": [
+        "PrismAllProjects"
+      ]
     }
   ]
 }

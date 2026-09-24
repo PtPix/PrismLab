@@ -6,7 +6,7 @@
 //   3. 终端：powershell -NoProfile -File prism.ps1 -Target PrismForward
 //
 // 目标推断规则（未显式指定 -Target 时）：samples/forward -> PrismForward，
-// samples/contract -> PrismContract，samples/starter -> PrismStarter，
+// tests/gpu/contract -> PrismContract，samples/starter -> PrismStarter，
 // 其余（框架代码）默认 PrismForward。
 //
 // Code Runner（formulahendry.code-runner）是可选的第三方扩展：装了就生效，没装也不影响

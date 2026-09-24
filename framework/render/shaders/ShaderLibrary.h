@@ -1,0 +1,66 @@
+#pragma once
+
+// NVRHI layer: shader loading with variant caching.
+//
+// Shader bridging is not a binary ABI: the same .hlsli is recompiled for each host, so the cache key
+// must contain every option that changes the generated code (path, entry point, type, macros).
+
+#include <donut/engine/ShaderFactory.h>
+
+#include <nvrhi/nvrhi.h>
+
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
+#include <framework/core/Status.h>
+#include "ShaderReloadClient.h"
+
+namespace prism::gpu
+{
+    using ShaderMacroList = std::vector<donut::engine::ShaderMacro>;
+
+    class ShaderLibrary
+    {
+    public:
+        ShaderLibrary(nvrhi::IDevice* device, std::shared_ptr<donut::engine::ShaderFactory> shaderFactory);
+
+        // virtualPath is relative to the mounted /shaders root, e.g. "prism/forward/forward.hlsl".
+        // Returns nullptr on failure; the reason is kept in GetLastError().
+        nvrhi::ShaderHandle GetShader(
+            const char* virtualPath,
+            const char* entryName,
+            nvrhi::ShaderType type,
+            const ShaderMacroList& macros = ShaderMacroList());
+
+        nvrhi::ShaderLibraryHandle GetShaderLibrary(
+            const char* virtualPath,
+            const ShaderMacroList& macros = ShaderMacroList());
+
+        // Drops cached NVRHI shaders and the bytecode cache: used by shader hot reload.
+        void ClearCache();
+
+        void Register(ShaderReloadClient* client);
+        void Unregister(ShaderReloadClient* client);
+        // Called at a frame boundary; clients prepare before any version is replaced.
+        Status Reload(std::shared_ptr<donut::engine::ShaderFactory> candidateFactory);
+        std::shared_ptr<donut::engine::ShaderFactory> GetFactory() const { return m_ShaderFactory; }
+        uint64_t GetGeneration() const { return m_Generation; }
+
+        [[nodiscard]] const std::string& GetLastError() const { return m_LastError; }
+        [[nodiscard]] size_t GetVariantCount() const { return m_ShaderCache.size(); }
+
+    private:
+        static std::string MakeKey(const char* virtualPath, const char* entryName, nvrhi::ShaderType type, const ShaderMacroList& macros);
+
+        nvrhi::IDevice* m_Device = nullptr;
+        std::shared_ptr<donut::engine::ShaderFactory> m_ShaderFactory;
+        std::unordered_map<std::string, nvrhi::ShaderHandle> m_ShaderCache;
+        std::unordered_map<std::string, std::string> m_Interfaces;
+        const std::unordered_map<std::string, std::string>* m_ReloadBaseline = nullptr;
+        std::unordered_map<std::string, nvrhi::ShaderLibraryHandle> m_LibraryCache;
+        std::string m_LastError;
+        std::vector<ShaderReloadClient*> m_Clients;
+        uint64_t m_Generation = 0;
+    };
+}

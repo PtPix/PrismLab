@@ -80,7 +80,7 @@
         },
         {
             "label": "Prism: run Starter",
-            "detail": "构建并启动最小三角形成立示例",
+            "detail": "构建并启动无场景的全屏 Pass 示例",
             "type": "shell",
             "command": "powershell",
             "args": [

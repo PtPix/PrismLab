@@ -1,4 +1,8 @@
 #pragma once
+#include <framework/adapters/donut/ForwardScene.h>
+#include <framework/app/Params.h>
+#include <framework/tools/inspection/DebugViewRegistry.h>
+#include <framework/tools/metrics/Metrics.h>
 
 // ForwardExperiment: the baseline experiment.
 //
@@ -6,7 +10,8 @@
 // view of the depth buffer). There is no camera, scene, UI shell, timing or configuration code here:
 // the host provides all of it, which is what "only write the algorithm" means in practice.
 
-#include <framework/host/Experiment.h>
+#include <framework/app/Experiment.h>
+#include <framework/render/passes/FullscreenPass.h>
 
 namespace prism::experiments
 {
@@ -22,6 +27,7 @@ namespace prism::experiments
         void OnResize(host::ExperimentContext& context, const Extent2D& renderSize, const Extent2D& outputSize) override;
 
     private:
+        adapter::ForwardScene m_Scene;
         struct Settings
         {
             int debugMode = 0;      // 0 = off
@@ -40,9 +46,8 @@ namespace prism::experiments
         nvrhi::BindingLayoutHandle m_DebugBindingLayout;
         nvrhi::BindingSetHandle m_DebugBindingSet;
 
-        nvrhi::GraphicsPipelineHandle m_DebugPipeline;
+        gpu::FullscreenPass m_DebugPass;
+        bool m_DebugReady = false;
         nvrhi::IFramebuffer* m_DebugFramebuffer = nullptr;
-        nvrhi::ITexture* m_DebugFramebufferTarget = nullptr;
-        nvrhi::ITexture* m_BoundDepthTexture = nullptr;
     };
 }

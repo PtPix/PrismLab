@@ -34,7 +34,7 @@ $ErrorActionPreference = 'Stop'
 
 $root = $PSScriptRoot
 $buildDir = Join-Path $root ('build/' + $Preset)
-$binDir = Join-Path $buildDir 'bin'
+$binDir = Join-Path $buildDir ('bin/' + $Config)
 
 # cmake is not on PATH outside a Developer PowerShell; fall back to the VS installation.
 function Find-CMake {
@@ -64,7 +64,7 @@ function Resolve-Target([string]$file) {
 
     switch -Regex ($file -replace '\\', '/') {
         '/samples/forward/'  { return 'PrismForward' }
-        '/samples/contract/' { return 'PrismContract' }
+        '/tests/gpu/contract/' { return 'PrismContract' }
         '/samples/starter/'      { return 'PrismStarter' }
         default                  { return 'PrismForward' }
     }
