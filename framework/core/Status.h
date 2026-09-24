@@ -44,7 +44,8 @@ namespace prism
         }
     }
 
-    class Status
+    // [[nodiscard]]: an ignored failure would silently continue with a broken pipeline or resource.
+    class [[nodiscard]] Status
     {
     public:
         Status() = default;
@@ -81,7 +82,7 @@ namespace prism
     };
 
     template <typename T>
-    class Result
+    class [[nodiscard]] Result
     {
     public:
         Result(T value)

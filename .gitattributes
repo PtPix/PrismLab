@@ -1,9 +1,27 @@
 * text=auto
+
+# Normalize every text format the repository owns, so a Windows checkout does not
+# mix CRLF headers with LF sources inside the same directory.
+*.c text eol=lf
 *.cpp text eol=lf
+*.h text eol=lf
+*.hpp text eol=lf
 *.hlsl text eol=lf
+*.hlsli text eol=lf
 *.cfg text eol=lf
 *.cmake text eol=lf
-CMakeLists.txt text eol=lf
 *.json text eol=lf
 *.md text eol=lf
+*.txt text eol=lf
+*.yml text eol=lf
+CMakeLists.txt text eol=lf
+.gitattributes text eol=lf
+.gitignore text eol=lf
 .gitmodules text eol=lf
+
+# PowerShell is read by Windows PowerShell 5.1, which is tolerant of LF.
+*.ps1 text eol=lf
+
+# Reference images are compared byte for byte.
+*.png binary
+*.f32 binary

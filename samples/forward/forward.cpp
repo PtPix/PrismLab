@@ -181,13 +181,22 @@ namespace prism::experiments
 
         commands->writeBuffer(m_DebugConstantBuffer, &constants, sizeof(constants));
 
+        Status debugStatus;
         {
             gpu::ScopedGpuScope scope(*context.gpu.profiler, commands, "Debug view");
 
             commands->clearTextureFloat(debugTarget, subresources, nvrhi::Color(
                 m_DebugRequest.clearColor.x, m_DebugRequest.clearColor.y, m_DebugRequest.clearColor.z, m_DebugRequest.clearColor.w));
 
-            m_DebugPass.Record(commands, m_DebugFramebuffer, {m_DebugBindingSet});
+            debugStatus = m_DebugPass.Record(commands, m_DebugFramebuffer, {m_DebugBindingSet});
+        }
+
+        // 调试 Pass 失败时回退到场景颜色，而不是显示一张只被清空过的目标。
+        if (!debugStatus)
+        {
+            donut::log::error("ForwardExperiment: the debug view pass failed: %s",
+                debugStatus.ToStringWithCode().c_str());
+            return color;
         }
 
         return debugTarget;

@@ -8,5 +8,4 @@ prism_add_target(PrismContract
     SHADERS
         contract_check.hlsl:cs
     CONFIG
-        config.json
-    PROJECT_NAME "Prism ContractExperiment")
+        config.json)

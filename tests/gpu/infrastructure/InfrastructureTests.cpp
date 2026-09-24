@@ -87,6 +87,23 @@ namespace prism::host
             resources.SetRenderSize({20,12});
             Check(resources.Get(pixels)->getDesc().byteSize == 20 * 12 * 16, "pixel buffer resize");
             resources.SetRenderSize(size);
+            Check(resources.Get(pixels)->getDesc().canHaveRawViews == false, "structured buffers do not need raw views");
+            gpu::BufferSlot raw("Raw", 0, gpu::BufferUsage::ShaderResource, 0, 64);
+            Check(resources.Get(raw) && resources.Get(raw)->getDesc().canHaveRawViews, "stride-free shader resource gets a raw view");
+            // volatile 常量缓冲必须带非零 maxVersions，否则 NVRHI 会拒绝创建。
+            gpu::BufferSlot constants("Constants", 0, gpu::BufferUsage::Constant, 0, 0, 256, true);
+            nvrhi::IBuffer* constantBuffer = resources.Get(constants);
+            Check(constantBuffer != nullptr, "cpu-writable constant buffer is created");
+            if (constantBuffer)
+            {
+                const auto& constantDesc = constantBuffer->getDesc();
+                Check(constantDesc.isVolatile && constantDesc.maxVersions > 0, "cpu-writable constant buffer is volatile and versioned");
+            }
+            // 自相矛盾的用法必须被拒绝，而不是交给 NVRHI 在 Debug 下报错、在 Release 下静默。
+            gpu::BufferSlot conflicting("Conflicting", 0, gpu::BufferUsage::Constant | gpu::BufferUsage::UnorderedAccess, 0, 0, 256, true);
+            Check(resources.Get(conflicting) == nullptr, "a volatile constant buffer cannot also be a UAV");
+            gpu::BufferSlot stridedConstants("StridedConstants", 16, gpu::BufferUsage::Constant, 0, 4);
+            Check(resources.Get(stridedConstants) == nullptr, "a constant buffer cannot have a struct stride");
             nvrhi::BindingLayoutDesc d; d.visibility = nvrhi::ShaderType::Compute;
             d.bindings = {nvrhi::BindingLayoutItem::Texture_UAV(0)};
             layout = context.gpu.device->createBindingLayout(d);

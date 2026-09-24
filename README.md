@@ -108,3 +108,5 @@ git -C external/Donut-Samples submodule update --init media
 ## 来源
 
 应用入口基于 Donut-Samples 与 Donut 的设备/UI 框架，保留其版权和 MIT 许可。第三方许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+Prism 自身代码以 MIT 发布，见 [LICENSE](LICENSE)；`external/` 下的子模块各自保留原许可。

@@ -8,5 +8,4 @@ prism_add_target(PrismForward
     SHADERS
         debug_view.hlsl:ps
     CONFIG
-        presets/default.json
-    PROJECT_NAME "Prism ForwardExperiment")
+        presets/default.json)

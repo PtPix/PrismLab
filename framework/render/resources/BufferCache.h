@@ -5,6 +5,7 @@
 
 #include "Formats.h"
 
+#include <framework/core/Status.h>
 #include <framework/core/Types.h>
 
 #include <nvrhi/nvrhi.h>
@@ -42,11 +43,18 @@ namespace prism::gpu
         uint32_t elementsPerPixel = 0;   // 按渲染分辨率像素数 × 该系数（每像素一个 reservoir 时为 1）
         uint64_t byteSize = 0;
 
-        // 每帧由 CPU 写入（例如常量、计数器）：创建为 volatile 常量缓冲或多版本缓冲
+        // 每帧由 CPU 写入。配合 BufferUsage::Constant 时创建为 volatile 常量缓冲，
+        // 每帧可写入 maxVersions 次；其他用法下普通缓冲本身就支持 writeBuffer，无需该标志。
         bool cpuWritable = false;
+
+        // volatile 常量缓冲的每帧版本数；NVRHI 要求非零，仅在 cpuWritable + Constant 时有效。
+        uint32_t maxVersions = 16;
 
         [[nodiscard]] uint64_t ResolveByteSize(const Extent2D& renderSize) const;
         [[nodiscard]] uint32_t ResolveStride() const { return uint32_t(structStride); }
+
+        // 用法组合是否自相矛盾；返回的错误直接说明该改哪个字段。
+        [[nodiscard]] Status Validate() const;
     };
 
     class BufferCache

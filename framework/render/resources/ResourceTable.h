@@ -59,7 +59,8 @@ namespace prism::gpu
             uint32_t elementsPerPixel = 0,
             uint64_t elementCount = 0,
             uint64_t byteSize = 0,
-            bool cpuWritable = false)
+            bool cpuWritable = false,
+            uint32_t maxVersions = 16)
         {
             m_Request.name = name;
             m_Request.structStride = structStride;
@@ -68,6 +69,7 @@ namespace prism::gpu
             m_Request.elementCount = elementCount;
             m_Request.byteSize = byteSize;
             m_Request.cpuWritable = cpuWritable;
+            m_Request.maxVersions = maxVersions;
         }
 
         [[nodiscard]] const char* GetName() const { return m_Request.name.c_str(); }

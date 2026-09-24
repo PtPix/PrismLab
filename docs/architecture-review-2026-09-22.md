@@ -1,4 +1,9 @@
-> Historical review: paths and implementation status below describe the pre-refactor tree. See [current architecture](architecture.md).
+> Historical review, kept for the reasoning behind the current design.
+>
+> Every file path quoted below refers to the **pre-refactor** tree and most of those files no
+> longer exist; they are plain text, not links. Do not use this document to locate code or to
+> judge what is implemented. See [current architecture](architecture.md) for the authoritative
+> module map and [framework-experiments.md](framework-experiments.md) for current APIs.
 
 # PrismLab 架构审查与渲染实验路线
 
@@ -20,11 +25,11 @@
 | 算法 | PCF/HLSL 桥接原型、公共调试 shader；Forward/Contract/Starter | 还没有完整的技术族 Algorithm + Sample 闭环 |
 | 时域 / 显示 | ITemporalServices、IDisplayChain 接口 | 没有默认实现；时域接口本身也缺历史资源获取与帧提交方法 |
 
-关键依据：[Experiment](E:/PrismLab/framework/host/Experiment.h:141)、[构建入口](E:/PrismLab/CMakeLists.txt:121)、[前向管线](E:/PrismLab/framework/pipelines/SceneForwardPipeline.cpp:20)、[时域接口](E:/PrismLab/framework/host/TemporalServices.h:32)、[显示接口](E:/PrismLab/framework/host/DisplayChain.h:42)。
+关键依据：Experiment (`framework/host/Experiment.h:141`)、构建入口 (`CMakeLists.txt:121`)、前向管线 (`framework/pipelines/SceneForwardPipeline.cpp:20`)、时域接口 (`framework/host/TemporalServices.h:32`)、显示接口 (`framework/host/DisplayChain.h:42`)。
 
-一个很直观的样板代码指标是 [ForwardExperiment::EnsureDebugPass](E:/PrismLab/samples/forward/forward.cpp:86)：只是一个全屏深度调试 Pass，Sample 仍需要维护常量缓冲、绑定布局、绑定集、PSO、framebuffer、输入纹理变化检查以及 resize 后失效。这些工作应该被公共设施吸收。
+一个很直观的样板代码指标是 ForwardExperiment::EnsureDebugPass (`samples/forward/forward.cpp:86`)：只是一个全屏深度调试 Pass，Sample 仍需要维护常量缓冲、绑定布局、绑定集、PSO、framebuffer、输入纹理变化检查以及 resize 后失效。这些工作应该被公共设施吸收。
 
-另外，当前源码采用 Donut 的行向量矩阵约定 `mul(v, M)`，见 [Platform.hlsli](E:/PrismLab/algorithms/shaders/Prism/Common/Platform.hlsli:6)。原有外部路线图部分文字采用 `mul(M, v)`，后续应统一文档到已经通过契约验证的实际约定，避免同时传播两套规则。
+另外，当前源码采用 Donut 的行向量矩阵约定 `mul(v, M)`，见 Platform.hlsli (`algorithms/shaders/Prism/Common/Platform.hlsli:6`)。原有外部路线图部分文字采用 `mul(M, v)`，后续应统一文档到已经通过契约验证的实际约定，避免同时传播两套规则。
 
 ## 2. Algorithm 群与 Sample 的边界
 
@@ -94,7 +99,7 @@ return presentation.Record(frame, hdr, presentationSettings);
 
 缓存要区分 shader 版本、宏变体、layout、render state、attachment 格式/采样数，以及资源 generation。纹理 resize 不必无条件重建格式兼容的 PSO；实际绑定与 framebuffer 按真实依赖失效。
 
-新增一条完整编辑链：编译 shader → 检查错误 → 成功后替换相关 shader/PSO → 失败时继续使用上一份可运行版本。现有 [ShaderLibrary::ClearCache](E:/PrismLab/framework/nvrhi/ShaderLibrary.cpp:114) 只是清缓存，不能称为已实现热重载。第一版可使用手动 reload 按键，随后再增加文件监听。
+新增一条完整编辑链：编译 shader → 检查错误 → 成功后替换相关 shader/PSO → 失败时继续使用上一份可运行版本。现有 ShaderLibrary::ClearCache (`framework/nvrhi/ShaderLibrary.cpp:114`) 只是清缓存，不能称为已实现热重载。第一版可使用手动 reload 按键，随后再增加文件监听。
 
 **不应封装掉** dispatch 顺序、线程组实验、barrier 的特殊需求、算法 GPU 数据结构、射线生成和采样策略。任何 helper 都应允许直接拿 NVRHI command list 完成特殊操作。
 
@@ -102,21 +107,21 @@ return presentation.Record(frame, hdr, presentationSettings);
 
 公共输入按需生成：depth、linear depth、几何/着色法线、粗糙度、材质参数、emissive、velocity、instance/material ID 和 Hi-Z。不要让 AO、SSR、TAA、SSGI 分别重新造一套 GBuffer。
 
-现有 [GBufferSchema](E:/PrismLab/framework/types/SurfaceData.h:29) 只是约定。Donut 的 GBuffer 可作为生产者，但不能直接重命名纹理：
+现有 GBufferSchema (`framework/types/SurfaceData.h:29`) 只是约定。Donut 的 GBuffer 可作为生产者，但不能直接重命名纹理：
 
-- Donut 的 [GBuffer shader](E:/PrismLab/external/Donut-Samples/donut/shaders/passes/gbuffer_ps.hlsl:76) 输出 diffuse albedo / specular F0 等，Prism schema 使用 baseColor / metalness。
-- Donut 的 [运动矢量](E:/PrismLab/external/Donut-Samples/donut/include/donut/shaders/motion_vectors.hlsli:38) 使用像素单位，Prism 约定使用 UV 单位；必须按相应 viewport 变换，并保持当前/前帧 jitter 约定一致。
+- Donut 的 GBuffer shader (`external/Donut-Samples/donut/shaders/passes/gbuffer_ps.hlsl:76`) 输出 diffuse albedo / specular F0 等，Prism schema 使用 baseColor / metalness。
+- Donut 的 运动矢量 (`external/Donut-Samples/donut/include/donut/shaders/motion_vectors.hlsli:38`) 使用像素单位，Prism 约定使用 UV 单位；必须按相应 viewport 变换，并保持当前/前帧 jitter 约定一致。
 - 格式、法线编码、alpha mask、透明表面和多层表面需要明确适配，不能靠字段同名假设兼容。
 
 建议使用明确的 Surface 访问桥接，或自定义 GBuffer PS；避免强行从有信息损失的材质表示反推原始参数。普通延迟 GBuffer 也不能承诺无损表达任意分层 BSDF、透明物体和毛发，复杂路径需要 forward/custom material evaluation 出口。
 
 ### 3.3 ResourceScope + HistoryStore：稳定身份与跨帧状态
 
-当前 ResourceTable 的 Get 最终仍按字符串名称找资源，见 [ResourceTable](E:/PrismLab/framework/nvrhi/ResourceTable.h:110) 和 [RenderTargetPool](E:/PrismLab/framework/nvrhi/RenderTargetPool.cpp:35)。同一进程内两个 AO 实例或 A/B 两套方法可能争用同名资源；独立 Sample EXE 之间不存在这个问题。
+当前 ResourceTable 的 Get 最终仍按字符串名称找资源，见 ResourceTable (`framework/nvrhi/ResourceTable.h:110`) 和 RenderTargetPool (`framework/nvrhi/RenderTargetPool.cpp:35`)。同一进程内两个 AO 实例或 A/B 两套方法可能争用同名资源；独立 Sample EXE 之间不存在这个问题。
 
 建议以 `AlgorithmInstance / View / Slot` 标识资源，显示名称仅用于诊断。提供 render-size、output-size、fixed-size 三类尺寸，以及 transient、persistent、history 三类寿命。补 generation 与资源视图，resize、方法切换、shader reload 后可以正确处理缓存。
 
-按真实使用场景补充 Texture 3D/cube、MSAA、mip/layer view、整数格式。当前 [TextureRequest](E:/PrismLab/framework/nvrhi/RenderTargetPool.h:25) 有 arraySize/mipLevels，但没有 dimension、volume depth、sample count；不能把它视为已经支持体积、立方体和 MSAA 全部资源形式。现有池是命名缓存，并非自动瞬态别名分配器，暂时无需做显存 aliasing。
+按真实使用场景补充 Texture 3D/cube、MSAA、mip/layer view、整数格式。当前 TextureRequest (`framework/nvrhi/RenderTargetPool.h:25`) 有 arraySize/mipLevels，但没有 dimension、volume depth、sample count；不能把它视为已经支持体积、立方体和 MSAA 全部资源形式。现有池是命名缓存，并非自动瞬态别名分配器，暂时无需做显存 aliasing。
 
 时域需要真正的 `HistoryTexture` / `HistoryBuffer`：获取上一帧只读与当前帧写入槽、valid/generation、帧开始/结束推进、提交成功后交换、owner/view 隔离、局部重置。重置来源包括 camera cut、尺寸、技术切换、材质/光照变化和关键参数变化；各算法决定哪些变化可保留历史。CPU 帧槽与 GPU 多帧在途的使用必须正确衔接，不能简单认为两个纹理就自动解决所有同步问题。
 
@@ -124,7 +129,7 @@ return presentation.Record(frame, hdr, presentationSettings);
 
 ### 3.4 SceneFrameData / SceneGpuData：共享光栅、光追与 GPU Driven 的场景表示
 
-目前 GeometryBatch 含 CPU 绘制记录，且变换在加载时复制；[SceneHost::Update](E:/PrismLab/framework/donut/SceneHost.cpp:98) 只刷新 Donut Scene，不同步已复制的 draw transforms、bounds 和 LightRecord。这会阻碍自绘路径的动态物体运动矢量、RT 更新和 GPU 剔除。
+目前 GeometryBatch 含 CPU 绘制记录，且变换在加载时复制；SceneHost::Update (`framework/donut/SceneHost.cpp:98`) 只刷新 Donut Scene，不同步已复制的 draw transforms、bounds 和 LightRecord。这会阻碍自绘路径的动态物体运动矢量、RT 更新和 GPU 剔除。
 
 需要稳定 instance/material/mesh/light ID、current/previous transforms、dirty flags、scene revision、统一动画时间；逐步提供 GPU 顶点/索引/材质/纹理/光源表，以及可复用的命中材质求值。alpha test、双面、透明、蒙皮和形变必须显式支持或明确排除。
 
@@ -134,11 +139,11 @@ return presentation.Record(frame, hdr, presentationSettings);
 
 在选第一个 RT 课题时加入：BLAS build/cache/update、TLAS instance update、必要的 compact/refit 策略、几何/材质 hit 查询；支持 RayQuery，按需求再增加 RT pipeline / SBT。Algorithm 负责射线、采样、积分与着色。
 
-Donut 的 [rt_bindless](E:/PrismLab/external/Donut-Samples/examples/rt_bindless/rt_bindless.cpp:334) 等示例可供提炼，NVRHI 有相应底层能力；这些都不等于 Prism 现在已维护 RT Scene。SceneGpuData 与透明/动态几何支持必须和光栅路径保持一致。
+Donut 的 rt_bindless (`external/Donut-Samples/examples/rt_bindless/rt_bindless.cpp:334`) 等示例可供提炼，NVRHI 有相应底层能力；这些都不等于 Prism 现在已维护 RT Scene。SceneGpuData 与透明/动态几何支持必须和光栅路径保持一致。
 
 ### 3.6 PresentationPipeline：提供稳定、美观的默认展示
 
-当前共享前向管线没有接入环境探针；[PrepareLights](E:/PrismLab/framework/pipelines/SceneForwardPipeline.cpp:36) 的探针列表为空。DisplayChain 未实现时 HDR 直接 blit。为了做出有美感的演示，优先接入环境/IBL、可控灯光、曝光、tone mapping、正确输出编码，再加入克制的 bloom 和调色。
+当前共享前向管线没有接入环境探针；PrepareLights (`framework/pipelines/SceneForwardPipeline.cpp:36`) 的探针列表为空。DisplayChain 未实现时 HDR 直接 blit。为了做出有美感的演示，优先接入环境/IBL、可控灯光、曝光、tone mapping、正确输出编码，再加入克制的 bloom 和调色。
 
 默认展示链可复用 Donut 的 Sky/EnvironmentMap、LightProbeProcessing、Bloom、ToneMapping。研究某个技术时，再替换对应模块。研究 AO 不需要先独立实现天空、BRDF LUT 和摄影后处理。
 
@@ -148,7 +153,7 @@ Donut 的 [rt_bindless](E:/PrismLab/external/Donut-Samples/examples/rt_bindless/
 
 ### 3.7 参数、技术切换与演示预设
 
-现有 ParamTable 已有 UI/JSON/hash，但 [参数种类](E:/PrismLab/framework/host/Params.h:49) 只有 Bool/Int/Float，Forward 尚在手写 JSON 和控件。建议增加 enum、vector/color、分组、单位、对数 slider、预设保存/恢复，以及 ChangeImpact：仅常量、历史失效、PSO 重建、场景更新。
+现有 ParamTable 已有 UI/JSON/hash，但 参数种类 (`framework/host/Params.h:49`) 只有 Bool/Int/Float，Forward 尚在手写 JSON 和控件。建议增加 enum、vector/color、分组、单位、对数 slider、预设保存/恢复，以及 ChangeImpact：仅常量、历史失效、PSO 重建、场景更新。
 
 Sample 使用轻量 TechniqueDesc：稳定 ID、名称、能力需求、参数表、说明、输入需求。方法切换要协调资源与历史；可以保留每种方法的参数，但不能误用另一方法的历史。共享输出只统一语义，不强迫所有方法使用相同 Pass 划分。
 
@@ -158,7 +163,7 @@ Sample 使用轻量 TechniqueDesc：稳定 ID、名称、能力需求、参数�
 
 每个方法声明所需的 DXR、Mesh Shader、shader profile、格式/原子操作、SDK/模型和内存要求。初始化时检测能力，不支持时在 UI 解释并禁用，不应悄悄切到另一个方法污染比较。研究用场景、前向管线和 RT Scene 按需求启用，compute/纹理样例不必强制加载前向场景。
 
-当前 [CMake shader 规则](E:/PrismLab/CMakeLists.txt:162) 固定 `main_<stage>`，没有透传每个目标的 Shader Model/完整变体需求；[公共输出 --flatten](E:/PrismLab/CMakeLists.txt:189) 会让不同技术群中的同名 `resolve.hlsl` 等产生碰撞。应按 Algorithm/Pass 命名空间输出，并支持 entry、profile、defines、library。运行脚本也应从 Sample 清单取目标，不继续硬编码三个名称。
+当前 CMake shader 规则 (`CMakeLists.txt:162`) 固定 `main_<stage>`，没有透传每个目标的 Shader Model/完整变体需求；公共输出 --flatten (`CMakeLists.txt:189`) 会让不同技术群中的同名 `resolve.hlsl` 等产生碰撞。应按 Algorithm/Pass 命名空间输出，并支持 entry、profile、defines、library。运行脚本也应从 Sample 清单取目标，不继续硬编码三个名称。
 
 全工程继续以单队列和显式 C++ 顺序为默认。只有 GPUExecution 等确实研究并行提交的 Sample，才增加有范围的 command list/queue/fence 接口。Work Graphs、专用 SDK 和 native D3D12 允许受控的扩展出口；不用为了这些功能重写整套 RHI。
 
@@ -168,10 +173,10 @@ Sample 使用轻量 TechniqueDesc：稳定 ID、名称、能力需求、参数�
 
 | 问题 | 代码依据 | 对目标的影响与建议 |
 |---|---|---|
-| 嵌套计时与 flat 实现不一致 | Host 包外层，Forward 包内层；[EndScope](E:/PrismLab/framework/nvrhi/GpuProfiler.cpp:102) 结束全部 active scope，[GetTotalMilliseconds](E:/PrismLab/framework/nvrhi/GpuProfiler.cpp:117) 累加全部范围 | 外层被提前结束且重复计时；单独测完整帧，Pass 支持嵌套或严格平铺 |
-| query 未 ready 的槽位仍可能重用 | [poll](E:/PrismLab/framework/nvrhi/GpuProfiler.cpp:65) 未完成仅 continue，后续 BeginScope 未检查槽位可用 | 管理每个 query 的 in-flight 状态，结果携带 GPU 来源 frame ID，结束测量时收完结果 |
-| 显示链不在现有测量区间 | [EndFrame 在 DisplayChain 前](E:/PrismLab/framework/host/ExperimentHost.cpp:317) | 分开记录算法时间与完整展示时间，不把 scope 求和当整帧时间 |
-| 截图取显示链前的纹理 | [capture](E:/PrismLab/framework/host/ExperimentHost.cpp:423) 读取 m_OutputTexture，而 DisplayChain 写 swapchain | 输出显式区分 HDR scene result、display result、含 UI 结果，选择对应截图 |
+| 嵌套计时与 flat 实现不一致 | Host 包外层，Forward 包内层；EndScope (`framework/nvrhi/GpuProfiler.cpp:102`) 结束全部 active scope，GetTotalMilliseconds (`framework/nvrhi/GpuProfiler.cpp:117`) 累加全部范围 | 外层被提前结束且重复计时；单独测完整帧，Pass 支持嵌套或严格平铺 |
+| query 未 ready 的槽位仍可能重用 | poll (`framework/nvrhi/GpuProfiler.cpp:65`) 未完成仅 continue，后续 BeginScope 未检查槽位可用 | 管理每个 query 的 in-flight 状态，结果携带 GPU 来源 frame ID，结束测量时收完结果 |
+| 显示链不在现有测量区间 | EndFrame 在 DisplayChain 前 (`framework/host/ExperimentHost.cpp:317`) | 分开记录算法时间与完整展示时间，不把 scope 求和当整帧时间 |
+| 截图取显示链前的纹理 | capture (`framework/host/ExperimentHost.cpp:423`) 读取 m_OutputTexture，而 DisplayChain 写 swapchain | 输出显式区分 HDR scene result、display result、含 UI 结果，选择对应截图 |
 | 动态回放尚不确定 | Animate 使用实际 elapsed，FrameInfo 使用平均帧时间 | 固定 timestep、seed、camera path、scene time，支持暂停单步 |
 
 在现有 CSV 与浮点图像比较基础上，保存 run manifest：完整参数、算法与 shader 版本、scene/asset、相机、时间/seed、render/output size、GPU/driver、构建配置、预热/测量窗口。随机算法除了固定种子回归，还需要多 seed 统计、收敛与误差；一张图的最大像素误差不能替代 Monte Carlo 估计质量。

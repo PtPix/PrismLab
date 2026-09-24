@@ -6,6 +6,27 @@
 
 namespace prism::gpu
 {
+    Status BufferRequest::Validate() const
+    {
+        const bool constant = HasAny(usage, BufferUsage::Constant);
+
+        // NVRHI: 只有常量缓冲能是 volatile，且 maxVersions 必须非零；volatile 不能同时是 UAV。
+        if (cpuWritable && constant)
+        {
+            if (maxVersions == 0)
+                return Status::Error(ErrorCode::InvalidArgument, "a volatile constant buffer needs maxVersions > 0");
+
+            if (HasAny(usage, BufferUsage::UnorderedAccess | BufferUsage::IndirectArgs))
+                return Status::Error(ErrorCode::Unsupported,
+                    "a volatile constant buffer cannot also be a UAV or indirect argument buffer");
+        }
+
+        if (constant && structStride > 0)
+            return Status::Error(ErrorCode::InvalidArgument, "a constant buffer cannot have a struct stride");
+
+        return Status::Ok();
+    }
+
     uint64_t BufferRequest::ResolveByteSize(const Extent2D& renderSize) const
     {
         if (byteSize > 0)
@@ -64,6 +85,13 @@ namespace prism::gpu
             return nullptr;
         }
 
+        if (const Status valid = request.Validate(); !valid)
+        {
+            donut::log::error("BufferCache: '%s' has an invalid usage combination: %s",
+                request.name.c_str(), valid.ToStringWithCode().c_str());
+            return nullptr;
+        }
+
         const uint64_t byteSize = request.ResolveByteSize(m_RenderSize);
         if (byteSize == 0)
         {
@@ -97,15 +125,21 @@ namespace prism::gpu
         if (entry->buffer)
             return entry->buffer;
 
+        // 结构化视图由非零 structStride 表达；stride 为 0 时着色器可见性只能通过 raw view 获得。
+        const bool shaderResource = HasAny(request.usage, BufferUsage::ShaderResource);
+        const bool unorderedAccess = HasAny(request.usage, BufferUsage::UnorderedAccess);
+        const bool structured = request.structStride > 0;
+
         nvrhi::BufferDesc desc;
         desc.byteSize = byteSize;
         desc.structStride = uint32_t(request.structStride);
         desc.debugName = request.name;
-        desc.canHaveUAVs = HasAny(request.usage, BufferUsage::UnorderedAccess);
-        desc.canHaveRawViews = (request.structStride == 0);
+        desc.canHaveUAVs = unorderedAccess;
+        desc.canHaveRawViews = !structured && (shaderResource || unorderedAccess);
         desc.isConstantBuffer = HasAny(request.usage, BufferUsage::Constant);
         desc.isDrawIndirectArgs = HasAny(request.usage, BufferUsage::IndirectArgs);
         desc.isVolatile = request.cpuWritable && desc.isConstantBuffer;
+        desc.maxVersions = desc.isVolatile ? request.maxVersions : 0;
         desc.initialState = nvrhi::ResourceStates::Common;
 
         entry->buffer = m_Device->createBuffer(desc);

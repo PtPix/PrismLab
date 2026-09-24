@@ -5,7 +5,11 @@ function(prism_target_defaults target)
 endfunction()
 
 function(prism_add_target name)
-    cmake_parse_arguments(P "" "KIND;CONFIG;PROJECT_NAME;SHADER_MODEL" "SOURCES;SHADERS;INCLUDES;LINK;SHADER_OPTIONS" ${ARGN})
+    cmake_parse_arguments(P "" "KIND;CONFIG;SHADER_MODEL" "SOURCES;SHADERS;INCLUDES;LINK;SHADER_OPTIONS" ${ARGN})
+    # Fail loudly: a silently ignored argument looks like a configured option that never took effect.
+    if(P_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR "prism_add_target(${name}): unknown arguments: ${P_UNPARSED_ARGUMENTS}")
+    endif()
     if(P_KIND STREQUAL "EXECUTABLE")
         add_executable(${name} WIN32 ${P_SOURCES})
         target_link_libraries(${name} PRIVATE prism_app ${P_LINK})

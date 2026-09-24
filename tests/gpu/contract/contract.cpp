@@ -201,6 +201,7 @@ namespace prism::experiments
 
         commands->writeBuffer(m_CheckConstantBuffer, &constants, sizeof(constants));
 
+        Status checkStatus;
         {
             gpu::ScopedGpuScope scope(*context.gpu.profiler, commands, "Contract check");
 
@@ -209,7 +210,15 @@ namespace prism::experiments
                 (frame.renderSize.height + kThreadGroupSize - 1) / kThreadGroupSize,
                 1);
 
-            m_CheckPass.Dispatch(commands, {m_CheckBindingSet}, groups);
+            checkStatus = m_CheckPass.Dispatch(commands, {m_CheckBindingSet}, groups);
+        }
+
+        // 派发失败时不要标记"可校验"：否则下一帧会读到上一帧或未初始化的内容并给出无意义的结论。
+        if (!checkStatus)
+        {
+            donut::log::error("ContractExperiment: the check dispatch failed: %s",
+                checkStatus.ToStringWithCode().c_str());
+            return color;
         }
 
         // 下一帧的 BeginFrame 会用这些数据做校验。
