@@ -2,19 +2,26 @@
 #include "RasterPass.h"
 #include <donut/engine/CommonRenderPasses.h>
 
-namespace prism::gpu
+namespace Prism::Gpu
 {
-    class FullscreenPass
-    {
-    public:
-        Status Initialize(nvrhi::IDevice* device, ShaderLibrary& shaders, donut::engine::CommonRenderPasses& common,
-            ShaderEntry pixelShader, const nvrhi::BindingLayoutVector& layouts = {}, nvrhi::RenderState state = {});
-        Status Record(nvrhi::ICommandList* commands, nvrhi::IFramebuffer* target,
-            const nvrhi::BindingSetVector& bindings = {}, nvrhi::ViewportState viewport = {});
-        nvrhi::BindingSetHandle Bindings(const nvrhi::BindingSetDesc& desc, nvrhi::IBindingLayout* layout)
-        { return m_Raster.Bindings(desc, layout); }
-        void ClearBindings() { m_Raster.ClearBindings(); }
-    private:
-        RasterPass m_Raster;
-    };
-}
+	class FFullscreenPass
+	{
+	  public:
+		FStatus Initialize(nvrhi::IDevice* Device, FShaderLibrary& Shaders, donut::engine::CommonRenderPasses& Common,
+						   FShaderEntry PixelShader, const nvrhi::BindingLayoutVector& Layouts = {},
+						   nvrhi::RenderState State = {});
+		FStatus Record(nvrhi::ICommandList* Commands, nvrhi::IFramebuffer* Target,
+					   const nvrhi::BindingSetVector& Bindings = {}, nvrhi::ViewportState Viewport = {});
+		nvrhi::BindingSetHandle GetOrCreateBindingSet(const nvrhi::BindingSetDesc& Desc, nvrhi::IBindingLayout* Layout)
+		{
+			return Raster.GetOrCreateBindingSet(Desc, Layout);
+		}
+		void ClearBindings()
+		{
+			Raster.ClearBindings();
+		}
+
+	  private:
+		FRasterPass Raster;
+	};
+} // namespace Prism::Gpu

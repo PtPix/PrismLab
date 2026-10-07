@@ -24,52 +24,52 @@
 #include <string>
 #include <vector>
 
-namespace prism::host
+namespace Prism::Host
 {
-    struct CommandLine
-    {
-        std::filesystem::path configPath;
-        std::string sceneSource;
-        std::string sceneAsset;
+	struct FCommandLine
+	{
+		std::filesystem::path ConfigPath;
+		std::string SceneSource;
+		std::string SceneAsset;
 
-        uint32_t smokeTestFrames = 0;
-        bool smokeTest = false;
+		uint32_t SmokeTestFrames = 0;
+		bool bSmokeTest = false;
 
-        std::filesystem::path capturePath;
-        uint32_t captureFrame = 2;
+		std::filesystem::path CapturePath;
+		uint32_t CaptureFrame = 2;
 
-        // 浮点参考图：写出来给后续比较，或与已有参考比较（失败时进程返回非零）
-        std::filesystem::path referencePath;
-        std::filesystem::path writeReferencePath;
-        float tolerance = 0.01f;
+		// 浮点参考图：写出来给后续比较，或与已有参考比较（失败时进程返回非零）
+		std::filesystem::path ReferencePath;
+		std::filesystem::path WriteReferencePath;
+		float Tolerance = 0.01f;
 
-        // 性能测量：预热后测量固定帧数，写出指标 CSV 后退出
-        uint32_t benchFrames = 0;
-        uint32_t benchWarmup = 30;
-        std::filesystem::path metricsPath;
+		// 性能测量：预热后测量固定帧数，写出指标 CSV 后退出
+		uint32_t BenchFrames = 0;
+		uint32_t BenchWarmup = 30;
+		std::filesystem::path MetricsPath;
 
-        // 公共调试视图：0 = 显示实验输出，n = 显示第 n 个登记的中间结果
-        // （配合 --capture 可以给中间结果截图，不需要手点面板）
-        int debugView = 0;
+		// 公共调试视图：0 = 显示实验输出，n = 显示第 n 个登记的中间结果
+		// （配合 --capture 可以给中间结果截图，不需要手点面板）
+		int DebugView = 0;
 
-        uint32_t width = 0;
-        uint32_t height = 0;
+		uint32_t Width = 0;
+		uint32_t Height = 0;
 
-        bool disableVsync = false;
-        bool disableGpuTiming = false;
-        bool showHelp = false;
+		bool bDisableVsync = false;
+		bool bDisableGpuTiming = false;
+		bool bShowHelp = false;
 
-        // 捕获/参考比较/性能测量的帧数上限（0 表示不做）
-        [[nodiscard]] bool WantsHeadlessRun() const
-        {
-            return smokeTest || benchFrames > 0 || !capturePath.empty() ||
-                !referencePath.empty() || !writeReferencePath.empty();
-        }
+		// 捕获/参考比较/性能测量的帧数上限（0 表示不做）
+		[[nodiscard]] bool WantsHeadlessRun() const
+		{
+			return bSmokeTest || BenchFrames > 0 || !CapturePath.empty() || !ReferencePath.empty() ||
+				   !WriteReferencePath.empty();
+		}
 
-        // 未识别的参数：留给实验自己解析
-        std::vector<std::string> extraArguments;
-    };
+		// 未识别的参数：留给实验自己解析
+		std::vector<std::string> ExtraArguments;
+	};
 
-    CommandLine ParseCommandLine(int argc, char** argv);
-    std::string GetCommandLineUsage();
-}
+	FCommandLine ParseCommandLine(int Argc, char** Argv);
+	std::string GetCommandLineUsage();
+} // namespace Prism::Host

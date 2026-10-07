@@ -24,83 +24,86 @@
 
 #include <cmath>
 
-namespace prism
+namespace Prism
 {
-    // --- depth ---
+	// --- depth ---
 
-    constexpr float kDepthClearValue = 1.0f;
+	constexpr float KDepthClearValue = 1.0f;
 
-    enum class DepthConvention : uint32_t
-    {
-        ForwardZ0To1 = 0,   // 默认：近 0 远 1，Less 通过
-        ReversedZ0To1,      // 需要显式登记，并让所有消费方按此解释
-    };
+	enum class EDepthConvention : uint32_t
+	{
+		ForwardZ0To1 = 0, // 默认：近 0 远 1，Less 通过
+		ReversedZ0To1,	  // 需要显式登记，并让所有消费方按此解释
+	};
 
-    inline const char* ToString(DepthConvention convention)
-    {
-        switch (convention)
-        {
-        case DepthConvention::ForwardZ0To1: return "forward-Z [0,1]";
-        case DepthConvention::ReversedZ0To1: return "reversed-Z [0,1]";
-        default: return "unknown depth convention";
-        }
-    }
+	inline const char* ToString(EDepthConvention Convention)
+	{
+		switch (Convention)
+		{
+			case EDepthConvention::ForwardZ0To1:
+				return "forward-Z [0,1]";
+			case EDepthConvention::ReversedZ0To1:
+				return "reversed-Z [0,1]";
+			default:
+				return "unknown depth convention";
+		}
+	}
 
-    // Device depth -> linear distance in front of the camera (meters).
-    // Only valid for the default forward-Z convention; callers must pass the convention they use.
-    inline float LinearizeDepth(float deviceDepth, float zNearMeters, float zFarMeters,
-        DepthConvention convention = DepthConvention::ForwardZ0To1)
-    {
-        if (convention == DepthConvention::ReversedZ0To1)
-            deviceDepth = 1.f - deviceDepth;
+	// Device depth -> linear distance in front of the camera (meters).
+	// Only valid for the default forward-Z convention; callers must pass the convention they use.
+	inline float LinearizeDepth(float DeviceDepth, float ZNearMeters, float ZFarMeters,
+								EDepthConvention Convention = EDepthConvention::ForwardZ0To1)
+	{
+		if (Convention == EDepthConvention::ReversedZ0To1)
+			DeviceDepth = 1.f - DeviceDepth;
 
-        const float denominator = zFarMeters - deviceDepth * (zFarMeters - zNearMeters);
-        if (std::fabs(denominator) < 1e-8f)
-            return zFarMeters;
+		const float Denominator = ZFarMeters - DeviceDepth * (ZFarMeters - ZNearMeters);
+		if (std::fabs(Denominator) < 1e-8f)
+			return ZFarMeters;
 
-        return zNearMeters * zFarMeters / denominator;
-    }
+		return ZNearMeters * ZFarMeters / Denominator;
+	}
 
-    // Linear distance in front of the camera -> device depth (inverse of LinearizeDepth).
-    inline float DeviceDepthFromLinear(float linearDepthMeters, float zNearMeters, float zFarMeters,
-        DepthConvention convention = DepthConvention::ForwardZ0To1)
-    {
-        const float distance = (std::fabs(linearDepthMeters) < 1e-8f) ? zNearMeters : linearDepthMeters;
-        const float deviceDepth = zFarMeters * (distance - zNearMeters) / (distance * (zFarMeters - zNearMeters));
+	// Linear distance in front of the camera -> device depth (inverse of LinearizeDepth).
+	inline float DeviceDepthFromLinear(float LinearDepthMeters, float ZNearMeters, float ZFarMeters,
+									   EDepthConvention Convention = EDepthConvention::ForwardZ0To1)
+	{
+		const float Distance = (std::fabs(LinearDepthMeters) < 1e-8f) ? ZNearMeters : LinearDepthMeters;
+		const float DeviceDepth = ZFarMeters * (Distance - ZNearMeters) / (Distance * (ZFarMeters - ZNearMeters));
 
-        if (convention == DepthConvention::ReversedZ0To1)
-            return 1.f - deviceDepth;
+		if (Convention == EDepthConvention::ReversedZ0To1)
+			return 1.f - DeviceDepth;
 
-        return deviceDepth;
-    }
+		return DeviceDepth;
+	}
 
-    // --- matrices ---
+	// --- matrices ---
 
-    // A CPU-side matrix uses the same logical layout as HLSL's mul(M, v): row-major, translation in
-    // row 3. dm::float4x4 already stores rows in this order, so uploading the value directly to a
-    // constant buffer is correct for both D3D and Vulkan in this codebase. The function exists so
-    // that there is exactly one place to change if that assumption is ever revisited.
-    inline dm::float4x4 ToShaderMatrix(const dm::float4x4& matrix)
-    {
-        return matrix;
-    }
+	// A CPU-side matrix uses the same logical layout as HLSL's mul(M, v): row-major, translation in
+	// row 3. dm::float4x4 already stores rows in this order, so uploading the value directly to a
+	// constant buffer is correct for both D3D and Vulkan in this codebase. The function exists so
+	// that there is exactly one place to change if that assumption is ever revisited.
+	inline dm::float4x4 ToShaderMatrix(const dm::float4x4& Matrix)
+	{
+		return Matrix;
+	}
 
-    inline dm::float4x4 ToShaderMatrix(const dm::affine3& transform)
-    {
-        return dm::affineToHomogeneous(transform);
-    }
+	inline dm::float4x4 ToShaderMatrix(const dm::affine3& Transform)
+	{
+		return dm::affineToHomogeneous(Transform);
+	}
 
-    // --- roughness / GGX ---
+	// --- roughness / GGX ---
 
-    inline float PerceptualRoughnessToAlpha(float perceptualRoughness)
-    {
-        const float clamped = dm::clamp(perceptualRoughness, 0.f, 1.f);
-        return clamped * clamped;
-    }
+	inline float PerceptualRoughnessToAlpha(float PerceptualRoughness)
+	{
+		const float Clamped = dm::clamp(PerceptualRoughness, 0.f, 1.f);
+		return Clamped * Clamped;
+	}
 
-    inline float AlphaToPerceptualRoughness(float alpha)
-    {
-        const float clamped = dm::clamp(alpha, 0.f, 1.f);
-        return std::sqrt(clamped);
-    }
-}
+	inline float AlphaToPerceptualRoughness(float Alpha)
+	{
+		const float Clamped = dm::clamp(Alpha, 0.f, 1.f);
+		return std::sqrt(Clamped);
+	}
+} // namespace Prism

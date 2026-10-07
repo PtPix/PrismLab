@@ -1,23 +1,34 @@
 #pragma once
 #include "PassSupport.h"
 
-namespace prism::gpu
+namespace Prism::Gpu
 {
-    class ComputePass final : public ShaderPass
-    {
-    public:
-        Status Initialize(nvrhi::IDevice* device, ShaderLibrary& shaders, ShaderEntry shader,
-            const nvrhi::BindingLayoutVector& layouts = {}, dm::uint3 threads = dm::uint3(8, 8, 1));
-        Status Dispatch(nvrhi::ICommandList* commands, const nvrhi::BindingSetVector& bindings, dm::uint3 groups) const;
-        Status DispatchExtent(nvrhi::ICommandList* commands, const nvrhi::BindingSetVector& bindings, dm::uint3 extent) const;
-        nvrhi::IComputePipeline* GetPipeline() const { return m_Pipeline; }
-        Status PrepareShaders(ShaderLibrary& candidate) override;
-        void CommitShaders() override;
-        void DiscardShaders() override { m_Candidate = nullptr; }
-    private:
-        ShaderEntry m_Shader;
-        nvrhi::BindingLayoutVector m_Layouts;
-        dm::uint3 m_Threads = dm::uint3(1);
-        nvrhi::ComputePipelineHandle m_Pipeline, m_Candidate;
-    };
-}
+	class FComputePass final : public FShaderPass
+	{
+	  public:
+		FStatus Initialize(nvrhi::IDevice* InDevice, FShaderLibrary& InShaderLibrary, FShaderEntry InShaderEntry,
+						   const nvrhi::BindingLayoutVector& InBindingLayouts = {},
+						   dm::uint3 InThreadGroupSize = dm::uint3(8, 8, 1));
+		FStatus Dispatch(nvrhi::ICommandList* Commands, const nvrhi::BindingSetVector& Bindings,
+						 dm::uint3 Groups) const;
+		FStatus DispatchExtent(nvrhi::ICommandList* Commands, const nvrhi::BindingSetVector& Bindings,
+							   dm::uint3 Extent) const;
+		nvrhi::IComputePipeline* GetPipeline() const
+		{
+			return Pipeline;
+		}
+		FStatus PrepareShaders(FShaderLibrary& CandidateLibrary) override;
+		void CommitShaders() override;
+		void DiscardShaders() override
+		{
+			CandidatePipeline = nullptr;
+		}
+
+	  private:
+		FShaderEntry ShaderEntry;
+		nvrhi::BindingLayoutVector BindingLayouts;
+		dm::uint3 ThreadGroupSize = dm::uint3(1);
+		nvrhi::ComputePipelineHandle Pipeline;
+		nvrhi::ComputePipelineHandle CandidatePipeline;
+	};
+} // namespace Prism::Gpu

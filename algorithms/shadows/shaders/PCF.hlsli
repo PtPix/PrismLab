@@ -12,7 +12,7 @@
 //
 // 约定：
 //   * 可见性 0 = 完全遮挡，1 = 完全可见；
-//   * 阴影图之外的可见性由 ShadowSettings::outsideShadowMapVisibility 决定，必须显式写出，
+//   * 阴影图之外的可见性由 FShadowSettings::outsideShadowMapVisibility 决定，必须显式写出，
 //     不能把"图外"当成"无遮挡"或"完全遮挡"而不说明；
 //   * depthBiasNdc 是比较深度上的偏移，与光栅阶段的 depth/slope bias 分开配置（两者都要有）。
 //

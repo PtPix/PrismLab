@@ -12,7 +12,7 @@
 
 #include "contract_check_cb.h"
 
-ConstantBuffer<ContractCheckConstants> g_Check : register(b0);
+ConstantBuffer<FContractCheckConstants> g_Check : register(b0);
 
 Texture2D<float> g_SceneDepth : register(t0);
 
@@ -21,11 +21,11 @@ RWTexture2D<float> g_OutputDepth : register(u1);       // 设备深度原值
 
 float LinearizeDepth(float deviceDepth)
 {
-    if (g_Check.depthConvention == 1)
+    if (g_Check.DepthConvention == 1)
         deviceDepth = 1.f - deviceDepth;
 
-    const float zNear = g_Check.zNear;
-    const float zFar = g_Check.zFar;
+    const float zNear = g_Check.ZNear;
+    const float zFar = g_Check.ZFar;
     return zNear * zFar / (zFar - deviceDepth * (zFar - zNear));
 }
 
@@ -33,15 +33,15 @@ float LinearizeDepth(float deviceDepth)
 void main_cs(uint3 dispatchThreadId : SV_DispatchThreadID)
 {
     const uint2 pixel = dispatchThreadId.xy;
-    if (any(pixel >= g_Check.size))
+    if (any(pixel >= g_Check.Size))
         return;
 
-    const float2 uv = (float2(pixel) + 0.5f) * g_Check.inverseSize;
+    const float2 uv = (float2(pixel) + 0.5f) * g_Check.InverseSize;
     const float deviceDepth = g_SceneDepth.Load(int3(pixel, 0));
 
     // 行向量约定：world = clip * clipToWorld
     const float4 clip = float4(uv.x * 2.f - 1.f, (1.f - uv.y) * 2.f - 1.f, deviceDepth, 1.f);
-    const float4 world = mul(clip, g_Check.clipToWorld);
+    const float4 world = mul(clip, g_Check.ClipToWorld);
 
     g_OutputPosition[pixel] = float4(world.xyz / world.w, LinearizeDepth(deviceDepth));
     g_OutputDepth[pixel] = deviceDepth;

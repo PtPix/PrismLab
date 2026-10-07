@@ -13,41 +13,45 @@
 #include <framework/app/Experiment.h>
 #include <framework/render/passes/FullscreenPass.h>
 
-namespace prism::experiments
+namespace Prism::Experiments
 {
-    class ForwardExperiment final : public prism::host::Experiment
-    {
-    public:
-        [[nodiscard]] const char* GetName() const override { return "ForwardExperiment"; }
-        [[nodiscard]] const char* GetDescription() const override;
+	class FForwardExperiment final : public Prism::Host::IExperiment
+	{
+	  public:
+		[[nodiscard]] const char* GetName() const override
+		{
+			return "ForwardExperiment";
+		}
+		[[nodiscard]] const char* GetDescription() const override;
 
-        Status Initialize(host::ExperimentContext& context) override;
-        nvrhi::ITexture* Render(host::ExperimentContext& context, const host::ExperimentFrame& frame) override;
-        void BuildUI(host::ExperimentContext& context) override;
-        void OnResize(host::ExperimentContext& context, const Extent2D& renderSize, const Extent2D& outputSize) override;
+		FStatus Initialize(Host::FExperimentContext& Context) override;
+		nvrhi::ITexture* Render(Host::FExperimentContext& Context, const Host::FExperimentFrame& Frame) override;
+		void BuildUI(Host::FExperimentContext& Context) override;
+		void OnResize(Host::FExperimentContext& Context, const FExtent2D& RenderSize,
+					  const FExtent2D& OutputSize) override;
 
-    private:
-        adapter::ForwardScene m_Scene;
-        struct Settings
-        {
-            int debugMode = 0;      // 0 = off
-            float depthScale = 1.f;
-        };
+	  private:
+		Adapter::FForwardScene Scene;
+		struct FSettings
+		{
+			int DebugMode = 0; // 0 = off
+			float DepthScale = 1.f;
+		};
 
-        bool EnsureDebugPass(host::ExperimentContext& context, nvrhi::ITexture* depth);
+		bool EnsureDebugPass(Host::FExperimentContext& Context, nvrhi::ITexture* Depth);
 
-        Settings m_Settings;
+		FSettings Settings;
 
-        gpu::TextureRequest m_ColorRequest;
-        gpu::TextureRequest m_DepthRequest;
-        gpu::TextureRequest m_DebugRequest;
+		Gpu::FTextureRequest ColorRequest;
+		Gpu::FTextureRequest DepthRequest;
+		Gpu::FTextureRequest DebugRequest;
 
-        nvrhi::BufferHandle m_DebugConstantBuffer;
-        nvrhi::BindingLayoutHandle m_DebugBindingLayout;
-        nvrhi::BindingSetHandle m_DebugBindingSet;
+		nvrhi::BufferHandle DebugConstantBuffer;
+		nvrhi::BindingLayoutHandle DebugBindingLayout;
+		nvrhi::BindingSetHandle DebugBindingSet;
 
-        gpu::FullscreenPass m_DebugPass;
-        bool m_DebugReady = false;
-        nvrhi::IFramebuffer* m_DebugFramebuffer = nullptr;
-    };
-}
+		Gpu::FFullscreenPass DebugPass;
+		bool bDebugReady = false;
+		nvrhi::IFramebuffer* DebugFramebuffer = nullptr;
+	};
+} // namespace Prism::Experiments

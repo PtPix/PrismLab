@@ -1,15 +1,15 @@
 #pragma once
 #include <framework/core/Status.h>
 
-namespace prism::gpu
+namespace Prism::Gpu
 {
-    class ShaderLibrary;
-    class ShaderReloadClient
-    {
-    public:
-        virtual ~ShaderReloadClient() = default;
-        virtual Status PrepareShaders(ShaderLibrary& candidate) = 0;
-        virtual void CommitShaders() = 0;
-        virtual void DiscardShaders() = 0;
-    };
-}
+	class FShaderLibrary;
+	class IShaderReloadClient
+	{
+	  public:
+		virtual ~IShaderReloadClient() = default;
+		virtual FStatus PrepareShaders(FShaderLibrary& Candidate) = 0;
+		virtual void CommitShaders() = 0;
+		virtual void DiscardShaders() = 0;
+	};
+} // namespace Prism::Gpu

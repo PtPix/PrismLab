@@ -4,79 +4,76 @@
 
 #include <cmath>
 
-namespace prism::adapter
+namespace Prism::Adapter
 {
-    std::vector<prism::LightRecord> CollectLights(const donut::engine::SceneGraph& graph)
-    {
-        std::vector<prism::LightRecord> records;
-        const auto& lights = graph.GetLights();
-        records.reserve(lights.size());
+	std::vector<Prism::FLightRecord> CollectLights(const donut::engine::SceneGraph& Graph)
+	{
+		std::vector<Prism::FLightRecord> Records;
+		const auto& Lights = Graph.GetLights();
+		Records.reserve(Lights.size());
 
-        for (const std::shared_ptr<donut::engine::Light>& light : lights)
-        {
-            if (!light)
-                continue;
+		for (const std::shared_ptr<donut::engine::Light>& Light : Lights)
+		{
+			if (!Light)
+				continue;
 
-            prism::LightRecord record;
-            record.name = light->GetName();
-            record.stableId = uint64_t(records.size());   // 场景内稳定：同一场景内顺序不变
-            record.color = light->color;
-            record.position = dm::float3(light->GetPosition());
-            record.direction = dm::normalize(dm::float3(light->GetDirection()));
+			Prism::FLightRecord Record;
+			Record.Name = Light->GetName();
+			Record.StableId = uint64_t(Records.size()); // 场景内稳定：同一场景内顺序不变
+			Record.Color = Light->color;
+			Record.Position = dm::float3(Light->GetPosition());
+			Record.Direction = dm::normalize(dm::float3(Light->GetDirection()));
 
-            if (const auto* directional = dynamic_cast<const donut::engine::DirectionalLight*>(light.get()))
-            {
-                record.type = prism::LightType::Directional;
-                record.intensity = directional->irradiance;
-                record.angularRadiusRadians = dm::radians(directional->angularSize);
-                record.radius = 0.f;
-            }
-            else if (const auto* spot = dynamic_cast<const donut::engine::SpotLight*>(light.get()))
-            {
-                record.type = prism::LightType::Spot;
-                record.intensity = spot->intensity;
-                record.radius = spot->radius;
-                record.coneAngleOuterRadians = dm::radians(spot->outerAngle) * 0.5f;   // Donut 存的是全锥角
-                record.coneAngleInnerRadians = dm::radians(spot->innerAngle) * 0.5f;
-            }
-            else if (const auto* point = dynamic_cast<const donut::engine::PointLight*>(light.get()))
-            {
-                record.type = prism::LightType::Point;
-                record.intensity = point->intensity;
-                record.radius = point->radius;
-            }
-            else
-            {
-                donut::log::warning("Prism: unsupported light type for '%s', skipping.", record.name.c_str());
-                continue;
-            }
+			if (const auto* Directional = dynamic_cast<const donut::engine::DirectionalLight*>(Light.get()))
+			{
+				Record.Type = Prism::ELightType::Directional;
+				Record.Intensity = Directional->irradiance;
+				Record.AngularRadiusRadians = dm::radians(Directional->angularSize);
+				Record.Radius = 0.f;
+			}
+			else if (const auto* Spot = dynamic_cast<const donut::engine::SpotLight*>(Light.get()))
+			{
+				Record.Type = Prism::ELightType::Spot;
+				Record.Intensity = Spot->intensity;
+				Record.Radius = Spot->radius;
+				Record.ConeAngleOuterRadians = dm::radians(Spot->outerAngle) * 0.5f; // Donut 存的是全锥角
+				Record.ConeAngleInnerRadians = dm::radians(Spot->innerAngle) * 0.5f;
+			}
+			else if (const auto* Point = dynamic_cast<const donut::engine::PointLight*>(Light.get()))
+			{
+				Record.Type = Prism::ELightType::Point;
+				Record.Intensity = Point->intensity;
+				Record.Radius = Point->radius;
+			}
+			else
+			{
+				donut::log::warning("Prism: unsupported light type for '%s', skipping.", Record.Name.c_str());
+				continue;
+			}
 
-            // 有阴影图的光源才声明投影能力；首版由实验代码决定是否真的生成阴影。
-            record.castsShadow = light->shadowMap != nullptr;
+			// 有阴影图的光源才声明投影能力；首版由实验代码决定是否真的生成阴影。
+			Record.bCastsShadow = Light->shadowMap != nullptr;
 
-            records.push_back(std::move(record));
-        }
+			Records.push_back(std::move(Record));
+		}
 
-        return records;
-    }
+		return Records;
+	}
 
-    prism::GpuLight ToGpuLight(const prism::LightRecord& light)
-    {
-        prism::GpuLight gpu = {};
+	Prism::FGpuLight ToGpuLight(const Prism::FLightRecord& Light)
+	{
+		Prism::FGpuLight Gpu = {};
 
-        gpu.positionRadius = dm::float4(light.position, light.radius);
-        gpu.directionAngularSize = dm::float4(light.direction, light.angularRadiusRadians);
-        gpu.colorIntensity = dm::float4(light.color, light.intensity);
-        gpu.coneCosines = dm::float4(
-            std::cos(light.coneAngleOuterRadians),
-            std::cos(light.coneAngleInnerRadians),
-            0.f,
-            0.f);
+		Gpu.PositionRadius = dm::float4(Light.Position, Light.Radius);
+		Gpu.DirectionAngularSize = dm::float4(Light.Direction, Light.AngularRadiusRadians);
+		Gpu.ColorIntensity = dm::float4(Light.Color, Light.Intensity);
+		Gpu.ConeCosines =
+			dm::float4(std::cos(Light.ConeAngleOuterRadians), std::cos(Light.ConeAngleInnerRadians), 0.f, 0.f);
 
-        gpu.type = uint32_t(light.type);
-        gpu.stableId = uint32_t(light.stableId);
-        gpu.castsShadow = light.castsShadow ? 1u : 0u;
+		Gpu.Type = uint32_t(Light.Type);
+		Gpu.StableId = uint32_t(Light.StableId);
+		Gpu.bCastsShadow = Light.bCastsShadow ? 1u : 0u;
 
-        return gpu;
-    }
-}
+		return Gpu;
+	}
+} // namespace Prism::Adapter

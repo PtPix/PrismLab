@@ -3,17 +3,17 @@
 #include <framework/render/shaders/ShaderLibrary.h>
 #include <framework/render/profiling/GpuProfiler.h>
 #include <donut/engine/CommonRenderPasses.h>
-namespace prism::gpu
+namespace Prism::Gpu
 {
-    struct RenderServices
-    {
-        nvrhi::IDevice* device = nullptr;
-        donut::engine::ShaderFactory* shaderFactory = nullptr;
-        donut::engine::CommonRenderPasses* commonPasses = nullptr;
-        ShaderLibrary* shaders = nullptr;
-        TextureCache* targets = nullptr;
-        BufferCache* buffers = nullptr;
-        ResourceTable* resources = nullptr;
-        GpuProfiler* profiler = nullptr;
-    };
-}
+	struct FRenderServices
+	{
+		nvrhi::IDevice* Device = nullptr;
+		donut::engine::ShaderFactory* ShaderFactory = nullptr;
+		donut::engine::CommonRenderPasses* CommonPasses = nullptr;
+		FShaderLibrary* Shaders = nullptr;
+		FTextureCache* Targets = nullptr;
+		FBufferCache* Buffers = nullptr;
+		FResourceTable* Resources = nullptr;
+		FGpuProfiler* Profiler = nullptr;
+	};
+} // namespace Prism::Gpu

@@ -1,35 +1,49 @@
 #include "FramePresentation.h"
 #include "Experiment.h"
 
-namespace prism::host
+namespace Prism::Host
 {
-    Status FramePresentation::Record(ExperimentContext& context, nvrhi::ICommandList* commands, nvrhi::IFramebuffer* swapchain,
-        nvrhi::ITexture* scene, ColorSpace space, float delta, uint64_t frame)
-    {
-        const auto& attachment = swapchain->getDesc().colorAttachments[0].texture->getDesc();
-        if (!m_Texture || m_Texture->getDesc().width != attachment.width || m_Texture->getDesc().height != attachment.height || m_Texture->getDesc().format != attachment.format)
-        {
-            Reset();
-            nvrhi::TextureDesc desc;
-            desc.width = attachment.width; desc.height = attachment.height; desc.format = attachment.format;
-            desc.isRenderTarget = true; desc.initialState = nvrhi::ResourceStates::RenderTarget;
-            desc.keepInitialState = true; desc.debugName = "Presentation.Output";
-            m_Texture = context.gpu.device->createTexture(desc);
-            if (!m_Texture) return Status::Error(ErrorCode::DeviceError, "presentation allocation failed");
-            m_Framebuffer = context.gpu.device->createFramebuffer(nvrhi::FramebufferDesc().addColorAttachment(m_Texture));
-            m_Bindings = std::make_unique<donut::engine::BindingCache>(context.gpu.device);
-        }
-        if (!m_Framebuffer) return Status::Error(ErrorCode::DeviceError, "presentation framebuffer failed");
-        if (context.output.displayChain && space != ColorSpace::DisplayEncoded)
-        {
-            gpu::DisplayInput input; input.sceneColor = scene; input.colorSpace = space;
-            input.outputTarget = m_Framebuffer; input.outputSize = {attachment.width, attachment.height};
-            input.deltaTimeSeconds = delta; input.frameIndex = frame;
-            auto status = context.output.displayChain->Record(context.gpu, commands, input);
-            if (!status) return status;
-        }
-        else context.gpu.commonPasses->BlitTexture(commands, m_Framebuffer, scene, m_Bindings.get());
-        context.gpu.commonPasses->BlitTexture(commands, swapchain, m_Texture, m_Bindings.get());
-        return Status::Ok();
-    }
-}
+	FStatus FFramePresentation::Record(FExperimentContext& Context, nvrhi::ICommandList* Commands,
+									   nvrhi::IFramebuffer* Swapchain, nvrhi::ITexture* Scene, EColorSpace Space,
+									   float Delta, uint64_t Frame)
+	{
+		const auto& Attachment = Swapchain->getDesc().colorAttachments[0].texture->getDesc();
+		if (!Texture || Texture->getDesc().width != Attachment.width ||
+			Texture->getDesc().height != Attachment.height || Texture->getDesc().format != Attachment.format)
+		{
+			Reset();
+			nvrhi::TextureDesc Desc;
+			Desc.width = Attachment.width;
+			Desc.height = Attachment.height;
+			Desc.format = Attachment.format;
+			Desc.isRenderTarget = true;
+			Desc.initialState = nvrhi::ResourceStates::RenderTarget;
+			Desc.keepInitialState = true;
+			Desc.debugName = "Presentation.Output";
+			Texture = Context.Gpu.Device->createTexture(Desc);
+			if (!Texture)
+				return FStatus::Error(EErrorCode::DeviceError, "presentation allocation failed");
+			Framebuffer = Context.Gpu.Device->createFramebuffer(nvrhi::FramebufferDesc().addColorAttachment(Texture));
+			Bindings = std::make_unique<donut::engine::BindingCache>(Context.Gpu.Device);
+		}
+		if (!Framebuffer)
+			return FStatus::Error(EErrorCode::DeviceError, "presentation framebuffer failed");
+		if (Context.Output.DisplayChain && Space != EColorSpace::DisplayEncoded)
+		{
+			Gpu::FDisplayInput Input;
+			Input.SceneColor = Scene;
+			Input.ColorSpace = Space;
+			Input.OutputTarget = Framebuffer;
+			Input.OutputSize = {Attachment.width, Attachment.height};
+			Input.DeltaTimeSeconds = Delta;
+			Input.FrameIndex = Frame;
+			auto Status = Context.Output.DisplayChain->Record(Context.Gpu, Commands, Input);
+			if (!Status)
+				return Status;
+		}
+		else
+			Context.Gpu.CommonPasses->BlitTexture(Commands, Framebuffer, Scene, Bindings.get());
+		Context.Gpu.CommonPasses->BlitTexture(Commands, Swapchain, Texture, Bindings.get());
+		return FStatus::Ok();
+	}
+} // namespace Prism::Host

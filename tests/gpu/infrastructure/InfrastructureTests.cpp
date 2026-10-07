@@ -9,201 +9,298 @@
 #include <cmath>
 #include <fstream>
 
-
-
-namespace prism::host
+namespace Prism::Host
 {
-    class InfrastructureTests final : public Experiment
-    {
-        gpu::ComputePass compute;
-        gpu::RasterPass raster;
-        gpu::ComparisonPass comparison;
-        nvrhi::BindingLayoutHandle layout;
-        nvrhi::TextureHandle a, b;
-        nvrhi::FramebufferHandle framebuffer;
-        nvrhi::BufferHandle indices;
-        ShaderReload reload;
-        ShaderBuildTask failedBuild;
-        bool initializationFailure = false;
-        bool passed = true, done = false, pending = false, reloading = false, failurePending = false;
-        uint32_t round = 0, width = 17, height = 13;
-        gpu::ComparisonMode mode = gpu::ComparisonMode::Difference;
-        void Check(bool value, const char* name)
-        { if (!value) { passed = false; donut::log::error("Infrastructure test failed: %s", name); } }
-        void Check(Status value) { Check(bool(value), value.ToStringWithCode().c_str()); }
-        void Resize(nvrhi::IDevice* device)
-        {
-            compute.ClearBindings();
-            nvrhi::TextureDesc d; d.width = width; d.height = height; d.format = nvrhi::Format::RGBA32_FLOAT;
-            d.isUAV = true; d.isRenderTarget = true; d.keepInitialState = true;
-            d.initialState = nvrhi::ResourceStates::ShaderResource; d.debugName = "Test.A";
-            a = device->createTexture(d); d.debugName = "Test.B"; b = device->createTexture(d);
-            framebuffer = device->createFramebuffer(nvrhi::FramebufferDesc().addColorAttachment(b));
-        }
-        void Verify(nvrhi::IDevice* device)
-        {
-            auto output = ReadTextureAsFloat(device, comparison.Output());
-            Check(bool(output), "readback"); if (!output) return;
-            float maximum = 0;
-            for (uint32_t y = 0; y < height; ++y)
-                for (uint32_t x = 0; x < width; ++x)
-                    for (uint32_t c = 0; c < 4; ++c)
-                    {
-                        const float av[] = {float(x) / width, float(y) / height, .5f, 1};
-                        const float bv[] = {.25f, .5f, .75f, 1};
-                        float expected = av[c];
-                        if (mode == gpu::ComparisonMode::Difference) expected = c == 3 ? 1 : std::abs(av[c] - bv[c]);
-                        if (mode == gpu::ComparisonMode::B || (mode == gpu::ComparisonMode::Wipe && x >= width / 2)) expected = bv[c];
-                        maximum = std::max(maximum, std::abs(output.Value().At(x, y, c) - expected));
-                    }
-            Check(maximum < .001f, "GPU pixels: dispatch, indexed raster, freeze, comparison");
-        }
-        std::shared_ptr<donut::engine::ShaderFactory> Factory(nvrhi::IDevice* device, bool incompatible)
-        {
-            auto fs = std::make_shared<donut::vfs::RootFileSystem>();
-            const std::filesystem::path root = PRISM_TEST_BIN;
-            if (incompatible) fs->mount("/shaders/prism/PrismTestCompute", root / "test-incompatible");
-            fs->mount("/shaders/prism", root / "shaders/prism/dxil");
-            fs->mount("/shaders/donut", root / "shaders/framework/dxil");
-            return std::make_shared<donut::engine::ShaderFactory>(device, fs, "/shaders");
-        }
-    public:
-        const char* GetName() const override { return "InfrastructureTests"; }
-        Status Initialize(ExperimentContext& context) override
-        {
-            initializationFailure = context.config && context.config->sourcePath.stem() == "init-failure";
-            if (initializationFailure) return Status::Error(ErrorCode::Internal, "expected initialization failure");
+	class FInfrastructureTests final : public IExperiment
+	{
+		Gpu::FComputePass Compute;
+		Gpu::FRasterPass Raster;
+		Gpu::FComparisonPass Comparison;
+		nvrhi::BindingLayoutHandle Layout;
+		nvrhi::TextureHandle A, B;
+		nvrhi::FramebufferHandle Framebuffer;
+		nvrhi::BufferHandle Indices;
+		FShaderReload Reload;
+		FShaderBuildTask FailedBuild;
+		bool bInitializationFailure = false;
+		bool bPassed = true, bDone = false, bPending = false, bReloading = false, bFailurePending = false;
+		uint32_t Round = 0, Width = 17, Height = 13;
+		Gpu::EComparisonMode Mode = Gpu::EComparisonMode::Difference;
+		void Check(bool bValue, const char* Name)
+		{
+			if (!bValue)
+			{
+				bPassed = false;
+				donut::log::error("Infrastructure test failed: %s", Name);
+			}
+		}
+		void Check(FStatus Value)
+		{
+			Check(bool(Value), Value.ToStringWithCode().c_str());
+		}
+		void Resize(nvrhi::IDevice* Device)
+		{
+			Compute.ClearBindings();
+			nvrhi::TextureDesc D;
+			D.width = Width;
+			D.height = Height;
+			D.format = nvrhi::Format::RGBA32_FLOAT;
+			D.isUAV = true;
+			D.isRenderTarget = true;
+			D.keepInitialState = true;
+			D.initialState = nvrhi::ResourceStates::ShaderResource;
+			D.debugName = "Test.A";
+			A = Device->createTexture(D);
+			D.debugName = "Test.B";
+			B = Device->createTexture(D);
+			Framebuffer = Device->createFramebuffer(nvrhi::FramebufferDesc().addColorAttachment(B));
+		}
+		void Verify(nvrhi::IDevice* Device)
+		{
+			auto Output = ReadTextureAsFloat(Device, Comparison.GetOutputTexture());
+			Check(bool(Output), "readback");
+			if (!Output)
+				return;
+			float Maximum = 0;
+			for (uint32_t Y = 0; Y < Height; ++Y)
+				for (uint32_t X = 0; X < Width; ++X)
+					for (uint32_t C = 0; C < 4; ++C)
+					{
+						const float Av[] = {float(X) / Width, float(Y) / Height, .5f, 1};
+						const float Bv[] = {.25f, .5f, .75f, 1};
+						float Expected = Av[C];
+						if (Mode == Gpu::EComparisonMode::Difference)
+							Expected = C == 3 ? 1 : std::abs(Av[C] - Bv[C]);
+						if (Mode == Gpu::EComparisonMode::B || (Mode == Gpu::EComparisonMode::Wipe && X >= Width / 2))
+							Expected = Bv[C];
+						Maximum = std::max(Maximum, std::abs(Output.GetValue().At(X, Y, C) - Expected));
+					}
+			Check(Maximum < .001f, "GPU pixels: dispatch, indexed raster, freeze, comparison");
+		}
+		std::shared_ptr<donut::engine::ShaderFactory> Factory(nvrhi::IDevice* Device, bool bIncompatible)
+		{
+			auto FileSystem = std::make_shared<donut::vfs::RootFileSystem>();
+			const std::filesystem::path Root = PRISM_TEST_BIN;
+			if (bIncompatible)
+				FileSystem->mount("/shaders/prism/PrismTestCompute", Root / "test-incompatible");
+			FileSystem->mount("/shaders/prism", Root / "shaders/prism/dxil");
+			FileSystem->mount("/shaders/donut", Root / "shaders/framework/dxil");
+			return std::make_shared<donut::engine::ShaderFactory>(Device, FileSystem, "/shaders");
+		}
 
-            gpu::TextureSlot first("Repeated", PixelFormat::RGBA16_FLOAT, gpu::TextureUsage::ShaderResource);
-            gpu::TextureSlot second("Repeated", PixelFormat::RGBA16_FLOAT, gpu::TextureUsage::ShaderResource);
-            auto& resources = *context.gpu.resources;
-            Check(resources.Get(first) != resources.Get(second), "same labels have independent identities");
-            const auto shared = first;
-            Check(resources.Get(shared) == resources.Get(first), "copied resource identity");
-            gpu::BufferSlot pixels("Repeated", 16, gpu::BufferUsage::ShaderResource, 1);
-            const auto size = resources.Buffers().GetRenderSize();
-            resources.SetRenderSize({17,13});
-            Check(resources.Get(pixels)->getDesc().byteSize == 17 * 13 * 16, "pixel buffer initial size");
-            resources.SetRenderSize({20,12});
-            Check(resources.Get(pixels)->getDesc().byteSize == 20 * 12 * 16, "pixel buffer resize");
-            resources.SetRenderSize(size);
-            Check(resources.Get(pixels)->getDesc().canHaveRawViews == false, "structured buffers do not need raw views");
-            gpu::BufferSlot raw("Raw", 0, gpu::BufferUsage::ShaderResource, 0, 64);
-            Check(resources.Get(raw) && resources.Get(raw)->getDesc().canHaveRawViews, "stride-free shader resource gets a raw view");
-            // volatile 常量缓冲必须带非零 maxVersions，否则 NVRHI 会拒绝创建。
-            gpu::BufferSlot constants("Constants", 0, gpu::BufferUsage::Constant, 0, 0, 256, true);
-            nvrhi::IBuffer* constantBuffer = resources.Get(constants);
-            Check(constantBuffer != nullptr, "cpu-writable constant buffer is created");
-            if (constantBuffer)
-            {
-                const auto& constantDesc = constantBuffer->getDesc();
-                Check(constantDesc.isVolatile && constantDesc.maxVersions > 0, "cpu-writable constant buffer is volatile and versioned");
-            }
-            // 自相矛盾的用法必须被拒绝，而不是交给 NVRHI 在 Debug 下报错、在 Release 下静默。
-            gpu::BufferSlot conflicting("Conflicting", 0, gpu::BufferUsage::Constant | gpu::BufferUsage::UnorderedAccess, 0, 0, 256, true);
-            Check(resources.Get(conflicting) == nullptr, "a volatile constant buffer cannot also be a UAV");
-            gpu::BufferSlot stridedConstants("StridedConstants", 16, gpu::BufferUsage::Constant, 0, 4);
-            Check(resources.Get(stridedConstants) == nullptr, "a constant buffer cannot have a struct stride");
-            nvrhi::BindingLayoutDesc d; d.visibility = nvrhi::ShaderType::Compute;
-            d.bindings = {nvrhi::BindingLayoutItem::Texture_UAV(0)};
-            layout = context.gpu.device->createBindingLayout(d);
-            Check(compute.Initialize(context.gpu.device, *context.gpu.shaders,
-                {"prism/PrismTestCompute/TestPasses.hlsl", "main_cs", nvrhi::ShaderType::Compute, {}}, {layout}, dm::uint3(4,4,1)));
-            nvrhi::GraphicsPipelineDesc graphics;
-            graphics.renderState.depthStencilState.depthTestEnable = false;
-            graphics.renderState.depthStencilState.depthWriteEnable = false;
-            graphics.renderState.rasterState.cullMode = nvrhi::RasterCullMode::None;
-            Check(raster.Initialize(context.gpu.device, *context.gpu.shaders, graphics, {
-                {"prism/PrismInfrastructureTests/TestPasses.hlsl", "main_vs", nvrhi::ShaderType::Vertex, {}},
-                {"prism/PrismInfrastructureTests/TestPasses.hlsl", "main_ps", nvrhi::ShaderType::Pixel, {}}}));
-            Check(comparison.Initialize(context.gpu.device, *context.gpu.shaders, *context.gpu.commonPasses));
-            nvrhi::BufferDesc indexDesc; indexDesc.byteSize = 12; indexDesc.isIndexBuffer = true;
-            indexDesc.initialState = nvrhi::ResourceStates::IndexBuffer; indexDesc.keepInitialState = true;
-            indices = context.gpu.device->createBuffer(indexDesc);
-            Resize(context.gpu.device);
-            reload.Initialize(context.gpu.device, *context.gpu.shaders, std::filesystem::path(PRISM_TEST_BIN) / "PrismInfrastructureTests.exe");
-            return passed ? Status::Ok() : Status::Error(ErrorCode::Internal, "infrastructure initialization failed");
-        }
-        void BeginFrame(ExperimentContext& context, const ExperimentFrame& frame) override
-        {
-            if (frame.frame.submissionIndex > 10000) { Check(false, "reload timeout"); done = true; }
-            if (pending) { Verify(context.gpu.device); pending = false; ++round; }
-            if (round == 1) { width = 20; height = 12; Resize(context.gpu.device); }
-            if (round == 5 && !reloading && !done)
-            {
-                struct Veto final : gpu::ShaderReloadClient
-                {
-                    Status PrepareShaders(gpu::ShaderLibrary&) override { return Status::Error(ErrorCode::Internal, "expected test veto"); }
-                    void CommitShaders() override {} void DiscardShaders() override {}
-                } veto;
-                auto* shaders = context.gpu.shaders;
-                nvrhi::ComputePipelineHandle original = compute.GetPipeline();
-                shaders->Register(&veto); auto status = shaders->Reload(Factory(context.gpu.device, false)); shaders->Unregister(&veto);
-                Check(!status && compute.GetPipeline() == original && shaders->GetGeneration() == 0, "transaction rollback");
-                auto incompatible = shaders->Reload(Factory(context.gpu.device, true));
-                Check(!incompatible && incompatible.ToStringWithCode().find("interface changed") != std::string::npos &&
-                    compute.GetPipeline() == original && shaders->GetGeneration() == 0, "thread group change rejected");
-                Check(reload.Request(), "start asynchronous compiler"); reloading = true;
-            }
-            if (reloading)
-            {
-                bool committed = reload.Poll();
-                if (!reload.Running())
-                {
-                    Check(committed && context.gpu.shaders->GetGeneration() == 1, reload.Message().c_str());
-                    reloading = false; ++round;
-                }
-            }
-            if (round == 7 && !failurePending && !done)
-            {
-                const auto script = std::filesystem::path(PRISM_TEST_BIN) / "expected-failure.cmake";
-                const auto source = std::filesystem::path(PRISM_TEST_BIN) / "expected-invalid.hlsl";
-                { std::ofstream out(source); out << "This is deliberately invalid HLSL."; }
-                {
-                    std::ofstream out(script);
-                    out << "execute_process(COMMAND \"" << PRISM_TEST_DXC << "\" -T cs_6_5 -E main_cs \""
-                        << source.generic_string() << "\" RESULT_VARIABLE result)\n"
-                        << "if(NOT result EQUAL 0)\n message(FATAL_ERROR \"Shader compilation failed\")\nendif()\n";
-                }
-                Check(failedBuild.Start(script, std::filesystem::path(PRISM_TEST_BIN) / "failed-build"), "start failed build");
-                failurePending = true;
-            }
-            if (failurePending && failedBuild.Poll())
-            {
-                Check(!failedBuild.Succeeded() && context.gpu.shaders->GetGeneration() == 1, "failed build preserves generation");
-                done = true; failurePending = false;
-            }
-            if (!passed) done = true;
-            if (done) { donut::log::info("Infrastructure tests %s.", passed ? "passed" : "FAILED"); context.callbacks.requestQuit(); }
-        }
-        nvrhi::ITexture* Render(ExperimentContext& context, const ExperimentFrame& frame) override
-        {
-            if (done || reloading || failurePending) return comparison.Output();
-            auto* commands = frame.commands;
-            const uint32_t indexData[] = {0,1,2}; commands->writeBuffer(indices, indexData, sizeof(indexData));
-            nvrhi::BindingSetDesc bindings; bindings.bindings = {nvrhi::BindingSetItem::Texture_UAV(0, a)};
-            Check(compute.DispatchExtent(commands, {compute.Bindings(bindings, layout)}, dm::uint3(width,height,1)));
-            commands->clearTextureFloat(b, nvrhi::AllSubresources, nvrhi::Color(0));
-            nvrhi::GraphicsState state; state.framebuffer = framebuffer; state.indexBuffer = {indices, nvrhi::Format::R32_UINT, 0};
-            nvrhi::DrawArguments args; args.vertexCount = 3;
-            Check(raster.Draw(commands, state, args, true));
-            Check(comparison.Freeze(commands, {b}));
-            commands->clearTextureFloat(b, nvrhi::AllSubresources, nvrhi::Color(0));
-            mode = round == 2 ? gpu::ComparisonMode::A : round == 3 ? gpu::ComparisonMode::B :
-                round == 4 ? gpu::ComparisonMode::Wipe : gpu::ComparisonMode::Difference;
-            Check(comparison.Record(commands, {a}, comparison.Frozen(), {mode, .5f, 1}));
-            auto invalid = comparison.Record(commands, {a, ColorSpace::SceneLinear}, {b, ColorSpace::DisplayEncoded}, {mode});
-            Check(!invalid, "reject mixed color spaces");
-            pending = true; (void)context; return comparison.Output();
-        }
-        void Shutdown(ExperimentContext& context) override
-        {
-            auto marker = std::filesystem::path(PRISM_TEST_BIN) / (initializationFailure ? "shutdown-failure.txt" : "shutdown-normal.txt");
-            // Querying the device also verifies the hook precedes device teardown.
-            std::ofstream output(marker);
-            output << (context.gpu.device->getGraphicsAPI() == nvrhi::GraphicsAPI::D3D12 ? "device-alive" : "wrong-device");
-        }
-        bool PassedVerification() const override { return passed && done; }
-    };
-    std::unique_ptr<Experiment> CreateExperiment() { return std::make_unique<InfrastructureTests>(); }
-}
+	  public:
+		const char* GetName() const override
+		{
+			return "InfrastructureTests";
+		}
+		FStatus Initialize(FExperimentContext& Context) override
+		{
+			bInitializationFailure = Context.Config && Context.Config->SourcePath.stem() == "init-failure";
+			if (bInitializationFailure)
+				return FStatus::Error(EErrorCode::Internal, "expected initialization failure");
+
+			Gpu::FTextureSlot First("Repeated", EPixelFormat::RgbA16Float, Gpu::ETextureUsage::ShaderResource);
+			Gpu::FTextureSlot Second("Repeated", EPixelFormat::RgbA16Float, Gpu::ETextureUsage::ShaderResource);
+			auto& Resources = *Context.Gpu.Resources;
+			Check(Resources.Get(First) != Resources.Get(Second), "same labels have independent identities");
+			const auto Shared = First;
+			Check(Resources.Get(Shared) == Resources.Get(First), "copied resource identity");
+			Gpu::FBufferSlot Pixels("Repeated", 16, Gpu::EBufferUsage::ShaderResource, 1);
+			const auto Size = Resources.GetBufferCache().GetRenderSize();
+			Resources.SetRenderSize({17, 13});
+			Check(Resources.Get(Pixels)->getDesc().byteSize == 17 * 13 * 16, "pixel buffer initial size");
+			Resources.SetRenderSize({20, 12});
+			Check(Resources.Get(Pixels)->getDesc().byteSize == 20 * 12 * 16, "pixel buffer resize");
+			Resources.SetRenderSize(Size);
+			Check(Resources.Get(Pixels)->getDesc().canHaveRawViews == false,
+				  "structured buffers do not need raw views");
+			Gpu::FBufferSlot Raw("Raw", 0, Gpu::EBufferUsage::ShaderResource, 0, 64);
+			Check(Resources.Get(Raw) && Resources.Get(Raw)->getDesc().canHaveRawViews,
+				  "stride-free shader resource gets a raw view");
+			// volatile 常量缓冲必须带非零 maxVersions，否则 NVRHI 会拒绝创建。
+			Gpu::FBufferSlot Constants("Constants", 0, Gpu::EBufferUsage::Constant, 0, 0, 256, true);
+			nvrhi::IBuffer* ConstantBuffer = Resources.Get(Constants);
+			Check(ConstantBuffer != nullptr, "cpu-writable constant buffer is created");
+			if (ConstantBuffer)
+			{
+				const auto& ConstantDesc = ConstantBuffer->getDesc();
+				Check(ConstantDesc.isVolatile && ConstantDesc.maxVersions > 0,
+					  "cpu-writable constant buffer is volatile and versioned");
+			}
+			// 自相矛盾的用法必须被拒绝，而不是交给 NVRHI 在 Debug 下报错、在 Release 下静默。
+			Gpu::FBufferSlot Conflicting(
+				"Conflicting", 0, Gpu::EBufferUsage::Constant | Gpu::EBufferUsage::UnorderedAccess, 0, 0, 256, true);
+			Check(Resources.Get(Conflicting) == nullptr, "a volatile constant buffer cannot also be a UAV");
+			Gpu::FBufferSlot StridedConstants("StridedConstants", 16, Gpu::EBufferUsage::Constant, 0, 4);
+			Check(Resources.Get(StridedConstants) == nullptr, "a constant buffer cannot have a struct stride");
+			nvrhi::BindingLayoutDesc D;
+			D.visibility = nvrhi::ShaderType::Compute;
+			D.bindings = {nvrhi::BindingLayoutItem::Texture_UAV(0)};
+			Layout = Context.Gpu.Device->createBindingLayout(D);
+			Check(Compute.Initialize(
+				Context.Gpu.Device, *Context.Gpu.Shaders,
+				{"prism/PrismTestCompute/TestPasses.hlsl", "main_cs", nvrhi::ShaderType::Compute, {}}, {Layout},
+				dm::uint3(4, 4, 1)));
+			nvrhi::GraphicsPipelineDesc Graphics;
+			Graphics.renderState.depthStencilState.depthTestEnable = false;
+			Graphics.renderState.depthStencilState.depthWriteEnable = false;
+			Graphics.renderState.rasterState.cullMode = nvrhi::RasterCullMode::None;
+			Check(Raster.Initialize(
+				Context.Gpu.Device, *Context.Gpu.Shaders, Graphics,
+				{{"prism/PrismInfrastructureTests/TestPasses.hlsl", "main_vs", nvrhi::ShaderType::Vertex, {}},
+				 {"prism/PrismInfrastructureTests/TestPasses.hlsl", "main_ps", nvrhi::ShaderType::Pixel, {}}}));
+			Check(Comparison.Initialize(Context.Gpu.Device, *Context.Gpu.Shaders, *Context.Gpu.CommonPasses));
+			nvrhi::BufferDesc IndexDesc;
+			IndexDesc.byteSize = 12;
+			IndexDesc.isIndexBuffer = true;
+			IndexDesc.initialState = nvrhi::ResourceStates::IndexBuffer;
+			IndexDesc.keepInitialState = true;
+			Indices = Context.Gpu.Device->createBuffer(IndexDesc);
+			Resize(Context.Gpu.Device);
+			Reload.Initialize(Context.Gpu.Device, *Context.Gpu.Shaders,
+							  std::filesystem::path(PRISM_TEST_BIN) / "PrismInfrastructureTests.exe");
+			return bPassed ? FStatus::Ok()
+						   : FStatus::Error(EErrorCode::Internal, "infrastructure initialization failed");
+		}
+		void BeginFrame(FExperimentContext& Context, const FExperimentFrame& Frame) override
+		{
+			if (Frame.Frame.SubmissionIndex > 10000)
+			{
+				Check(false, "Reload timeout");
+				bDone = true;
+			}
+			if (bPending)
+			{
+				Verify(Context.Gpu.Device);
+				bPending = false;
+				++Round;
+			}
+			if (Round == 1)
+			{
+				Width = 20;
+				Height = 12;
+				Resize(Context.Gpu.Device);
+			}
+			if (Round == 5 && !bReloading && !bDone)
+			{
+				struct FVeto final : Gpu::IShaderReloadClient
+				{
+					FStatus PrepareShaders(Gpu::FShaderLibrary&) override
+					{
+						return FStatus::Error(EErrorCode::Internal, "expected test veto");
+					}
+					void CommitShaders() override
+					{
+					}
+					void DiscardShaders() override
+					{
+					}
+				} Veto;
+				auto* Shaders = Context.Gpu.Shaders;
+				nvrhi::ComputePipelineHandle Original = Compute.GetPipeline();
+				Shaders->Register(&Veto);
+				auto Status = Shaders->Reload(Factory(Context.Gpu.Device, false));
+				Shaders->Unregister(&Veto);
+				Check(!Status && Compute.GetPipeline() == Original && Shaders->GetGeneration() == 0,
+					  "transaction rollback");
+				auto Incompatible = Shaders->Reload(Factory(Context.Gpu.Device, true));
+				Check(!Incompatible && Incompatible.ToStringWithCode().find("interface changed") != std::string::npos &&
+						  Compute.GetPipeline() == Original && Shaders->GetGeneration() == 0,
+					  "thread group change rejected");
+				Check(Reload.Request(), "start asynchronous compiler");
+				bReloading = true;
+			}
+			if (bReloading)
+			{
+				const bool bCommitted = Reload.Poll();
+				if (!Reload.Running())
+				{
+					Check(bCommitted && Context.Gpu.Shaders->GetGeneration() == 1, Reload.GetMessage().c_str());
+					bReloading = false;
+					++Round;
+				}
+			}
+			if (Round == 7 && !bFailurePending && !bDone)
+			{
+				const auto Script = std::filesystem::path(PRISM_TEST_BIN) / "expected-failure.cmake";
+				const auto Source = std::filesystem::path(PRISM_TEST_BIN) / "expected-invalid.hlsl";
+				{
+					std::ofstream Out(Source);
+					Out << "This is deliberately invalid HLSL.";
+				}
+				{
+					std::ofstream Out(Script);
+					Out << "execute_process(COMMAND \"" << PRISM_TEST_DXC << "\" -T cs_6_5 -E main_cs \""
+						<< Source.generic_string() << "\" RESULT_VARIABLE result)\n"
+						<< "if(NOT result EQUAL 0)\n message(FATAL_ERROR \"Shader compilation failed\")\nendif()\n";
+				}
+				Check(FailedBuild.Start(Script, std::filesystem::path(PRISM_TEST_BIN) / "failed-build"),
+					  "start failed build");
+				bFailurePending = true;
+			}
+			if (bFailurePending && FailedBuild.Poll())
+			{
+				Check(!FailedBuild.Succeeded() && Context.Gpu.Shaders->GetGeneration() == 1,
+					  "failed build preserves generation");
+				bDone = true;
+				bFailurePending = false;
+			}
+			if (!bPassed)
+				bDone = true;
+			if (bDone)
+			{
+				donut::log::info("Infrastructure tests %s.", bPassed ? "passed" : "FAILED");
+				Context.Callbacks.RequestQuit();
+			}
+		}
+		nvrhi::ITexture* Render(FExperimentContext& Context, const FExperimentFrame& Frame) override
+		{
+			if (bDone || bReloading || bFailurePending)
+				return Comparison.GetOutputTexture();
+			auto* Commands = Frame.Commands;
+			const uint32_t IndexData[] = {0, 1, 2};
+			Commands->writeBuffer(Indices, IndexData, sizeof(IndexData));
+			nvrhi::BindingSetDesc Bindings;
+			Bindings.bindings = {nvrhi::BindingSetItem::Texture_UAV(0, A)};
+			Check(Compute.DispatchExtent(Commands, {Compute.GetOrCreateBindingSet(Bindings, Layout)},
+										 dm::uint3(Width, Height, 1)));
+			Commands->clearTextureFloat(B, nvrhi::AllSubresources, nvrhi::Color(0));
+			nvrhi::GraphicsState State;
+			State.framebuffer = Framebuffer;
+			State.indexBuffer = {Indices, nvrhi::Format::R32_UINT, 0};
+			nvrhi::DrawArguments Args;
+			Args.vertexCount = 3;
+			Check(Raster.Draw(Commands, State, Args, true));
+			Check(Comparison.Freeze(Commands, {B}));
+			Commands->clearTextureFloat(B, nvrhi::AllSubresources, nvrhi::Color(0));
+			Mode = Round == 2	? Gpu::EComparisonMode::A
+				   : Round == 3 ? Gpu::EComparisonMode::B
+				   : Round == 4 ? Gpu::EComparisonMode::Wipe
+								: Gpu::EComparisonMode::Difference;
+			Check(Comparison.Record(Commands, {A}, Comparison.GetFrozenImage(), {Mode, .5f, 1}));
+			auto Invalid =
+				Comparison.Record(Commands, {A, EColorSpace::SceneLinear}, {B, EColorSpace::DisplayEncoded}, {Mode});
+			Check(!Invalid, "reject mixed color spaces");
+			bPending = true;
+			(void)Context;
+			return Comparison.GetOutputTexture();
+		}
+		void Shutdown(FExperimentContext& Context) override
+		{
+			auto Marker = std::filesystem::path(PRISM_TEST_BIN) /
+						  (bInitializationFailure ? "shutdown-failure.txt" : "shutdown-normal.txt");
+			// Querying the Device also verifies the hook precedes Device teardown.
+			std::ofstream Output(Marker);
+			Output << (Context.Gpu.Device->getGraphicsAPI() == nvrhi::GraphicsAPI::D3D12 ? "device-alive"
+																						 : "wrong-device");
+		}
+		bool PassedVerification() const override
+		{
+			return bPassed && bDone;
+		}
+	};
+	std::unique_ptr<IExperiment> CreateExperiment()
+	{
+		return std::make_unique<FInfrastructureTests>();
+	}
+} // namespace Prism::Host

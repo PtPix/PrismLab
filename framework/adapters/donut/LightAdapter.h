@@ -12,10 +12,10 @@
 
 #include <vector>
 
-namespace prism::adapter
+namespace Prism::Adapter
 {
-    std::vector<prism::LightRecord> CollectLights(const donut::engine::SceneGraph& graph);
+	std::vector<Prism::FLightRecord> CollectLights(const donut::engine::SceneGraph& Graph);
 
-    // GPU 布局：把 LightRecord 转成固定对齐的结构，供常量/结构化缓冲上传。
-    prism::GpuLight ToGpuLight(const prism::LightRecord& light);
-}
+	// GPU 布局：把 LightRecord 转成固定对齐的结构，供常量/结构化缓冲上传。
+	Prism::FGpuLight ToGpuLight(const Prism::FLightRecord& Light);
+} // namespace Prism::Adapter

@@ -3,20 +3,30 @@
 #include <donut/engine/CommonRenderPasses.h>
 #include <donut/engine/BindingCache.h>
 
-namespace prism::host
+namespace Prism::Host
 {
-    struct ExperimentContext;
-    // Capturable final pixels. The display transform remains application supplied.
-    class FramePresentation
-    {
-    public:
-        Status Record(ExperimentContext& context, nvrhi::ICommandList* commands, nvrhi::IFramebuffer* swapchain,
-            nvrhi::ITexture* scene, ColorSpace space, float delta, uint64_t frame);
-        nvrhi::ITexture* Output() const { return m_Texture; }
-        void Reset() { m_Framebuffer = nullptr; m_Texture = nullptr; if (m_Bindings) m_Bindings->Clear(); }
-    private:
-        nvrhi::TextureHandle m_Texture;
-        nvrhi::FramebufferHandle m_Framebuffer;
-        std::unique_ptr<donut::engine::BindingCache> m_Bindings;
-    };
-}
+	struct FExperimentContext;
+	// Capturable final pixels. The display transform remains application supplied.
+	class FFramePresentation
+	{
+	  public:
+		FStatus Record(FExperimentContext& Context, nvrhi::ICommandList* Commands, nvrhi::IFramebuffer* Swapchain,
+					   nvrhi::ITexture* Scene, EColorSpace Space, float Delta, uint64_t Frame);
+		nvrhi::ITexture* Output() const
+		{
+			return Texture;
+		}
+		void Reset()
+		{
+			Framebuffer = nullptr;
+			Texture = nullptr;
+			if (Bindings)
+				Bindings->Clear();
+		}
+
+	  private:
+		nvrhi::TextureHandle Texture;
+		nvrhi::FramebufferHandle Framebuffer;
+		std::unique_ptr<donut::engine::BindingCache> Bindings;
+	};
+} // namespace Prism::Host

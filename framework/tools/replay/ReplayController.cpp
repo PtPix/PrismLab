@@ -2,52 +2,90 @@
 #include <algorithm>
 #include <cmath>
 
-namespace prism::host
+namespace Prism::Host
 {
-    void ReplayController::Restart()
-    {
-        if (m_Mode == Mode::Recording) m_Track.samples.clear();
-        m_Frame = {}; m_First = true; m_Reset = true; m_Step = false;
-    }
-    void ReplayController::Record() { m_Track.samples.clear(); m_Mode = Mode::Recording; m_Paused = false; Restart(); }
-    bool ReplayController::Play()
-    { if (m_Track.samples.empty()) return false; m_Mode = Mode::Playback; m_Paused = false; Restart(); return true; }
-    void ReplayController::Stop() { m_Mode = Mode::Live; m_Paused = false; Restart(); }
-    void ReplayController::SetFixedStep(bool enabled, double delta)
-    {
-        if (m_Mode != Mode::Live || !std::isfinite(delta) || delta <= 0 || delta > 1) return;
-        m_Fixed = enabled; m_Track.fixedDelta = delta; Restart();
-    }
-    const ReplayController::Frame& ReplayController::BeginFrame(float realDelta)
-    {
-        const bool advance = !m_First && (!m_Paused || m_Step);
-        m_Frame.delta = 0;
-        if (advance)
-        {
-            if (m_Mode == Mode::Playback && m_Frame.tick + 1 >= m_Track.samples.size()) m_Paused = true;
-            else
-            {
-                ++m_Frame.tick;
-                m_Frame.delta = float((m_Fixed || m_Mode != Mode::Live) ? m_Track.fixedDelta : std::max(0.f, realDelta));
-                m_Frame.time = (m_Fixed || m_Mode != Mode::Live) ? double(m_Frame.tick) * m_Track.fixedDelta : m_Frame.time + m_Frame.delta;
-            }
-        }
-        m_Frame.seed = m_Track.seed; m_Step = false; m_First = false;
-        if (const auto* sample = PlaybackSample(); sample && restoreParameters)
-            if (!captureParameters || captureParameters() != sample->parameters)
-                restoreParameters(sample->parameters);
-        return m_Frame;
-    }
-    void ReplayController::EndFrame(const CameraPose& camera)
-    {
-        if (m_Mode == Mode::Recording && m_Frame.tick == m_Track.samples.size())
-            m_Track.samples.push_back({camera, captureParameters ? captureParameters() : Json::Value()});
-    }
-    const ReplaySample* ReplayController::PlaybackSample() const
-    { return m_Mode == Mode::Playback && m_Frame.tick < m_Track.samples.size() ? &m_Track.samples[size_t(m_Frame.tick)] : nullptr; }
-    Status ReplayController::Load(const std::filesystem::path& path)
-    {
-        if (m_Mode == Mode::Recording) return Status::Error(ErrorCode::InvalidArgument, "stop recording before loading");
-        auto status = m_Track.Load(path); if (status) Stop(); return status;
-    }
-}
+	void FReplayController::Restart()
+	{
+		if (Mode == EMode::Recording)
+			ReplayTrack.Samples.clear();
+		CurrentFrame = {};
+		bFirst = true;
+		bReset = true;
+		bStep = false;
+	}
+	void FReplayController::Record()
+	{
+		ReplayTrack.Samples.clear();
+		Mode = EMode::Recording;
+		bPaused = false;
+		Restart();
+	}
+	bool FReplayController::Play()
+	{
+		if (ReplayTrack.Samples.empty())
+			return false;
+		Mode = EMode::Playback;
+		bPaused = false;
+		Restart();
+		return true;
+	}
+	void FReplayController::Stop()
+	{
+		Mode = EMode::Live;
+		bPaused = false;
+		Restart();
+	}
+	void FReplayController::SetFixedStep(bool bEnabled, double Delta)
+	{
+		if (Mode != EMode::Live || !std::isfinite(Delta) || Delta <= 0 || Delta > 1)
+			return;
+		bFixed = bEnabled;
+		ReplayTrack.FixedDelta = Delta;
+		Restart();
+	}
+	const FReplayController::FFrame& FReplayController::BeginFrame(float RealDelta)
+	{
+		const bool bAdvance = !bFirst && (!bPaused || bStep);
+		CurrentFrame.Delta = 0;
+		if (bAdvance)
+		{
+			if (Mode == EMode::Playback && CurrentFrame.Tick + 1 >= ReplayTrack.Samples.size())
+				bPaused = true;
+			else
+			{
+				++CurrentFrame.Tick;
+				CurrentFrame.Delta =
+					float((bFixed || Mode != EMode::Live) ? ReplayTrack.FixedDelta : std::max(0.f, RealDelta));
+				CurrentFrame.Time = (bFixed || Mode != EMode::Live) ? double(CurrentFrame.Tick) * ReplayTrack.FixedDelta
+																	: CurrentFrame.Time + CurrentFrame.Delta;
+			}
+		}
+		CurrentFrame.Seed = ReplayTrack.Seed;
+		bStep = false;
+		bFirst = false;
+		if (const auto* Sample = PlaybackSample(); Sample && RestoreParameters)
+			if (!CaptureParameters || CaptureParameters() != Sample->Parameters)
+				RestoreParameters(Sample->Parameters);
+		return CurrentFrame;
+	}
+	void FReplayController::EndFrame(const FCameraPose& Camera)
+	{
+		if (Mode == EMode::Recording && CurrentFrame.Tick == ReplayTrack.Samples.size())
+			ReplayTrack.Samples.push_back({Camera, CaptureParameters ? CaptureParameters() : Json::Value()});
+	}
+	const FReplaySample* FReplayController::PlaybackSample() const
+	{
+		return Mode == EMode::Playback && CurrentFrame.Tick < ReplayTrack.Samples.size()
+				   ? &ReplayTrack.Samples[size_t(CurrentFrame.Tick)]
+				   : nullptr;
+	}
+	FStatus FReplayController::Load(const std::filesystem::path& Path)
+	{
+		if (Mode == EMode::Recording)
+			return FStatus::Error(EErrorCode::InvalidArgument, "stop recording before loading");
+		FStatus Status = ReplayTrack.Load(Path);
+		if (Status)
+			Stop();
+		return Status;
+	}
+} // namespace Prism::Host

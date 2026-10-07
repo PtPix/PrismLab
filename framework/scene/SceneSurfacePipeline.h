@@ -7,76 +7,102 @@
 #include <array>
 #include <algorithm>
 
-namespace prism::pipeline
+namespace Prism::Pipeline
 {
-    enum class SurfaceChannel : uint32_t
-    {
-        Depth, NormalRoughness, BaseColorMetalness, Emissive, Motion, InstanceId, MaterialId, Count
-    };
-    enum class MotionUnits { UV, Pixels };
+	enum class ESurfaceChannel : uint32_t
+	{
+		Depth,
+		NormalRoughness,
+		BaseColorMetalness,
+		Emissive,
+		Motion,
+		InstanceId,
+		MaterialId,
+		Count
+	};
+	enum class EMotionUnits
+	{
+		UV,
+		Pixels
+	};
 
-    struct SurfaceRequirements
-    {
-        uint32_t mask = 0;
-        void Require(SurfaceChannel channel) { mask |= 1u << uint32_t(channel); }
-        bool Requires(SurfaceChannel channel) const { return (mask & (1u << uint32_t(channel))) != 0; }
-    };
+	struct FSurfaceRequirements
+	{
+		uint32_t Mask = 0;
+		void Require(ESurfaceChannel Channel)
+		{
+			Mask |= 1u << uint32_t(Channel);
+		}
+		bool Requires(ESurfaceChannel Channel) const
+		{
+			return (Mask & (1u << uint32_t(Channel))) != 0;
+		}
+	};
 
-    struct SurfaceTextureView
-    {
-        nvrhi::ITexture* texture = nullptr;
-        uint32_t mip = 0;
-        uint32_t slice = 0;
-        uint64_t generation = 0;
-    };
+	struct FSurfaceTextureView
+	{
+		nvrhi::ITexture* Texture = nullptr;
+		uint32_t Mip = 0;
+		uint32_t Slice = 0;
+		uint64_t Generation = 0;
+	};
 
-    struct SceneSurfaceData
-    {
-        std::array<SurfaceTextureView, size_t(SurfaceChannel::Count)> channels{};
-        Extent2D size;
-        GBufferSchema schema;
-        DepthConvention depthConvention = DepthConvention::ForwardZ0To1;
-        MotionUnits motionUnits = MotionUnits::UV;
-        // Motion is previous minus current, excluding jitter.
-        bool motionIncludesJitter = false;
+	struct FSceneSurfaceData
+	{
+		std::array<FSurfaceTextureView, size_t(ESurfaceChannel::Count)> Channels{};
+		FExtent2D Size;
+		FGBufferSchema Schema;
+		EDepthConvention DepthConvention = EDepthConvention::ForwardZ0To1;
+		EMotionUnits MotionUnits = EMotionUnits::UV;
+		// Motion is previous minus current, excluding jitter.
+		bool bMotionIncludesJitter = false;
 
-        SurfaceTextureView& operator[](SurfaceChannel c) { return channels[size_t(c)]; }
-        const SurfaceTextureView& operator[](SurfaceChannel c) const { return channels[size_t(c)]; }
+		FSurfaceTextureView& operator[](ESurfaceChannel C)
+		{
+			return Channels[size_t(C)];
+		}
+		const FSurfaceTextureView& operator[](ESurfaceChannel C) const
+		{
+			return Channels[size_t(C)];
+		}
 
-        Status Validate(const SurfaceRequirements& requirements) const
-        {
-            if (!size.IsValid())
-                return Status::Error(ErrorCode::ExtentMismatch, "surface extent is empty");
-            for (size_t i = 0; i < channels.size(); ++i)
-            {
-                if (!requirements.Requires(SurfaceChannel(i))) continue;
-                const auto& view = channels[i];
-                if (!view.texture)
-                    return Status::Error(ErrorCode::ResourceMissing, "required surface channel " + std::to_string(i));
-                const auto& d = view.texture->getDesc();
-                if (view.mip >= d.mipLevels || view.mip >= 32 || view.slice >= d.arraySize || d.sampleCount != 1)
-                    return Status::Error(ErrorCode::Unsupported, "surface requires a valid single-sample subresource");
-                if (std::max(1u, d.width >> view.mip) != size.width || std::max(1u, d.height >> view.mip) != size.height)
-                    return Status::Error(ErrorCode::ExtentMismatch, "surface channel extent differs");
-            }
-            return Status::Ok();
-        }
-    };
+		FStatus Validate(const FSurfaceRequirements& Requirements) const
+		{
+			if (!Size.IsValid())
+				return FStatus::Error(EErrorCode::ExtentMismatch, "surface extent is empty");
+			for (size_t I = 0; I < Channels.size(); ++I)
+			{
+				if (!Requirements.Requires(ESurfaceChannel(I)))
+					continue;
+				const auto& View = Channels[I];
+				if (!View.Texture)
+					return FStatus::Error(EErrorCode::ResourceMissing, "required surface channel " + std::to_string(I));
+				const auto& D = View.Texture->getDesc();
+				if (View.Mip >= D.mipLevels || View.Mip >= 32 || View.Slice >= D.arraySize || D.sampleCount != 1)
+					return FStatus::Error(EErrorCode::Unsupported,
+										  "surface requires a valid single-sample subresource");
+				if (std::max(1u, D.width >> View.Mip) != Size.Width ||
+					std::max(1u, D.height >> View.Mip) != Size.Height)
+					return FStatus::Error(EErrorCode::ExtentMismatch, "surface channel extent differs");
+			}
+			return FStatus::Ok();
+		}
+	};
 
-    struct SurfaceFrame
-    {
-        const FrameInfo& frame;
-        const CameraData& camera;
-        const SceneFrameData& scene;
-        const gpu::SceneGpuData& gpuScene;
-    };
+	struct FSurfaceFrame
+	{
+		const FFrameInfo& Frame;
+		const FCameraData& Camera;
+		const FSceneFrameData& Scene;
+		const Gpu::FSceneGpuData& GpuScene;
+	};
 
-    // Implemented by the application. Outputs are supplied and owned by the caller.
-    class ISceneSurfacePipeline
-    {
-    public:
-        virtual ~ISceneSurfacePipeline() = default;
-        virtual Status Record(nvrhi::ICommandList* commands, const SurfaceFrame& frame,
-            const SurfaceRequirements& requirements, const SceneSurfaceData& outputs) = 0;
-    };
-}
+	// Implemented by the application. Outputs are supplied and owned by the caller.
+	class ISceneSurfacePipeline
+	{
+	  public:
+		virtual ~ISceneSurfacePipeline() = default;
+		virtual FStatus Record(nvrhi::ICommandList* Commands, const FSurfaceFrame& Frame,
+							   const FSurfaceRequirements& Requirements, const FSceneSurfaceData& Outputs) = 0;
+	};
+} // namespace Prism::Pipeline

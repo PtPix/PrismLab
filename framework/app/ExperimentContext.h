@@ -7,64 +7,63 @@
 #include "HostConfig.h"
 #include <filesystem>
 #include <functional>
-namespace prism::host
+namespace Prism::Host
 {
-    class ComparisonController;
-    class ReplayController;
-    class DebugViewRegistry;
-    class Metrics;
+	class FComparisonController;
+	class FReplayController;
+	class FDebugViewRegistry;
+	class FMetrics;
 
-    struct ExperimentCallbacks
-    {
+	struct FExperimentCallbacks
+	{
 
-        std::function<void(prism::HistoryResetReason)> requestHistoryReset;
+		std::function<void(Prism::EHistoryResetReason)> RequestHistoryReset;
 
-        std::function<bool(nvrhi::ITexture*, const std::filesystem::path&, nvrhi::ResourceStates)> saveTexture;
+		std::function<bool(nvrhi::ITexture*, const std::filesystem::path&, nvrhi::ResourceStates)> SaveTexture;
 
-        std::function<void()> requestQuit;
-    };
+		std::function<void()> RequestQuit;
+	};
 
+	struct FExperimentContext
+	{
 
-    struct ExperimentContext
-    {
+		struct FSceneServices
+		{
+			// Optional external producers; the host does not populate these resources.
+			const Prism::FSceneFrameData* FrameData = nullptr;
+			const Gpu::FSceneGpuData* GpuData = nullptr;
+			Pipeline::ISceneSurfacePipeline* SurfacePipeline = nullptr;
 
-        struct SceneServices
-        {
-            // Optional external producers; the host does not populate these resources.
-            const prism::SceneFrameData* frameData = nullptr;
-            const gpu::SceneGpuData* gpuData = nullptr;
-            pipeline::ISceneSurfacePipeline* surfacePipeline = nullptr;
+			FSceneStats Stats;
+			std::string Description = "(none)";
+		};
 
-            SceneStats stats;
-            std::string description = "(none)";
-        };
+		struct FOutputServices
+		{
+			Gpu::IDisplayChain* DisplayChain = nullptr;
+			EColorSpace ColorSpace = EColorSpace::SceneLinear;
+		};
+		struct FToolServices
+		{
+			FComparisonController* Comparison = nullptr;
+			FReplayController* Replay = nullptr;
+			FDebugViewRegistry* DebugViews = nullptr;
+			FMetrics* Metrics = nullptr;
+		};
+		struct FTemporalState
+		{
+			Gpu::ITemporalServices* Services = nullptr;
+			uint32_t JitterSampleCount = 0;
+		};
+		Gpu::FRenderServices Gpu;
+		FSceneServices Scene;
+		FOutputServices Output;
+		FToolServices Tools;
+		FTemporalState Temporal;
+		FExperimentCallbacks Callbacks;
 
-        struct OutputServices
-        {
-            gpu::IDisplayChain* displayChain = nullptr;
-            ColorSpace colorSpace = ColorSpace::SceneLinear;
-        };
-        struct ToolServices
-        {
-            ComparisonController* comparison = nullptr;
-            ReplayController* replay = nullptr;
-            DebugViewRegistry* debugViews = nullptr;
-            Metrics* metrics = nullptr;
-        };
-        struct TemporalState
-        {
-            gpu::ITemporalServices* services = nullptr;
-            uint32_t jitterSampleCount = 0;
-        };
-        gpu::RenderServices gpu;
-        SceneServices scene;
-        OutputServices output;
-        ToolServices tools;
-        TemporalState temporal;
-        ExperimentCallbacks callbacks;
+		const Host::FHostConfig* Config = nullptr;
+		std::filesystem::path AssetsDirectory;
+	};
 
-        const host::HostConfig* config = nullptr;
-        std::filesystem::path assetsDirectory;
-    };
-
-}
+} // namespace Prism::Host

@@ -15,96 +15,106 @@
 #include <string>
 #include <vector>
 
-namespace prism::gpu
+namespace Prism::Gpu
 {
-    struct TextureRequest
-    {
-        ResourceId id = AllocateResourceId();
-        std::string name;
-        PixelFormat format = PixelFormat::RGBA16_FLOAT;
-        TextureUsage usage = TextureUsage::ShaderResource | TextureUsage::RenderTarget;
+	struct FTextureRequest
+	{
+		FResourceId Id = AllocateResourceId();
+		std::string Name;
+		EPixelFormat Format = EPixelFormat::RgbA16Float;
+		ETextureUsage Usage = ETextureUsage::ShaderResource | ETextureUsage::RenderTarget;
 
-        // 相对宿主渲染分辨率的比例；explicitSize 有效时忽略
-        float resolutionScale = 1.f;
+		// 相对宿主渲染分辨率的比例；explicitSize 有效时忽略
+		float ResolutionScale = 1.f;
 
-        // 固定尺寸（例如阴影图、历史缓冲），为 0 时跟随 resolutionScale
-        Extent2D explicitSize;
+		// 固定尺寸（例如阴影图、历史缓冲），为 0 时跟随 resolutionScale
+		FExtent2D ExplicitSize;
 
-        uint32_t arraySize = 1;
-        uint32_t mipLevels = 1;
+		uint32_t ArraySize = 1;
+		uint32_t MipLevels = 1;
 
-        dm::float4 clearColor = dm::float4(0.f, 0.f, 0.f, 0.f);
-        float clearDepth = kDepthClearValue;
-        bool hasClearValue = true;
-    };
+		dm::float4 ClearColor = dm::float4(0.f, 0.f, 0.f, 0.f);
+		float ClearDepth = KDepthClearValue;
+		bool bHasClearValue = true;
+	};
 
-    class TextureCache
-    {
-    public:
-        explicit TextureCache(nvrhi::IDevice* device);
+	class FTextureCache
+	{
+	  public:
+		explicit FTextureCache(nvrhi::IDevice* Device);
 
-        // 宿主渲染分辨率变化时调用：所有跟随分辨率的纹理被释放，下一帧按新尺寸重建。
-        void SetRenderSize(const Extent2D& renderSize);
-        [[nodiscard]] const Extent2D& GetRenderSize() const { return m_RenderSize; }
+		// 宿主渲染分辨率变化时调用：所有跟随分辨率的纹理被释放，下一帧按新尺寸重建。
+		void SetRenderSize(const FExtent2D& RenderSize);
+		[[nodiscard]] const FExtent2D& GetRenderSize() const
+		{
+			return RenderSize;
+		}
 
-        // Persistent cache keyed by request ID; names are diagnostic labels.
-        nvrhi::ITexture* GetOrCreate(const TextureRequest& request);
+		// Persistent cache keyed by request ID; names are diagnostic labels.
+		nvrhi::ITexture* GetOrCreate(const FTextureRequest& Request);
 
-        // 只查找，不存在时返回 nullptr；不隐式创建，便于发现拼写错误。
-        nvrhi::ITexture* Find(ResourceId id);
+		// 只查找，不存在时返回 nullptr；不隐式创建，便于发现拼写错误。
+		nvrhi::ITexture* Find(FResourceId Id);
 
-        nvrhi::IFramebuffer* GetFramebuffer(nvrhi::ITexture* color, nvrhi::ITexture* depth = nullptr);
-        nvrhi::IFramebuffer* GetFramebuffer(const std::vector<nvrhi::ITexture*>& colors, nvrhi::ITexture* depth = nullptr);
+		nvrhi::IFramebuffer* GetFramebuffer(nvrhi::ITexture* Color, nvrhi::ITexture* Depth = nullptr);
+		nvrhi::IFramebuffer* GetFramebuffer(const std::vector<nvrhi::ITexture*>& Colors,
+											nvrhi::ITexture* Depth = nullptr);
 
-        // 释放所有纹理与 framebuffer；调用前必须保证 GPU 已空闲。
-        void Clear();
+		// 释放所有纹理与 framebuffer；调用前必须保证 GPU 已空闲。
+		void Clear();
 
-        struct EntryInfo
-        {
-            std::string name;
-            PixelFormat format = PixelFormat::Unknown;
-            TextureUsage usage = TextureUsage::None;
-            Extent2D size;
-        };
+		struct FEntryInfo
+		{
+			std::string Name;
+			EPixelFormat Format = EPixelFormat::Unknown;
+			ETextureUsage Usage = ETextureUsage::None;
+			FExtent2D Size;
+		};
 
-        [[nodiscard]] std::vector<EntryInfo> GetEntries() const;
-        [[nodiscard]] size_t GetTextureCount() const { return m_Entries.size(); }
+		[[nodiscard]] std::vector<FEntryInfo> GetEntries() const;
+		[[nodiscard]] size_t GetTextureCount() const
+		{
+			return Entries.size();
+		}
 
-    private:
-        struct Entry
-        {
-            TextureRequest request;
-            nvrhi::TextureHandle texture;
-            Extent2D size;
-        };
+	  private:
+		struct FEntry
+		{
+			FTextureRequest Request;
+			nvrhi::TextureHandle Texture;
+			FExtent2D Size;
+		};
 
-        Entry* FindEntry(ResourceId id);
-        Extent2D ResolveSize(const TextureRequest& request) const;
+		FEntry* FindEntry(FResourceId Id);
+		FExtent2D ResolveSize(const FTextureRequest& Request) const;
 
-        nvrhi::IDevice* m_Device = nullptr;
-        Extent2D m_RenderSize{ 1, 1 };
-        std::vector<Entry> m_Entries;
+		nvrhi::IDevice* Device = nullptr;
+		FExtent2D RenderSize{1, 1};
+		std::vector<FEntry> Entries;
 
-        struct FramebufferKey
-        {
-            std::vector<nvrhi::ITexture*> attachments;
+		struct FFramebufferKey
+		{
+			std::vector<nvrhi::ITexture*> Attachments;
 
-            bool operator==(const FramebufferKey& other) const { return attachments == other.attachments; }
-            struct Hash
-            {
-                size_t operator()(const FramebufferKey& key) const
-                {
-                    size_t hash = 1469598103934665603ull;
-                    for (const nvrhi::ITexture* texture : key.attachments)
-                    {
-                        hash ^= size_t(texture);
-                        hash *= 1099511628211ull;
-                    }
-                    return hash;
-                }
-            };
-        };
+			bool operator==(const FFramebufferKey& Other) const
+			{
+				return Attachments == Other.Attachments;
+			}
+			struct FHash
+			{
+				size_t operator()(const FFramebufferKey& Key) const
+				{
+					size_t Hash = 1469598103934665603ull;
+					for (const nvrhi::ITexture* Texture : Key.Attachments)
+					{
+						Hash ^= size_t(Texture);
+						Hash *= 1099511628211ull;
+					}
+					return Hash;
+				}
+			};
+		};
 
-        std::vector<std::pair<FramebufferKey, nvrhi::FramebufferHandle>> m_Framebuffers;
-    };
-}
+		std::vector<std::pair<FFramebufferKey, nvrhi::FramebufferHandle>> Framebuffers;
+	};
+} // namespace Prism::Gpu

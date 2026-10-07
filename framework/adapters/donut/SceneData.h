@@ -19,26 +19,32 @@
 #include <string>
 #include <vector>
 
-namespace prism::adapter
+namespace Prism::Adapter
 {
-    struct SceneData
-    {
-        std::shared_ptr<donut::engine::SceneGraph> graph;
-        std::shared_ptr<donut::engine::BufferGroup> sharedBuffers;
+	struct FSceneData
+	{
+		std::shared_ptr<donut::engine::SceneGraph> Graph;
+		std::shared_ptr<donut::engine::BufferGroup> SharedBuffers;
 
-        // DrawRecord::materialIndex 指向这个列表；材质常量缓冲由 Donut 维护。
-        std::vector<std::shared_ptr<donut::engine::Material>> materials;
+		// DrawRecord::materialIndex 指向这个列表；材质常量缓冲由 Donut 维护。
+		std::vector<std::shared_ptr<donut::engine::Material>> Materials;
 
-        // 契约数据：算法只看到这些，不接触 Donut 场景类型。
-        std::vector<prism::LightRecord> lights;
+		// 契约数据：算法只看到这些，不接触 Donut 场景类型。
+		std::vector<Prism::FLightRecord> Lights;
 
-        // 自绘 Pass（阴影图、深度预pass、GBuffer）使用的批次视图。
-        gpu::GeometryBatch geometry;
+		// 自绘 Pass（阴影图、深度预pass、GBuffer）使用的批次视图。
+		Gpu::FGeometryBatch Geometry;
 
-        SceneStats stats;
-        std::string description = "(none)";
+		FSceneStats Stats;
+		std::string Description = "(none)";
 
-        [[nodiscard]] bool IsLoaded() const { return graph != nullptr; }
-        [[nodiscard]] bool SupportsCustomPasses() const { return geometry.IsValid(); }
-    };
-}
+		[[nodiscard]] bool IsLoaded() const
+		{
+			return Graph != nullptr;
+		}
+		[[nodiscard]] bool SupportsCustomPasses() const
+		{
+			return Geometry.IsValid();
+		}
+	};
+} // namespace Prism::Adapter

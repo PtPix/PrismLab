@@ -4,196 +4,197 @@
 
 #include <algorithm>
 
-namespace prism::gpu
+namespace Prism::Gpu
 {
-    TextureCache::TextureCache(nvrhi::IDevice* device)
-        : m_Device(device)
-    {
-    }
+	FTextureCache::FTextureCache(nvrhi::IDevice* Device) : Device(Device)
+	{
+	}
 
-    void TextureCache::SetRenderSize(const Extent2D& renderSize)
-    {
-        if (m_RenderSize == renderSize)
-            return;
+	void FTextureCache::SetRenderSize(const FExtent2D& InRenderSize)
+	{
+		if (RenderSize == InRenderSize)
+			return;
 
-        m_RenderSize = renderSize;
+		RenderSize = InRenderSize;
 
-        // 尺寸变化必须重建：这些纹理只在本帧及未来的帧里被借用，调用方已经等待 GPU 空闲。
-        for (Entry& entry : m_Entries)
-            if (!entry.request.explicitSize.IsValid()) entry.texture = nullptr;
+		// 尺寸变化必须重建：这些纹理只在本帧及未来的帧里被借用，调用方已经等待 GPU 空闲。
+		for (FEntry& Entry : Entries)
+			if (!Entry.Request.ExplicitSize.IsValid())
+				Entry.Texture = nullptr;
 
-        m_Framebuffers.clear();
-    }
+		Framebuffers.clear();
+	}
 
-    TextureCache::Entry* TextureCache::FindEntry(ResourceId id)
-    {
-        if (!id)
-            return nullptr;
+	FTextureCache::FEntry* FTextureCache::FindEntry(FResourceId Id)
+	{
+		if (!Id)
+			return nullptr;
 
-        for (Entry& entry : m_Entries)
-        {
-            if (entry.request.id == id)
-                return &entry;
-        }
+		for (FEntry& Entry : Entries)
+		{
+			if (Entry.Request.Id == Id)
+				return &Entry;
+		}
 
-        return nullptr;
-    }
+		return nullptr;
+	}
 
-    Extent2D TextureCache::ResolveSize(const TextureRequest& request) const
-    {
-        if (request.explicitSize.IsValid())
-            return request.explicitSize;
+	FExtent2D FTextureCache::ResolveSize(const FTextureRequest& Request) const
+	{
+		if (Request.ExplicitSize.IsValid())
+			return Request.ExplicitSize;
 
-        return m_RenderSize.Scaled(request.resolutionScale);
-    }
+		return RenderSize.Scaled(Request.ResolutionScale);
+	}
 
-    nvrhi::ITexture* TextureCache::GetOrCreate(const TextureRequest& request)
-    {
-        if (request.name.empty())
-        {
-            donut::log::error("TextureCache: texture requests must be named.");
-            return nullptr;
-        }
+	nvrhi::ITexture* FTextureCache::GetOrCreate(const FTextureRequest& Request)
+	{
+		if (Request.Name.empty())
+		{
+			donut::log::error("TextureCache: texture requests must be named.");
+			return nullptr;
+		}
 
-        const Extent2D size = ResolveSize(request);
+		const FExtent2D Size = ResolveSize(Request);
 
-        Entry* entry = FindEntry(request.id);
-        if (!entry)
-        {
-            Entry created;
-            created.request = request;
-            created.size = size;
-            m_Entries.push_back(std::move(created));
-            entry = &m_Entries.back();
-        }
-        else
-        {
-            const bool sizeChanged = entry->size != size;
-            const bool formatChanged = entry->request.format != request.format;
-            const bool usageChanged = entry->request.usage != request.usage;
-            const bool layoutChanged = entry->request.arraySize != request.arraySize || entry->request.mipLevels != request.mipLevels;
+		FEntry* Entry = FindEntry(Request.Id);
+		if (!Entry)
+		{
+			FEntry Created;
+			Created.Request = Request;
+			Created.Size = Size;
+			Entries.push_back(std::move(Created));
+			Entry = &Entries.back();
+		}
+		else
+		{
+			const bool bSizeChanged = Entry->Size != Size;
+			const bool bFormatChanged = Entry->Request.Format != Request.Format;
+			const bool bUsageChanged = Entry->Request.Usage != Request.Usage;
+			const bool bLayoutChanged =
+				Entry->Request.ArraySize != Request.ArraySize || Entry->Request.MipLevels != Request.MipLevels;
 
-            if (sizeChanged || formatChanged || usageChanged || layoutChanged)
-            {
-                entry->texture = nullptr;
-                entry->size = size;
-                m_Framebuffers.clear();
-            }
+			if (bSizeChanged || bFormatChanged || bUsageChanged || bLayoutChanged)
+			{
+				Entry->Texture = nullptr;
+				Entry->Size = Size;
+				Framebuffers.clear();
+			}
 
-            entry->request = request;
-        }
+			Entry->Request = Request;
+		}
 
-        if (entry->texture)
-            return entry->texture;
+		if (Entry->Texture)
+			return Entry->Texture;
 
-        const nvrhi::Format format = ToNvrhiFormat(request.format);
-        if (format == nvrhi::Format::UNKNOWN)
-        {
-            donut::log::error("TextureCache: unsupported pixel format for '%s'.", request.name.c_str());
-            return nullptr;
-        }
+		const nvrhi::Format Format = ToNvrhiFormat(Request.Format);
+		if (Format == nvrhi::Format::UNKNOWN)
+		{
+			donut::log::error("TextureCache: unsupported pixel format for '%s'.", Request.Name.c_str());
+			return nullptr;
+		}
 
-        nvrhi::TextureDesc desc;
-        desc.width = std::max(1u, size.width);
-        desc.height = std::max(1u, size.height);
-        desc.arraySize = std::max(1u, request.arraySize);
-        desc.mipLevels = std::max(1u, request.mipLevels);
-        desc.format = format;
-        desc.debugName = request.name;
-        desc.isShaderResource = HasAny(request.usage, TextureUsage::ShaderResource);
-        desc.isRenderTarget = HasAny(request.usage, TextureUsage::RenderTarget) || HasAny(request.usage, TextureUsage::DepthStencil);
-        desc.isUAV = HasAny(request.usage, TextureUsage::UnorderedAccess);
+		nvrhi::TextureDesc Desc;
+		Desc.width = std::max(1u, Size.Width);
+		Desc.height = std::max(1u, Size.Height);
+		Desc.arraySize = std::max(1u, Request.ArraySize);
+		Desc.mipLevels = std::max(1u, Request.MipLevels);
+		Desc.format = Format;
+		Desc.debugName = Request.Name;
+		Desc.isShaderResource = HasAny(Request.Usage, ETextureUsage::ShaderResource);
+		Desc.isRenderTarget =
+			HasAny(Request.Usage, ETextureUsage::RenderTarget) || HasAny(Request.Usage, ETextureUsage::DepthStencil);
+		Desc.isUAV = HasAny(Request.Usage, ETextureUsage::UnorderedAccess);
 
-        if (request.hasClearValue && desc.isRenderTarget && IsDepthFormat(request.format))
-        {
-            desc.useClearValue = true;
-            desc.clearValue = nvrhi::Color(request.clearDepth, 0.f, 0.f, 0.f);
-        }
-        else if (request.hasClearValue && desc.isRenderTarget)
-        {
-            desc.useClearValue = true;
-            desc.clearValue = nvrhi::Color(request.clearColor.x, request.clearColor.y, request.clearColor.z, request.clearColor.w);
-        }
+		if (Request.bHasClearValue && Desc.isRenderTarget && IsDepthFormat(Request.Format))
+		{
+			Desc.useClearValue = true;
+			Desc.clearValue = nvrhi::Color(Request.ClearDepth, 0.f, 0.f, 0.f);
+		}
+		else if (Request.bHasClearValue && Desc.isRenderTarget)
+		{
+			Desc.useClearValue = true;
+			Desc.clearValue =
+				nvrhi::Color(Request.ClearColor.x, Request.ClearColor.y, Request.ClearColor.z, Request.ClearColor.w);
+		}
 
-        desc.enableAutomaticStateTracking(GetInitialState(request.usage, request.format));
+		Desc.enableAutomaticStateTracking(GetInitialState(Request.Usage, Request.Format));
 
-        entry->texture = m_Device->createTexture(desc);
-        entry->size = size;
+		Entry->Texture = Device->createTexture(Desc);
+		Entry->Size = Size;
 
-        if (!entry->texture)
-            donut::log::error("TextureCache: failed to create texture '%s'.", request.name.c_str());
+		if (!Entry->Texture)
+			donut::log::error("TextureCache: failed to create texture '%s'.", Request.Name.c_str());
 
-        return entry->texture;
-    }
+		return Entry->Texture;
+	}
 
-    nvrhi::ITexture* TextureCache::Find(ResourceId id)
-    {
-        Entry* entry = FindEntry(id);
-        return entry ? entry->texture.Get() : nullptr;
-    }
+	nvrhi::ITexture* FTextureCache::Find(FResourceId Id)
+	{
+		FEntry* Entry = FindEntry(Id);
+		return Entry ? Entry->Texture.Get() : nullptr;
+	}
 
-    nvrhi::IFramebuffer* TextureCache::GetFramebuffer(nvrhi::ITexture* color, nvrhi::ITexture* depth)
-    {
-        std::vector<nvrhi::ITexture*> colors;
-        if (color)
-            colors.push_back(color);
+	nvrhi::IFramebuffer* FTextureCache::GetFramebuffer(nvrhi::ITexture* Color, nvrhi::ITexture* Depth)
+	{
+		std::vector<nvrhi::ITexture*> Colors;
+		if (Color)
+			Colors.push_back(Color);
 
-        return GetFramebuffer(colors, depth);
-    }
+		return GetFramebuffer(Colors, Depth);
+	}
 
-    nvrhi::IFramebuffer* TextureCache::GetFramebuffer(const std::vector<nvrhi::ITexture*>& colors, nvrhi::ITexture* depth)
-    {
-        if (colors.empty() && !depth)
-            return nullptr;
+	nvrhi::IFramebuffer* FTextureCache::GetFramebuffer(const std::vector<nvrhi::ITexture*>& Colors,
+													   nvrhi::ITexture* Depth)
+	{
+		if (Colors.empty() && !Depth)
+			return nullptr;
 
-        FramebufferKey key;
-        key.attachments = colors;
-        key.attachments.push_back(depth);
+		FFramebufferKey Key;
+		Key.Attachments = Colors;
+		Key.Attachments.push_back(Depth);
 
-        for (const auto& cached : m_Framebuffers)
-        {
-            if (cached.first == key)
-                return cached.second.Get();
-        }
+		for (const auto& Cached : Framebuffers)
+		{
+			if (Cached.first == Key)
+				return Cached.second.Get();
+		}
 
-        nvrhi::FramebufferDesc desc;
-        for (nvrhi::ITexture* color : colors)
-        {
-            if (color)
-                desc.addColorAttachment(color);
-        }
+		nvrhi::FramebufferDesc Desc;
+		for (nvrhi::ITexture* Color : Colors)
+		{
+			if (Color)
+				Desc.addColorAttachment(Color);
+		}
 
-        if (depth)
-            desc.setDepthAttachment(depth);
+		if (Depth)
+			Desc.setDepthAttachment(Depth);
 
-        nvrhi::FramebufferHandle framebuffer = m_Device->createFramebuffer(desc);
-        if (!framebuffer)
-            return nullptr;
+		nvrhi::FramebufferHandle Framebuffer = Device->createFramebuffer(Desc);
+		if (!Framebuffer)
+			return nullptr;
 
-        m_Framebuffers.emplace_back(key, framebuffer);
-        return framebuffer.Get();
-    }
+		Framebuffers.emplace_back(Key, Framebuffer);
+		return Framebuffer.Get();
+	}
 
-    void TextureCache::Clear()
-    {
-        m_Framebuffers.clear();
-        m_Entries.clear();
-    }
+	void FTextureCache::Clear()
+	{
+		Framebuffers.clear();
+		Entries.clear();
+	}
 
-    std::vector<TextureCache::EntryInfo> TextureCache::GetEntries() const
-    {
-        std::vector<EntryInfo> infos;
-        infos.reserve(m_Entries.size());
+	std::vector<FTextureCache::FEntryInfo> FTextureCache::GetEntries() const
+	{
+		std::vector<FEntryInfo> Infos;
+		Infos.reserve(Entries.size());
 
-        for (const Entry& entry : m_Entries)
-        {
-            infos.push_back(EntryInfo{
-                entry.request.name,
-                entry.request.format,
-                entry.request.usage,
-                entry.texture ? entry.size : Extent2D{} });
-        }
+		for (const FEntry& Entry : Entries)
+		{
+			Infos.push_back(FEntryInfo{Entry.Request.Name, Entry.Request.Format, Entry.Request.Usage,
+									   Entry.Texture ? Entry.Size : FExtent2D{}});
+		}
 
-        return infos;
-    }
-}
+		return Infos;
+	}
+} // namespace Prism::Gpu

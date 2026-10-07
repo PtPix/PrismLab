@@ -11,12 +11,10 @@
 
 #include <nvrhi/nvrhi.h>
 
-namespace prism::adapter
+namespace Prism::Adapter
 {
-    // Must be called with an already open() command list: the first uploads of geometry,
-    // material constants and instance data are all recorded into it.
-    SceneData CreateProceduralScene(
-        nvrhi::IDevice* device,
-        nvrhi::ICommandList* commandList,
-        const LightingPreset& lighting);
-}
+	// Must be called with an already open() command list: the first uploads of geometry,
+	// material constants and instance data are all recorded into it.
+	FSceneData CreateProceduralScene(nvrhi::IDevice* Device, nvrhi::ICommandList* CommandList,
+									 const FLightingPreset& Lighting);
+} // namespace Prism::Adapter

@@ -3,33 +3,33 @@
 #include <framework/core/Status.h>
 #include <nvrhi/nvrhi.h>
 
-namespace prism::gpu
+namespace Prism::Gpu
 {
-    struct SceneBufferView
-    {
-        nvrhi::IBuffer* buffer = nullptr;
-        uint64_t offset = 0;
-        uint64_t count = 0;
-        uint32_t stride = 0;
-        uint64_t generation = 0;
+	struct FSceneBufferView
+	{
+		nvrhi::IBuffer* Buffer = nullptr;
+		uint64_t Offset = 0;
+		uint64_t Count = 0;
+		uint32_t Stride = 0;
+		uint64_t Generation = 0;
 
-        Status Validate() const
-        {
-            if (!buffer || !stride || !count)
-                return Status::Error(ErrorCode::ResourceMissing, "scene buffer is incomplete");
-            const uint64_t bytes = buffer->getDesc().byteSize;
-            if (offset > bytes || count > (bytes - offset) / stride)
-                return Status::Error(ErrorCode::InvalidArgument, "scene buffer range is out of bounds");
-            return Status::Ok();
-        }
-    };
+		FStatus Validate() const
+		{
+			if (!Buffer || !Stride || !Count)
+				return FStatus::Error(EErrorCode::ResourceMissing, "scene buffer is incomplete");
+			const uint64_t Bytes = Buffer->getDesc().byteSize;
+			if (Offset > Bytes || Count > (Bytes - Offset) / Stride)
+				return FStatus::Error(EErrorCode::InvalidArgument, "scene buffer range is out of bounds");
+			return FStatus::Ok();
+		}
+	};
 
-    // No allocation or packing is performed here. Layout is a producer/consumer contract.
-    struct SceneGpuData
-    {
-        SceneBufferView vertices, indices, instances, materials, lights;
-        nvrhi::IDescriptorTable* textures = nullptr;
-        uint64_t revision = 0;
-        const char* layoutId = nullptr;
-    };
-}
+	// No allocation or packing is performed here. Layout is a producer/consumer contract.
+	struct FSceneGpuData
+	{
+		FSceneBufferView Vertices, Indices, Instances, Materials, Lights;
+		nvrhi::IDescriptorTable* Textures = nullptr;
+		uint64_t Revision = 0;
+		const char* LayoutId = nullptr;
+	};
+} // namespace Prism::Gpu

@@ -6,14 +6,14 @@
 #ifndef PRISM_DEBUG_VIEW_CB_H
 #define PRISM_DEBUG_VIEW_CB_H
 
-struct DebugViewConstants
+struct FDebugViewConstants
 {
-    float2 inverseSize;
-    int mode;         // 0 RGB, 1 R, 2 G, 3 B, 4 A, 5 亮度, 6 伪彩, 7 = 1 - R
-    int reserved0;
-    float scale;
-    float bias;
-    float2 reserved1;
+	float2 InverseSize;
+	int Mode; // 0 RGB, 1 R, 2 G, 3 B, 4 A, 5 亮度, 6 伪彩, 7 = 1 - R
+	int Reserved0;
+	float Scale;
+	float Bias;
+	float2 Reserved1;
 };
 
 #endif // PRISM_DEBUG_VIEW_CB_H

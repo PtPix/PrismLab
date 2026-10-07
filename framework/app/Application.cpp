@@ -10,7 +10,6 @@
 #include <framework/render/resources/TextureCache.h>
 #include <framework/render/shaders/ShaderLibrary.h>
 
-
 #include <donut/app/ApplicationBase.h>
 #include <donut/app/DeviceManager.h>
 #include <donut/core/log.h>
@@ -23,248 +22,254 @@
 #include <memory>
 #include <string>
 
-namespace prism::host
+namespace Prism::Host
 {
-    namespace
-    {
-        // GUI 应用没有控制台，把日志同时写进可执行文件旁边的文件。
-        void LogToFile(donut::log::Severity, const char* message)
-        {
-            static const std::filesystem::path logPath = donut::app::GetDirectoryWithExecutable() / "prism.log";
+	namespace
+	{
+		// GUI 应用没有控制台，把日志同时写进可执行文件旁边的文件。
+		void LogToFile(donut::log::Severity, const char* Message)
+		{
+			static const std::filesystem::path LogPath = donut::app::GetDirectoryWithExecutable() / "prism.log";
 
-            FILE* file = nullptr;
-            if (_wfopen_s(&file, logPath.c_str(), L"a") == 0 && file != nullptr)
-            {
-                fprintf(file, "%s\n", message);
-                fclose(file);
-            }
-        }
+			FILE* File = nullptr;
+			if (_wfopen_s(&File, LogPath.c_str(), L"a") == 0 && File != nullptr)
+			{
+				fprintf(File, "%s\n", Message);
+				fclose(File);
+			}
+		}
 
-        // NVRHI / D3D12 的校验信息进入同一个日志，避免"设备丢失但日志空白"。
-        class LogMessageCallback final : public nvrhi::IMessageCallback
-        {
-        public:
-            void message(nvrhi::MessageSeverity severity, const char* messageText) override
-            {
-                switch (severity)
-                {
-                case nvrhi::MessageSeverity::Error:
-                    donut::log::error("[nvrhi] %s", messageText);
-                    break;
-                case nvrhi::MessageSeverity::Warning:
-                    donut::log::warning("[nvrhi] %s", messageText);
-                    break;
-                default:
-                    donut::log::info("[nvrhi] %s", messageText);
-                    break;
-                }
-            }
-        };
+		// NVRHI / D3D12 的校验信息进入同一个日志，避免"设备丢失但日志空白"。
+		class FLogMessageCallback final : public nvrhi::IMessageCallback
+		{
+		  public:
+			void message(nvrhi::MessageSeverity Severity, const char* MessageText) override
+			{
+				switch (Severity)
+				{
+					case nvrhi::MessageSeverity::Error:
+						donut::log::error("[nvrhi] %s", MessageText);
+						break;
+					case nvrhi::MessageSeverity::Warning:
+						donut::log::warning("[nvrhi] %s", MessageText);
+						break;
+					default:
+						donut::log::info("[nvrhi] %s", MessageText);
+						break;
+				}
+			}
+		};
 
-        // 从可执行文件目录向上寻找仓库根的 assets 目录；找不到就返回空路径。
-        std::filesystem::path FindAssetsDirectory()
-        {
-            std::filesystem::path directory = donut::app::GetDirectoryWithExecutable();
+		// 从可执行文件目录向上寻找仓库根的 assets 目录；找不到就返回空路径。
+		std::filesystem::path FindAssetsDirectory()
+		{
+			std::filesystem::path Directory = donut::app::GetDirectoryWithExecutable();
 
-            for (int depth = 0; depth < 6 && !directory.empty(); ++depth)
-            {
-                const std::filesystem::path candidate = directory / "assets";
-                if (std::filesystem::is_directory(candidate))
-                    return candidate;
+			for (int Depth = 0; Depth < 6 && !Directory.empty(); ++Depth)
+			{
+				const std::filesystem::path Candidate = Directory / "assets";
+				if (std::filesystem::is_directory(Candidate))
+					return Candidate;
 
-                const std::filesystem::path parent = directory.parent_path();
-                if (parent == directory)
-                    break;
+				const std::filesystem::path Parent = Directory.parent_path();
+				if (Parent == Directory)
+					break;
 
-                directory = parent;
-            }
+				Directory = Parent;
+			}
 
-            return std::filesystem::path();
-        }
-    }
+			return std::filesystem::path();
+		}
+	} // namespace
 
-    int RunApplication(std::unique_ptr<Experiment> experiment, int argc, char** argv)
-    {
-        donut::log::EnableOutputToMessageBox(false);
-        donut::log::SetCallback(&LogToFile);
+	int RunApplication(std::unique_ptr<IExperiment> Experiment, int Argc, char** Argv)
+	{
+		donut::log::EnableOutputToMessageBox(false);
+		donut::log::SetCallback(&LogToFile);
 
-        const CommandLine commandLine = ParseCommandLine(argc, argv);
-        if (commandLine.showHelp)
-        {
-            donut::log::info("Prism\n%s", GetCommandLineUsage().c_str());
-            return 0;
-        }
+		const FCommandLine CommandLine = ParseCommandLine(Argc, Argv);
+		if (CommandLine.bShowHelp)
+		{
+			donut::log::info("Prism\n%s", GetCommandLineUsage().c_str());
+			return 0;
+		}
 
-        const std::string experimentName = experiment ? experiment->GetName() : "Experiment";
-        donut::log::info("Prism: starting %s", experimentName.c_str());
+		const std::string ExperimentName = Experiment ? Experiment->GetName() : "Experiment";
+		donut::log::info("Prism: starting %s", ExperimentName.c_str());
 
-        // --- configuration -----------------------------------------------------
-        const std::filesystem::path executablePath =
-            (argc > 0 && argv) ? std::filesystem::path(argv[0]) : std::filesystem::path();
+		// --- configuration -----------------------------------------------------
+		const std::filesystem::path ExecutablePath =
+			(Argc > 0 && Argv) ? std::filesystem::path(Argv[0]) : std::filesystem::path();
 
-        host::HostConfig config = host::LoadHostConfig(commandLine.configPath, executablePath);
+		Host::FHostConfig Config = Host::LoadHostConfig(CommandLine.ConfigPath, ExecutablePath);
 
-        if (!commandLine.sceneSource.empty())
-            config.scene.source = commandLine.sceneSource;
+		if (!CommandLine.SceneSource.empty())
+			Config.Scene.Source = CommandLine.SceneSource;
 
-        if (!commandLine.sceneAsset.empty())
-            config.scene.asset = commandLine.sceneAsset;
+		if (!CommandLine.SceneAsset.empty())
+			Config.Scene.Asset = CommandLine.SceneAsset;
 
-        if (commandLine.width > 0)
-            config.window.width = commandLine.width;
+		if (CommandLine.Width > 0)
+			Config.Window.Width = CommandLine.Width;
 
-        if (commandLine.height > 0)
-            config.window.height = commandLine.height;
+		if (CommandLine.Height > 0)
+			Config.Window.Height = CommandLine.Height;
 
-        if (commandLine.disableVsync)
-            config.window.vsync = false;
+		if (CommandLine.bDisableVsync)
+			Config.Window.bVsync = false;
 
-        if (commandLine.disableGpuTiming)
-            config.render.enableGpuTiming = false;
+		if (CommandLine.bDisableGpuTiming)
+			Config.Render.bEnableGpuTiming = false;
 
-        if (!config.scene.asset.empty())
-            config.scene.asset = host::ResolveAssetPath(config.scene.asset).string();
+		if (!Config.Scene.Asset.empty())
+			Config.Scene.Asset = Host::ResolveAssetPath(Config.Scene.Asset).string();
 
-        const std::string applicationName = "Prism | " + experimentName;
+		const std::string ApplicationName = "Prism | " + ExperimentName;
 
-        // --- device and swap chain --------------------------------------------
-        donut::app::DeviceCreationParameters deviceParams;
-        deviceParams.backBufferWidth = config.window.width;
-        deviceParams.backBufferHeight = config.window.height;
-        deviceParams.vsyncEnabled = config.window.vsync;
-        deviceParams.swapChainBufferCount = 3;
-        deviceParams.startMaximized = false;
-        deviceParams.swapChainSampleCount = 1;
-        deviceParams.depthBufferFormat = nvrhi::Format::UNKNOWN; // the UI layer does not need a depth buffer
+		// --- device and swap chain --------------------------------------------
+		donut::app::DeviceCreationParameters DeviceParams;
+		DeviceParams.backBufferWidth = Config.Window.Width;
+		DeviceParams.backBufferHeight = Config.Window.Height;
+		DeviceParams.vsyncEnabled = Config.Window.bVsync;
+		DeviceParams.swapChainBufferCount = 3;
+		DeviceParams.startMaximized = false;
+		DeviceParams.swapChainSampleCount = 1;
+		DeviceParams.depthBufferFormat = nvrhi::Format::UNKNOWN; // the UI layer does not need a depth buffer
 #ifdef _DEBUG
-        deviceParams.enableDebugRuntime = true;
-        deviceParams.enableNvrhiValidationLayer = true;
+		DeviceParams.enableDebugRuntime = true;
+		DeviceParams.enableNvrhiValidationLayer = true;
 #endif
 
-        LogMessageCallback messageCallback;
-        deviceParams.messageCallback = &messageCallback;
+		FLogMessageCallback MessageCallback;
+		DeviceParams.messageCallback = &MessageCallback;
 
-        std::unique_ptr<donut::app::DeviceManager> deviceManager(
-            donut::app::DeviceManager::Create(nvrhi::GraphicsAPI::D3D12));
+		std::unique_ptr<donut::app::DeviceManager> DeviceManager(
+			donut::app::DeviceManager::Create(nvrhi::GraphicsAPI::D3D12));
 
-        struct DeviceLifetime
-        {
-            donut::app::DeviceManager* manager;
-            ~DeviceLifetime() { if (manager) manager->Shutdown(); }
-        } deviceLifetime{deviceManager.get()};
+		struct FDeviceLifetime
+		{
+			donut::app::DeviceManager* Manager;
+			~FDeviceLifetime()
+			{
+				if (Manager)
+					Manager->Shutdown();
+			}
+		} DeviceLifetime{DeviceManager.get()};
 
-        if (!deviceManager || !deviceManager->CreateWindowDeviceAndSwapChain(deviceParams, applicationName.c_str()))
-        {
-            donut::log::fatal("Prism: failed to create the D3D12 device or swap chain.");
-            return 1;
-        }
+		if (!DeviceManager || !DeviceManager->CreateWindowDeviceAndSwapChain(DeviceParams, ApplicationName.c_str()))
+		{
+			donut::log::fatal("Prism: failed to create the D3D12 device or swap chain.");
+			return 1;
+		}
 
-        deviceManager->SetInformativeWindowTitle(applicationName.c_str());
+		DeviceManager->SetInformativeWindowTitle(ApplicationName.c_str());
 
-        nvrhi::IDevice* device = deviceManager->GetDevice();
+		nvrhi::IDevice* Device = DeviceManager->GetDevice();
 
-        // --- shader mounts ----------------------------------------------------
-        // /shaders/donut      : Donut 框架 shader（blit、forward shading、UI）
-        // /shaders/prism: package-owned Prism bytecode.
-        const std::filesystem::path shaderTypeName = donut::app::GetShaderTypeName(deviceManager->GetGraphicsAPI());
-        const std::filesystem::path shaderRoot = donut::app::GetDirectoryWithExecutable() / "shaders";
+		// --- shader mounts ----------------------------------------------------
+		// /shaders/donut      : Donut 框架 shader（blit、forward shading、UI）
+		// /shaders/prism: package-owned Prism bytecode.
+		const std::filesystem::path ShaderTypeName = donut::app::GetShaderTypeName(DeviceManager->GetGraphicsAPI());
+		const std::filesystem::path ShaderRoot = donut::app::GetDirectoryWithExecutable() / "shaders";
 
-        auto rootFileSystem = std::make_shared<donut::vfs::RootFileSystem>();
-        rootFileSystem->mount("/shaders/donut", shaderRoot / "framework" / shaderTypeName);
-        rootFileSystem->mount("/shaders/prism", shaderRoot / "prism" / shaderTypeName);
+		auto RootFileSystem = std::make_shared<donut::vfs::RootFileSystem>();
+		RootFileSystem->mount("/shaders/donut", ShaderRoot / "framework" / ShaderTypeName);
+		RootFileSystem->mount("/shaders/prism", ShaderRoot / "prism" / ShaderTypeName);
 
-        auto shaderFactory = std::make_shared<donut::engine::ShaderFactory>(device, rootFileSystem, "/shaders");
-        auto commonPasses = std::make_shared<donut::engine::CommonRenderPasses>(device, shaderFactory);
+		auto ShaderFactory = std::make_shared<donut::engine::ShaderFactory>(Device, RootFileSystem, "/shaders");
+		auto CommonPasses = std::make_shared<donut::engine::CommonRenderPasses>(Device, ShaderFactory);
 
-        // --- shared services --------------------------------------------------
-        gpu::ShaderLibrary shaderLibrary(device, shaderFactory);
-        gpu::TextureCache renderTargets(device);
-        gpu::BufferCache buffers(device);
-        gpu::ResourceTable resources(renderTargets, buffers);
-        gpu::GpuProfiler profiler(device);
-        profiler.SetEnabled(config.render.enableGpuTiming);
+		// --- shared services --------------------------------------------------
+		Gpu::FShaderLibrary ShaderLibrary(Device, ShaderFactory);
+		Gpu::FTextureCache RenderTargets(Device);
+		Gpu::FBufferCache Buffers(Device);
+		Gpu::FResourceTable Resources(RenderTargets, Buffers);
+		Gpu::FGpuProfiler Profiler(Device);
+		Profiler.SetEnabled(Config.Render.bEnableGpuTiming);
 
-        // --- host state -------------------------------------------------------
-        HostStats stats;
-        stats.rendererDescription = deviceManager->GetRendererString();
-        stats.configDescription = config.loadedFromFile ? config.sourcePath.string() : std::string("(built-in defaults)");
+		// --- host state -------------------------------------------------------
+		FHostStats Stats;
+		Stats.RendererDescription = DeviceManager->GetRendererString();
+		Stats.ConfigDescription =
+			Config.bLoadedFromFile ? Config.SourcePath.string() : std::string("(built-in defaults)");
 
-        HostServices services;
-        services.executablePath = std::filesystem::absolute(executablePath);
-        services.device = device;
-        services.shaderFactory = shaderFactory;
-        services.commonPasses = commonPasses;
-        services.shaders = &shaderLibrary;
-        services.targets = &renderTargets;
-        services.buffers = &buffers;
-        services.resources = &resources;
-        services.profiler = &profiler;
-        services.config = &config;
-        services.assetsDirectory = FindAssetsDirectory();
+		FHostServices Services;
+		Services.ExecutablePath = std::filesystem::absolute(ExecutablePath);
+		Services.Device = Device;
+		Services.ShaderFactory = ShaderFactory;
+		Services.CommonPasses = CommonPasses;
+		Services.Shaders = &ShaderLibrary;
+		Services.Targets = &RenderTargets;
+		Services.Buffers = &Buffers;
+		Services.Resources = &Resources;
+		Services.Profiler = &Profiler;
+		Services.Config = &Config;
+		Services.AssetsDirectory = FindAssetsDirectory();
 
-        // --- render passes ----------------------------------------------------
-        auto experimentPass = std::make_shared<ExperimentRenderPass>(
-            deviceManager.get(), stats, std::move(experiment), services, commandLine);
+		// --- render passes ----------------------------------------------------
+		auto ExperimentPass = std::make_shared<FExperimentRenderPass>(DeviceManager.get(), Stats, std::move(Experiment),
+																	  Services, CommandLine);
 
-        const Status experimentStatus = experimentPass->Initialize();
-        if (experimentStatus.IsError())
-        {
-            donut::log::fatal("Prism: %s", experimentStatus.ToStringWithCode().c_str());
-            experimentPass.reset();
-            return 1;
-        }
+		const FStatus ExperimentStatus = ExperimentPass->Initialize();
+		if (ExperimentStatus.IsError())
+		{
+			donut::log::fatal("Prism: %s", ExperimentStatus.ToStringWithCode().c_str());
+			ExperimentPass.reset();
+			return 1;
+		}
 
-        auto uiPass = std::make_shared<UiOverlay>(deviceManager.get(), stats, *experimentPass);
-        if (!uiPass->Initialize(shaderFactory))
-        {
-            donut::log::fatal("Prism: failed to initialize the UI overlay.");
-            donut::log::SetCallback(&LogToFile);
-            uiPass.reset();
-            experimentPass.reset();
-            return 1;
-        }
+		auto UiPass = std::make_shared<FUiOverlay>(DeviceManager.get(), Stats, *ExperimentPass);
+		if (!UiPass->Initialize(ShaderFactory))
+		{
+			donut::log::fatal("Prism: failed to initialize the UI overlay.");
+			donut::log::SetCallback(&LogToFile);
+			UiPass.reset();
+			ExperimentPass.reset();
+			return 1;
+		}
 
-        // Order: the scene renders first, the UI second; input events are dispatched in the reverse
-        // order so the UI gets the first chance to consume them.
-        deviceManager->AddRenderPassToBack(experimentPass.get());
-        deviceManager->AddRenderPassToBack(uiPass.get());
+		// Order: the scene renders first, the UI second; input events are dispatched in the reverse
+		// order so the UI gets the first chance to consume them.
+		DeviceManager->AddRenderPassToBack(ExperimentPass.get());
+		DeviceManager->AddRenderPassToBack(UiPass.get());
 
-        donut::log::info("Prism: startup complete.");
+		donut::log::info("Prism: startup complete.");
 
-        deviceManager->RunMessageLoop();
+		DeviceManager->RunMessageLoop();
 
-        deviceManager->RemoveRenderPass(uiPass.get());
-        deviceManager->RemoveRenderPass(experimentPass.get());
+		DeviceManager->RemoveRenderPass(UiPass.get());
+		DeviceManager->RemoveRenderPass(ExperimentPass.get());
 
-        // 指标 CSV：--bench 在测量结束时已经写过，这里兜住 --metrics 的其他用法。
-        experimentPass->WriteMetricsIfRequested();
+		// 指标 CSV：--bench 在测量结束时已经写过，这里兜住 --metrics 的其他用法。
+		ExperimentPass->WriteMetricsIfRequested();
 
-        const bool experimentFailed = experimentPass->HasFailed();
-        const bool verificationFailed = experimentPass->GetExperiment() && !experimentPass->GetExperiment()->PassedVerification();
-        const bool analysisFailed = experimentPass->HasAnalysisFailure();
+		const bool bExperimentFailed = ExperimentPass->HasFailed();
+		const bool bVerificationFailed =
+			ExperimentPass->GetExperiment() && !ExperimentPass->GetExperiment()->PassedVerification();
+		const bool bAnalysisFailed = ExperimentPass->HasAnalysisFailure();
 
-        // Passes and the shader factory own NVRHI objects, so they must be gone before the device dies.
-        donut::log::SetCallback(&LogToFile);
-        uiPass.reset();
-        experimentPass.reset();
+		// Passes and the shader factory own NVRHI objects, so they must be gone before the device dies.
+		donut::log::SetCallback(&LogToFile);
+		UiPass.reset();
+		ExperimentPass.reset();
 
-        // The console installs a global log callback pointing into its own buffer, so replace it
-        // before logging again, otherwise the message lands in freed memory.
-        donut::log::SetCallback(&LogToFile);
+		// The console installs a global log callback pointing into its own buffer, so replace it
+		// before logging again, otherwise the message lands in freed memory.
+		donut::log::SetCallback(&LogToFile);
 
-        shaderFactory.reset();
-        commonPasses.reset();
+		ShaderFactory.reset();
+		CommonPasses.reset();
 
-        // DeviceManager only releases the swap chain framebuffers inside Shutdown(); destroying it
-        // without that call tears the framebuffers down after the device resources are already gone.
+		// DeviceManager only releases the swap chain framebuffers inside Shutdown(); destroying it
+		// without that call tears the framebuffers down after the device resources are already gone.
 
-        const bool failed = experimentFailed || verificationFailed || analysisFailed;
-        donut::log::info("Prism: exited %s.", failed ? "with errors" : "cleanly");
-        return failed ? 1 : 0;
-    }
+		const bool bFailed = bExperimentFailed || bVerificationFailed || bAnalysisFailed;
+		donut::log::info("Prism: exited %s.", bFailed ? "with errors" : "cleanly");
+		return bFailed ? 1 : 0;
+	}
 
-    int Run(int argc, char** argv)
-    {
-        return RunApplication(CreateExperiment(), argc, argv);
-    }
-}
+	int Run(int Argc, char** Argv)
+	{
+		return RunApplication(CreateExperiment(), Argc, Argv);
+	}
+} // namespace Prism::Host

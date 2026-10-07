@@ -5,19 +5,19 @@
 #include <filesystem>
 #include <vector>
 
-namespace prism::host
+namespace Prism::Host
 {
-    struct ReplaySample
-    {
-        CameraPose camera;
-        Json::Value parameters;
-    };
-    struct ReplayTrack
-    {
-        double fixedDelta = 1.0 / 60.0;
-        uint32_t seed = 1;
-        std::vector<ReplaySample> samples;
-        Status Save(const std::filesystem::path& path) const;
-        Status Load(const std::filesystem::path& path);
-    };
-}
+	struct FReplaySample
+	{
+		FCameraPose Camera;
+		Json::Value Parameters;
+	};
+	struct FReplayTrack
+	{
+		double FixedDelta = 1.0 / 60.0;
+		uint32_t Seed = 1;
+		std::vector<FReplaySample> Samples;
+		FStatus Save(const std::filesystem::path& Path) const;
+		FStatus Load(const std::filesystem::path& Path);
+	};
+} // namespace Prism::Host

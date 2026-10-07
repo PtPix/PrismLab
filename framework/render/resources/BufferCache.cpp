@@ -4,176 +4,172 @@
 
 #include <algorithm>
 
-namespace prism::gpu
+namespace Prism::Gpu
 {
-    Status BufferRequest::Validate() const
-    {
-        const bool constant = HasAny(usage, BufferUsage::Constant);
+	FStatus FBufferRequest::Validate() const
+	{
+		const bool bConstant = HasAny(Usage, EBufferUsage::Constant);
 
-        // NVRHI: 只有常量缓冲能是 volatile，且 maxVersions 必须非零；volatile 不能同时是 UAV。
-        if (cpuWritable && constant)
-        {
-            if (maxVersions == 0)
-                return Status::Error(ErrorCode::InvalidArgument, "a volatile constant buffer needs maxVersions > 0");
+		// NVRHI: 只有常量缓冲能是 volatile，且 maxVersions 必须非零；volatile 不能同时是 UAV。
+		if (bCpuWritable && bConstant)
+		{
+			if (MaxVersions == 0)
+				return FStatus::Error(EErrorCode::InvalidArgument, "a volatile constant buffer needs maxVersions > 0");
 
-            if (HasAny(usage, BufferUsage::UnorderedAccess | BufferUsage::IndirectArgs))
-                return Status::Error(ErrorCode::Unsupported,
-                    "a volatile constant buffer cannot also be a UAV or indirect argument buffer");
-        }
+			if (HasAny(Usage, EBufferUsage::UnorderedAccess | EBufferUsage::IndirectArgs))
+				return FStatus::Error(EErrorCode::Unsupported,
+									  "a volatile constant buffer cannot also be a UAV or indirect argument buffer");
+		}
 
-        if (constant && structStride > 0)
-            return Status::Error(ErrorCode::InvalidArgument, "a constant buffer cannot have a struct stride");
+		if (bConstant && StructStride > 0)
+			return FStatus::Error(EErrorCode::InvalidArgument, "a constant buffer cannot have a struct stride");
 
-        return Status::Ok();
-    }
+		return FStatus::Ok();
+	}
 
-    uint64_t BufferRequest::ResolveByteSize(const Extent2D& renderSize) const
-    {
-        if (byteSize > 0)
-            return byteSize;
+	uint64_t FBufferRequest::ResolveByteSize(const FExtent2D& RenderSize) const
+	{
+		if (ByteSize > 0)
+			return ByteSize;
 
-        uint64_t count = elementCount;
-        if (elementsPerPixel > 0)
-            count = uint64_t(renderSize.width) * uint64_t(renderSize.height) * uint64_t(elementsPerPixel);
+		uint64_t Count = ElementCount;
+		if (ElementsPerPixel > 0)
+			Count = uint64_t(RenderSize.Width) * uint64_t(RenderSize.Height) * uint64_t(ElementsPerPixel);
 
-        if (count == 0)
-            return 0;
+		if (Count == 0)
+			return 0;
 
-        const uint64_t stride = (structStride > 0) ? structStride : 4;
-        return count * stride;
-    }
+		const uint64_t Stride = (StructStride > 0) ? StructStride : 4;
+		return Count * Stride;
+	}
 
-    BufferCache::BufferCache(nvrhi::IDevice* device)
-        : m_Device(device)
-    {
-    }
+	FBufferCache::FBufferCache(nvrhi::IDevice* Device) : Device(Device)
+	{
+	}
 
-    void BufferCache::SetRenderSize(const Extent2D& renderSize)
-    {
-        if (m_RenderSize == renderSize)
-            return;
+	void FBufferCache::SetRenderSize(const FExtent2D& InRenderSize)
+	{
+		if (RenderSize == InRenderSize)
+			return;
 
-        m_RenderSize = renderSize;
+		RenderSize = InRenderSize;
 
-        // 只有按分辨率计算的缓冲需要重建，固定尺寸的保留。
-        for (Entry& entry : m_Entries)
-        {
-            if (entry.request.elementsPerPixel > 0)
-                entry.buffer = nullptr;
-        }
-    }
+		// 只有按分辨率计算的缓冲需要重建，固定尺寸的保留。
+		for (FEntry& Entry : Entries)
+		{
+			if (Entry.Request.ElementsPerPixel > 0)
+				Entry.Buffer = nullptr;
+		}
+	}
 
-    BufferCache::Entry* BufferCache::FindEntry(ResourceId id)
-    {
-        if (!id)
-            return nullptr;
+	FBufferCache::FEntry* FBufferCache::FindEntry(FResourceId Id)
+	{
+		if (!Id)
+			return nullptr;
 
-        for (Entry& entry : m_Entries)
-        {
-            if (entry.request.id == id)
-                return &entry;
-        }
+		for (FEntry& Entry : Entries)
+		{
+			if (Entry.Request.Id == Id)
+				return &Entry;
+		}
 
-        return nullptr;
-    }
+		return nullptr;
+	}
 
-    nvrhi::IBuffer* BufferCache::GetOrCreate(const BufferRequest& request)
-    {
-        if (request.name.empty())
-        {
-            donut::log::error("BufferCache: buffer requests must be named.");
-            return nullptr;
-        }
+	nvrhi::IBuffer* FBufferCache::GetOrCreate(const FBufferRequest& Request)
+	{
+		if (Request.Name.empty())
+		{
+			donut::log::error("BufferCache: buffer requests must be named.");
+			return nullptr;
+		}
 
-        if (const Status valid = request.Validate(); !valid)
-        {
-            donut::log::error("BufferCache: '%s' has an invalid usage combination: %s",
-                request.name.c_str(), valid.ToStringWithCode().c_str());
-            return nullptr;
-        }
+		if (const FStatus Valid = Request.Validate(); !Valid)
+		{
+			donut::log::error("BufferCache: '%s' has an invalid usage combination: %s", Request.Name.c_str(),
+							  Valid.ToStringWithCode().c_str());
+			return nullptr;
+		}
 
-        const uint64_t byteSize = request.ResolveByteSize(m_RenderSize);
-        if (byteSize == 0)
-        {
-            donut::log::error("BufferCache: '%s' resolves to zero bytes.", request.name.c_str());
-            return nullptr;
-        }
+		const uint64_t ByteSize = Request.ResolveByteSize(RenderSize);
+		if (ByteSize == 0)
+		{
+			donut::log::error("BufferCache: '%s' resolves to zero bytes.", Request.Name.c_str());
+			return nullptr;
+		}
 
-        Entry* entry = FindEntry(request.id);
-        if (!entry)
-        {
-            Entry created;
-            created.request = request;
-            created.byteSize = byteSize;
-            m_Entries.push_back(std::move(created));
-            entry = &m_Entries.back();
-        }
-        else
-        {
-            const bool byteSizeChanged = entry->byteSize != byteSize;
-            const bool layoutChanged =
-                entry->request.usage != request.usage ||
-                entry->request.structStride != request.structStride;
+		FEntry* Entry = FindEntry(Request.Id);
+		if (!Entry)
+		{
+			FEntry Created;
+			Created.Request = Request;
+			Created.ByteSize = ByteSize;
+			Entries.push_back(std::move(Created));
+			Entry = &Entries.back();
+		}
+		else
+		{
+			const bool bByteSizeChanged = Entry->ByteSize != ByteSize;
+			const bool bLayoutChanged =
+				Entry->Request.Usage != Request.Usage || Entry->Request.StructStride != Request.StructStride;
 
-            if (byteSizeChanged || layoutChanged)
-                entry->buffer = nullptr;
+			if (bByteSizeChanged || bLayoutChanged)
+				Entry->Buffer = nullptr;
 
-            entry->request = request;
-            entry->byteSize = byteSize;
-        }
+			Entry->Request = Request;
+			Entry->ByteSize = ByteSize;
+		}
 
-        if (entry->buffer)
-            return entry->buffer;
+		if (Entry->Buffer)
+			return Entry->Buffer;
 
-        // 结构化视图由非零 structStride 表达；stride 为 0 时着色器可见性只能通过 raw view 获得。
-        const bool shaderResource = HasAny(request.usage, BufferUsage::ShaderResource);
-        const bool unorderedAccess = HasAny(request.usage, BufferUsage::UnorderedAccess);
-        const bool structured = request.structStride > 0;
+		// 结构化视图由非零 structStride 表达；stride 为 0 时着色器可见性只能通过 raw view 获得。
+		const bool bShaderResource = HasAny(Request.Usage, EBufferUsage::ShaderResource);
+		const bool bUnorderedAccess = HasAny(Request.Usage, EBufferUsage::UnorderedAccess);
+		const bool bStructured = Request.StructStride > 0;
 
-        nvrhi::BufferDesc desc;
-        desc.byteSize = byteSize;
-        desc.structStride = uint32_t(request.structStride);
-        desc.debugName = request.name;
-        desc.canHaveUAVs = unorderedAccess;
-        desc.canHaveRawViews = !structured && (shaderResource || unorderedAccess);
-        desc.isConstantBuffer = HasAny(request.usage, BufferUsage::Constant);
-        desc.isDrawIndirectArgs = HasAny(request.usage, BufferUsage::IndirectArgs);
-        desc.isVolatile = request.cpuWritable && desc.isConstantBuffer;
-        desc.maxVersions = desc.isVolatile ? request.maxVersions : 0;
-        desc.initialState = nvrhi::ResourceStates::Common;
+		nvrhi::BufferDesc Desc;
+		Desc.byteSize = ByteSize;
+		Desc.structStride = uint32_t(Request.StructStride);
+		Desc.debugName = Request.Name;
+		Desc.canHaveUAVs = bUnorderedAccess;
+		Desc.canHaveRawViews = !bStructured && (bShaderResource || bUnorderedAccess);
+		Desc.isConstantBuffer = HasAny(Request.Usage, EBufferUsage::Constant);
+		Desc.isDrawIndirectArgs = HasAny(Request.Usage, EBufferUsage::IndirectArgs);
+		Desc.isVolatile = Request.bCpuWritable && Desc.isConstantBuffer;
+		Desc.maxVersions = Desc.isVolatile ? Request.MaxVersions : 0;
+		Desc.initialState = nvrhi::ResourceStates::Common;
 
-        entry->buffer = m_Device->createBuffer(desc);
-        if (!entry->buffer)
-            donut::log::error("BufferCache: failed to create buffer '%s' (%llu bytes).",
-                request.name.c_str(), (unsigned long long)byteSize);
+		Entry->Buffer = Device->createBuffer(Desc);
+		if (!Entry->Buffer)
+			donut::log::error("BufferCache: failed to create buffer '%s' (%llu bytes).", Request.Name.c_str(),
+							  (unsigned long long)ByteSize);
 
-        return entry->buffer;
-    }
+		return Entry->Buffer;
+	}
 
-    nvrhi::IBuffer* BufferCache::Find(ResourceId id)
-    {
-        Entry* entry = FindEntry(id);
-        return entry ? entry->buffer.Get() : nullptr;
-    }
+	nvrhi::IBuffer* FBufferCache::Find(FResourceId Id)
+	{
+		FEntry* Entry = FindEntry(Id);
+		return Entry ? Entry->Buffer.Get() : nullptr;
+	}
 
-    void BufferCache::Clear()
-    {
-        m_Entries.clear();
-    }
+	void FBufferCache::Clear()
+	{
+		Entries.clear();
+	}
 
-    std::vector<BufferCache::EntryInfo> BufferCache::GetEntries() const
-    {
-        std::vector<EntryInfo> infos;
-        infos.reserve(m_Entries.size());
+	std::vector<FBufferCache::FEntryInfo> FBufferCache::GetEntries() const
+	{
+		std::vector<FEntryInfo> Infos;
+		Infos.reserve(Entries.size());
 
-        for (const Entry& entry : m_Entries)
-        {
-            infos.push_back(EntryInfo{
-                entry.request.name,
-                entry.buffer ? entry.byteSize : 0,
-                uint32_t(entry.request.structStride) });
-        }
+		for (const FEntry& Entry : Entries)
+		{
+			Infos.push_back(FEntryInfo{Entry.Request.Name, Entry.Buffer ? Entry.ByteSize : 0,
+									   uint32_t(Entry.Request.StructStride)});
+		}
 
-        return infos;
-    }
-}
+		return Infos;
+	}
+} // namespace Prism::Gpu

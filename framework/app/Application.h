@@ -8,10 +8,10 @@
 
 #include "Experiment.h"
 
-namespace prism::host
+namespace Prism::Host
 {
-    int RunApplication(std::unique_ptr<Experiment> experiment, int argc, char** argv);
+	int RunApplication(std::unique_ptr<IExperiment> Experiment, int Argc, char** Argv);
 
-    // 由 Entry.cpp 使用：调用实验的 CreateExperiment() 工厂。
-    int Run(int argc, char** argv);
-}
+	// 由 Entry.cpp 使用：调用实验的 CreateExperiment() 工厂。
+	int Run(int Argc, char** Argv);
+} // namespace Prism::Host

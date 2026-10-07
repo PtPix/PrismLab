@@ -8,55 +8,63 @@
 #include <nvrhi/utils.h>
 #include <type_traits>
 
-namespace prism::gpu
+namespace Prism::Gpu
 {
-    struct ShaderEntry
-    {
-        std::string path;
-        std::string entry;
-        nvrhi::ShaderType stage = nvrhi::ShaderType::None;
-        ShaderMacroList defines;
+	struct FShaderEntry
+	{
+		std::string Path;
+		std::string Entry;
+		nvrhi::ShaderType Stage = nvrhi::ShaderType::None;
+		FShaderMacroList Defines;
 
-        nvrhi::ShaderHandle Load(ShaderLibrary& shaders) const
-        { return shaders.GetShader(path.c_str(), entry.c_str(), stage, defines); }
-    };
+		nvrhi::ShaderHandle Load(FShaderLibrary& Shaders) const
+		{
+			return Shaders.GetShader(Path.c_str(), Entry.c_str(), Stage, Defines);
+		}
+	};
 
-    class PassConstants
-    {
-    public:
-        bool Initialize(nvrhi::IDevice* device, uint32_t bytes, const char* name, uint32_t versions = 16)
-        {
-            m_Size = bytes;
-            m_Buffer = device->createBuffer(nvrhi::utils::CreateVolatileConstantBufferDesc(bytes, name, versions));
-            return m_Buffer != nullptr;
-        }
-        template<class T> void Write(nvrhi::ICommandList* commands, const T& value)
-        {
-            static_assert(std::is_trivially_copyable_v<T>, "Constants must be trivially copyable");
-            assert(m_Buffer && sizeof(T) == m_Size);
-            commands->writeBuffer(m_Buffer, &value, sizeof(T));
-        }
-        nvrhi::IBuffer* Get() const { return m_Buffer; }
-    private:
-        nvrhi::BufferHandle m_Buffer;
-        size_t m_Size = 0;
-    };
+	class FPassConstants
+	{
+	  public:
+		bool Initialize(nvrhi::IDevice* Device, uint32_t Bytes, const char* Name, uint32_t Versions = 16)
+		{
+			Size = Bytes;
+			Buffer = Device->createBuffer(nvrhi::utils::CreateVolatileConstantBufferDesc(Bytes, Name, Versions));
+			return Buffer != nullptr;
+		}
+		template <class InT> void Write(nvrhi::ICommandList* Commands, const InT& Value)
+		{
+			static_assert(std::is_trivially_copyable_v<InT>, "Constants must be trivially copyable");
+			assert(Buffer && sizeof(InT) == Size);
+			Commands->writeBuffer(Buffer, &Value, sizeof(InT));
+		}
+		nvrhi::IBuffer* Get() const
+		{
+			return Buffer;
+		}
 
-    // Non-movable: the shader library holds a registration until destruction.
-    class ShaderPass : public ShaderReloadClient
-    {
-    public:
-        ShaderPass() = default;
-        ShaderPass(const ShaderPass&) = delete;
-        ShaderPass& operator=(const ShaderPass&) = delete;
-        ~ShaderPass() override;
-        nvrhi::BindingSetHandle Bindings(const nvrhi::BindingSetDesc& desc, nvrhi::IBindingLayout* layout);
-        void ClearBindings();
-    protected:
-        void Attach(nvrhi::IDevice* device, ShaderLibrary& shaders);
-        nvrhi::IDevice* m_Device = nullptr;
-        ShaderLibrary* m_Shaders = nullptr;
-    private:
-        std::unique_ptr<donut::engine::BindingCache> m_Bindings;
-    };
-}
+	  private:
+		nvrhi::BufferHandle Buffer;
+		size_t Size = 0;
+	};
+
+	// Non-movable: the shader library holds a registration until destruction.
+	class FShaderPass : public IShaderReloadClient
+	{
+	  public:
+		FShaderPass() = default;
+		FShaderPass(const FShaderPass&) = delete;
+		FShaderPass& operator=(const FShaderPass&) = delete;
+		~FShaderPass() override;
+		nvrhi::BindingSetHandle GetOrCreateBindingSet(const nvrhi::BindingSetDesc& Desc, nvrhi::IBindingLayout* Layout);
+		void ClearBindings();
+
+	  protected:
+		void Attach(nvrhi::IDevice* InDevice, FShaderLibrary& InShaderLibrary);
+		nvrhi::IDevice* Device = nullptr;
+		FShaderLibrary* ShaderLibrary = nullptr;
+
+	  private:
+		std::unique_ptr<donut::engine::BindingCache> BindingCache;
+	};
+} // namespace Prism::Gpu

@@ -4,21 +4,25 @@
 #include "framework/tools/shaders/ShaderReload.h"
 #include <framework/adapters/donut/CameraController.h>
 
-namespace prism::host
+namespace Prism::Host
 {
-    class ExperimentTools
-    {
-    public:
-        Status Initialize(nvrhi::IDevice* device, gpu::ShaderLibrary& shaders,
-            donut::engine::CommonRenderPasses& common, const std::filesystem::path& executable);
-        bool PrepareFrame(float elapsed, adapter::CameraController& camera, Extent2D size);
-        void EndFrame(const CameraData& camera) { replay.EndFrame(CameraPose::From(camera)); }
-        void BuildUI();
-        ComparisonController comparison;
-        ReplayController replay;
-        ShaderReload reload;
-    private:
-        char m_ReplayPath[512] = "replay.json";
-        std::string m_Message;
-    };
-}
+	class FExperimentTools
+	{
+	  public:
+		FStatus Initialize(nvrhi::IDevice* Device, Gpu::FShaderLibrary& Shaders,
+						   donut::engine::CommonRenderPasses& Common, const std::filesystem::path& Executable);
+		bool PrepareFrame(float Elapsed, Adapter::FCameraController& Camera, FExtent2D Size);
+		void EndFrame(const FCameraData& CameraData)
+		{
+			Replay.EndFrame(FCameraPose::From(CameraData));
+		}
+		void BuildUI();
+		FComparisonController Comparison;
+		FReplayController Replay;
+		FShaderReload Reload;
+
+	  private:
+		char ReplayPath[512] = "replay.json";
+		std::string Message;
+	};
+} // namespace Prism::Host

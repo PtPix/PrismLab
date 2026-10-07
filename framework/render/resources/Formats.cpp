@@ -1,92 +1,128 @@
 #include "Formats.h"
 
-namespace prism::gpu
+namespace Prism::Gpu
 {
-    nvrhi::Format ToNvrhiFormat(PixelFormat format)
-    {
-        switch (format)
-        {
-        case PixelFormat::RGBA32_FLOAT:      return nvrhi::Format::RGBA32_FLOAT;
-        case PixelFormat::RGBA16_FLOAT:      return nvrhi::Format::RGBA16_FLOAT;
-        case PixelFormat::RG16_FLOAT:        return nvrhi::Format::RG16_FLOAT;
-        case PixelFormat::R16_FLOAT:         return nvrhi::Format::R16_FLOAT;
-        case PixelFormat::R32_FLOAT:         return nvrhi::Format::R32_FLOAT;
-        case PixelFormat::RGBA8_UNORM:       return nvrhi::Format::RGBA8_UNORM;
-        case PixelFormat::RGBA8_SNORM:       return nvrhi::Format::RGBA8_SNORM;
-        case PixelFormat::RG16_UNORM:        return nvrhi::Format::RG16_UNORM;
-        case PixelFormat::R8_UNORM:          return nvrhi::Format::R8_UNORM;
-        case PixelFormat::D32_FLOAT:         return nvrhi::Format::D32;
-        case PixelFormat::D24_UNORM_S8_UINT: return nvrhi::Format::D24S8;
-        default:                             return nvrhi::Format::UNKNOWN;
-        }
-    }
+	nvrhi::Format ToNvrhiFormat(EPixelFormat Format)
+	{
+		switch (Format)
+		{
+			case EPixelFormat::RgbA32Float:
+				return nvrhi::Format::RGBA32_FLOAT;
+			case EPixelFormat::RgbA16Float:
+				return nvrhi::Format::RGBA16_FLOAT;
+			case EPixelFormat::RG16Float:
+				return nvrhi::Format::RG16_FLOAT;
+			case EPixelFormat::R16Float:
+				return nvrhi::Format::R16_FLOAT;
+			case EPixelFormat::R32Float:
+				return nvrhi::Format::R32_FLOAT;
+			case EPixelFormat::RgbA8Unorm:
+				return nvrhi::Format::RGBA8_UNORM;
+			case EPixelFormat::RgbA8Snorm:
+				return nvrhi::Format::RGBA8_SNORM;
+			case EPixelFormat::RG16Unorm:
+				return nvrhi::Format::RG16_UNORM;
+			case EPixelFormat::R8Unorm:
+				return nvrhi::Format::R8_UNORM;
+			case EPixelFormat::D32Float:
+				return nvrhi::Format::D32;
+			case EPixelFormat::D24UnormS8Uint:
+				return nvrhi::Format::D24S8;
+			default:
+				return nvrhi::Format::UNKNOWN;
+		}
+	}
 
-    PixelFormat FromNvrhiFormat(nvrhi::Format format)
-    {
-        switch (format)
-        {
-        case nvrhi::Format::RGBA32_FLOAT:      return PixelFormat::RGBA32_FLOAT;
-        case nvrhi::Format::RGBA16_FLOAT:      return PixelFormat::RGBA16_FLOAT;
-        case nvrhi::Format::RG16_FLOAT:        return PixelFormat::RG16_FLOAT;
-        case nvrhi::Format::R16_FLOAT:         return PixelFormat::R16_FLOAT;
-        case nvrhi::Format::R32_FLOAT:         return PixelFormat::R32_FLOAT;
-        case nvrhi::Format::RGBA8_UNORM:       return PixelFormat::RGBA8_UNORM;
-        case nvrhi::Format::RGBA8_SNORM:       return PixelFormat::RGBA8_SNORM;
-        case nvrhi::Format::RG16_UNORM:        return PixelFormat::RG16_UNORM;
-        case nvrhi::Format::R8_UNORM:          return PixelFormat::R8_UNORM;
-        case nvrhi::Format::D32:               return PixelFormat::D32_FLOAT;
-        case nvrhi::Format::D24S8:             return PixelFormat::D24_UNORM_S8_UINT;
-        default:                               return PixelFormat::Unknown;
-        }
-    }
+	EPixelFormat FromNvrhiFormat(nvrhi::Format Format)
+	{
+		switch (Format)
+		{
+			case nvrhi::Format::RGBA32_FLOAT:
+				return EPixelFormat::RgbA32Float;
+			case nvrhi::Format::RGBA16_FLOAT:
+				return EPixelFormat::RgbA16Float;
+			case nvrhi::Format::RG16_FLOAT:
+				return EPixelFormat::RG16Float;
+			case nvrhi::Format::R16_FLOAT:
+				return EPixelFormat::R16Float;
+			case nvrhi::Format::R32_FLOAT:
+				return EPixelFormat::R32Float;
+			case nvrhi::Format::RGBA8_UNORM:
+				return EPixelFormat::RgbA8Unorm;
+			case nvrhi::Format::RGBA8_SNORM:
+				return EPixelFormat::RgbA8Snorm;
+			case nvrhi::Format::RG16_UNORM:
+				return EPixelFormat::RG16Unorm;
+			case nvrhi::Format::R8_UNORM:
+				return EPixelFormat::R8Unorm;
+			case nvrhi::Format::D32:
+				return EPixelFormat::D32Float;
+			case nvrhi::Format::D24S8:
+				return EPixelFormat::D24UnormS8Uint;
+			default:
+				return EPixelFormat::Unknown;
+		}
+	}
 
-    bool IsUavCompatible(PixelFormat format)
-    {
-        switch (format)
-        {
-        case PixelFormat::RGBA32_FLOAT:
-        case PixelFormat::RGBA16_FLOAT:
-        case PixelFormat::RG16_FLOAT:
-        case PixelFormat::R16_FLOAT:
-        case PixelFormat::R32_FLOAT:
-        case PixelFormat::RGBA8_UNORM:
-        case PixelFormat::R8_UNORM:
-            return true;
-        default:
-            return false;
-        }
-    }
+	bool IsUavCompatible(EPixelFormat Format)
+	{
+		switch (Format)
+		{
+			case EPixelFormat::RgbA32Float:
+			case EPixelFormat::RgbA16Float:
+			case EPixelFormat::RG16Float:
+			case EPixelFormat::R16Float:
+			case EPixelFormat::R32Float:
+			case EPixelFormat::RgbA8Unorm:
+			case EPixelFormat::R8Unorm:
+				return true;
+			default:
+				return false;
+		}
+	}
 
-    nvrhi::ResourceStates GetInitialState(TextureUsage usage, PixelFormat format)
-    {
-        if (HasAny(usage, TextureUsage::DepthStencil) || IsDepthFormat(format))
-            return nvrhi::ResourceStates::DepthWrite;
+	nvrhi::ResourceStates GetInitialState(ETextureUsage Usage, EPixelFormat Format)
+	{
+		if (HasAny(Usage, ETextureUsage::DepthStencil) || IsDepthFormat(Format))
+			return nvrhi::ResourceStates::DepthWrite;
 
-        if (HasAny(usage, TextureUsage::RenderTarget))
-            return nvrhi::ResourceStates::RenderTarget;
+		if (HasAny(Usage, ETextureUsage::RenderTarget))
+			return nvrhi::ResourceStates::RenderTarget;
 
-        if (HasAny(usage, TextureUsage::UnorderedAccess))
-            return nvrhi::ResourceStates::UnorderedAccess;
+		if (HasAny(Usage, ETextureUsage::UnorderedAccess))
+			return nvrhi::ResourceStates::UnorderedAccess;
 
-        return nvrhi::ResourceStates::Common;
-    }
+		return nvrhi::ResourceStates::Common;
+	}
 
-    const char* ToString(nvrhi::Format format)
-    {
-        switch (format)
-        {
-        case nvrhi::Format::RGBA32_FLOAT: return "RGBA32_FLOAT";
-        case nvrhi::Format::RGBA16_FLOAT: return "RGBA16_FLOAT";
-        case nvrhi::Format::RG16_FLOAT:   return "RG16_FLOAT";
-        case nvrhi::Format::R16_FLOAT:    return "R16_FLOAT";
-        case nvrhi::Format::R32_FLOAT:    return "R32_FLOAT";
-        case nvrhi::Format::RGBA8_UNORM:  return "RGBA8_UNORM";
-        case nvrhi::Format::RGBA8_SNORM:  return "RGBA8_SNORM";
-        case nvrhi::Format::RG16_UNORM:   return "RG16_UNORM";
-        case nvrhi::Format::R8_UNORM:     return "R8_UNORM";
-        case nvrhi::Format::D32:          return "D32_FLOAT";
-        case nvrhi::Format::UNKNOWN:      return "unknown";
-        default:                          return "other";
-        }
-    }
-}
+	const char* ToString(nvrhi::Format Format)
+	{
+		switch (Format)
+		{
+			case nvrhi::Format::RGBA32_FLOAT:
+				return "RGBA32_FLOAT";
+			case nvrhi::Format::RGBA16_FLOAT:
+				return "RGBA16_FLOAT";
+			case nvrhi::Format::RG16_FLOAT:
+				return "RG16_FLOAT";
+			case nvrhi::Format::R16_FLOAT:
+				return "R16_FLOAT";
+			case nvrhi::Format::R32_FLOAT:
+				return "R32_FLOAT";
+			case nvrhi::Format::RGBA8_UNORM:
+				return "RGBA8_UNORM";
+			case nvrhi::Format::RGBA8_SNORM:
+				return "RGBA8_SNORM";
+			case nvrhi::Format::RG16_UNORM:
+				return "RG16_UNORM";
+			case nvrhi::Format::R8_UNORM:
+				return "R8_UNORM";
+			case nvrhi::Format::D32:
+				return "D32_FLOAT";
+			case nvrhi::Format::UNKNOWN:
+				return "unknown";
+			default:
+				return "other";
+		}
+	}
+} // namespace Prism::Gpu

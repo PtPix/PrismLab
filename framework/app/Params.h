@@ -5,31 +5,9 @@
 // 一个描述符表同时驱动三件事：ImGui 控件、JSON 读写、参数 hash（用于自动请求历史重置）。
 // 参数结构体本身保持普通 POD，可读、可直接写进常量缓冲。
 //
-// 声明（放在 feature 自己的头文件里）：
-//
-//   struct GiSettings { bool enabled = true; int candidateSamples = 4; float temporalWeight = 0.9f; };
-//
-//   inline const prism::host::ParamDesc kGiParams[] = {
-//       PRISM_PARAM_BOOL (GiSettings, enabled,          "Enable GI",       prism::host::ParamFlags::None),
-//       PRISM_PARAM_INT  (GiSettings, candidateSamples, "Candidates", 1, 32, prism::host::ParamFlags::HistoryInvalidating),
-//       PRISM_PARAM_FLOAT(GiSettings, temporalWeight,   "Temporal w", 0,  1,  prism::host::ParamFlags::HistoryInvalidating),
-//   };
-//
-// 使用（feature 的 Initialize / BuildUI / Render）：
-//
-//   m_Params = host::ParamTable(kGiParams);
-//   m_Params.Bind(&m_Settings);
-//   Json::Value settings; if (host::LoadExperimentSettings(*context.config, GetName(), settings)) m_Params.LoadJson(settings);
-//
-//   void BuildUI(...) override { m_Params.BuildUI(); }
-//
-//   // 参数变化 -> 历史失效（五行的标准写法，feature 自己拥有上一帧的 hash）
-//   if (m_Params.WasEdited())
-//   {
-//       const uint64_t hash = m_Params.ComputeHash();
-//       if (hash != m_LastParamHash) { m_LastParamHash = hash; context.callbacks.requestHistoryReset(HistoryResetReason::SettingsChange); }
-//       m_Params.ClearEdited();
-//   }
+// Feature code declares an F-prefixed settings struct with PascalCase fields, then describes those
+// fields in a K-prefixed FParamDesc array. FParamTable binds the struct and provides JSON loading,
+// ImGui controls, and history-invalidating hashes without per-field plumbing.
 
 #include <framework/core/Types.h>
 
@@ -41,98 +19,122 @@
 
 namespace Json
 {
-    class Value;
+	class Value;
 }
 
-namespace prism::host
+namespace Prism::Host
 {
-    enum class ParamKind : uint32_t
-    {
-        Bool = 0,
-        Int,
-        Float,
-    };
+	enum class EParamKind : uint32_t
+	{
+		Bool = 0,
+		Int,
+		Float,
+	};
 
-    enum class ParamFlags : uint32_t
-    {
-        None = 0,
+	enum class EParamFlags : uint32_t
+	{
+		None = 0,
 
-        // 该参数变化会使历史失效（参与 ComputeHash，便于自动请求 HistoryReset）
-        HistoryInvalidating = 1u << 0,
+		// 该参数变化会使历史失效（参与 ComputeHash，便于自动请求 HistoryReset）
+		HistoryInvalidating = 1u << 0,
 
-        // 只读显示（例如统计值），UI 上不可编辑
-        ReadOnly = 1u << 1,
-    };
+		// 只读显示（例如统计值），UI 上不可编辑
+		ReadOnly = 1u << 1,
+	};
 
-    constexpr ParamFlags operator|(ParamFlags a, ParamFlags b) { return ParamFlags(uint32_t(a) | uint32_t(b)); }
-    constexpr bool HasAny(ParamFlags value, ParamFlags test) { return (uint32_t(value) & uint32_t(test)) != 0; }
+	constexpr EParamFlags operator|(EParamFlags A, EParamFlags B)
+	{
+		return EParamFlags(uint32_t(A) | uint32_t(B));
+	}
+	constexpr bool HasAny(EParamFlags Value, EParamFlags Test)
+	{
+		return (uint32_t(Value) & uint32_t(Test)) != 0;
+	}
 
-    struct ParamDesc
-    {
-        const char* name = nullptr;      // JSON 键
-        const char* label = nullptr;     // UI 标签
-        ParamKind kind = ParamKind::Float;
-        uint32_t offset = 0;             // 字段在参数结构体中的字节偏移
-        float minValue = 0.f;
-        float maxValue = 1.f;
-        ParamFlags flags = ParamFlags::None;
-        const char* help = nullptr;      // 可选：鼠标悬停提示
-    };
+	struct FParamDesc
+	{
+		const char* Name = nullptr;	 // JSON 键
+		const char* Label = nullptr; // UI 标签
+		EParamKind Kind = EParamKind::Float;
+		uint32_t Offset = 0; // 字段在参数结构体中的字节偏移
+		float MinValue = 0.f;
+		float MaxValue = 1.f;
+		EParamFlags Flags = EParamFlags::None;
+		const char* Help = nullptr; // 可选：鼠标悬停提示
+	};
 
-    class ParamTable
-    {
-    public:
-        template <size_t N>
-        ParamTable(const ParamDesc (&descriptors)[N])
-            : m_Descriptors(descriptors, descriptors + N)
-        {
-        }
+	class FParamTable
+	{
+	  public:
+		template <size_t N> FParamTable(const FParamDesc (&Descriptors)[N]) : Descriptors(Descriptors, Descriptors + N)
+		{
+		}
 
-        ParamTable() = default;
+		FParamTable() = default;
 
-        template <class Settings>
-        void Bind(Settings* instance)
-        {
-            m_Instance = instance;
-        }
+		template <class InSettings> void Bind(InSettings* InInstance)
+		{
+			Instance = InInstance;
+		}
 
-        // ImGui 控件（布尔用复选框，整数/浮点用滑块）。
-        void BuildUI();
+		// ImGui 控件（布尔用复选框，整数/浮点用滑块）。
+		void BuildUI();
 
-        // 读配置：缺失的键保留默认值；类型不符时记录 warning 并跳过。
-        void LoadJson(const Json::Value& settings);
+		// 读配置：缺失的键保留默认值；类型不符时记录 warning 并跳过。
+		void LoadJson(const Json::Value& Settings);
 
-        // 写配置：把全部参数按 JSON 键写回。
-        void SaveJson(Json::Value& settings) const;
+		// 写配置：把全部参数按 JSON 键写回。
+		void SaveJson(Json::Value& Settings) const;
 
-        // 只统计标了 HistoryInvalidating 的字段；用于"参数改了才重置历史"。
-        [[nodiscard]] uint64_t ComputeHash() const;
+		// 只统计标了 HistoryInvalidating 的字段；用于"参数改了才重置历史"。
+		[[nodiscard]] uint64_t ComputeHash() const;
 
-        // UI 或 JSON 是否改动过（feature 每帧检查一次后 ClearEdited）。
-        [[nodiscard]] bool WasEdited() const { return m_Edited; }
-        void ClearEdited() { m_Edited = false; }
+		// UI 或 JSON 是否改动过（feature 每帧检查一次后 ClearEdited）。
+		[[nodiscard]] bool WasEdited() const
+		{
+			return bEdited;
+		}
+		void ClearEdited()
+		{
+			bEdited = false;
+		}
 
-        [[nodiscard]] const std::vector<ParamDesc>& GetDescriptors() const { return m_Descriptors; }
-        [[nodiscard]] bool IsBound() const { return m_Instance != nullptr; }
+		[[nodiscard]] const std::vector<FParamDesc>& GetDescriptors() const
+		{
+			return Descriptors;
+		}
+		[[nodiscard]] bool IsBound() const
+		{
+			return Instance != nullptr;
+		}
 
-    private:
-        void* FieldAddress(const ParamDesc& descriptor) const;
+	  private:
+		void* FieldAddress(const FParamDesc& Descriptor) const;
 
-        std::vector<ParamDesc> m_Descriptors;
-        void* m_Instance = nullptr;
-        bool m_Edited = false;
-    };
+		std::vector<FParamDesc> Descriptors;
+		void* Instance = nullptr;
+		bool bEdited = false;
+	};
 
-    // 字段描述符：把设置结构体字段、JSON 键、UI 标签和标志绑在一起。
-    #define PRISM_PARAM_BOOL(StructType, member, label, flags)                                              \
-        ::prism::host::ParamDesc{ #member, label, ::prism::host::ParamKind::Bool,                \
-            uint32_t(offsetof(StructType, member)), 0.f, 1.f, (flags), nullptr }
+// 字段描述符：把设置结构体字段、JSON 键、UI 标签和标志绑在一起。
+#define PRISM_PARAM_BOOL(StructType, Member, Label, Flags)                                                             \
+	::Prism::Host::FParamDesc                                                                                          \
+	{                                                                                                                  \
+		#Member, Label, ::Prism::Host::EParamKind::Bool, uint32_t(offsetof(StructType, Member)), 0.f, 1.f, (Flags),    \
+			nullptr                                                                                                    \
+	}
 
-    #define PRISM_PARAM_INT(StructType, member, label, minValue, maxValue, flags)                            \
-        ::prism::host::ParamDesc{ #member, label, ::prism::host::ParamKind::Int,                  \
-            uint32_t(offsetof(StructType, member)), float(minValue), float(maxValue), (flags), nullptr }
+#define PRISM_PARAM_INT(StructType, Member, Label, MinValue, MaxValue, Flags)                                          \
+	::Prism::Host::FParamDesc                                                                                          \
+	{                                                                                                                  \
+		#Member, Label, ::Prism::Host::EParamKind::Int, uint32_t(offsetof(StructType, Member)), float(MinValue),       \
+			float(MaxValue), (Flags), nullptr                                                                          \
+	}
 
-    #define PRISM_PARAM_FLOAT(StructType, member, label, minValue, maxValue, flags)                          \
-        ::prism::host::ParamDesc{ #member, label, ::prism::host::ParamKind::Float,                \
-            uint32_t(offsetof(StructType, member)), float(minValue), float(maxValue), (flags), nullptr }
-}
+#define PRISM_PARAM_FLOAT(StructType, Member, Label, MinValue, MaxValue, Flags)                                        \
+	::Prism::Host::FParamDesc                                                                                          \
+	{                                                                                                                  \
+		#Member, Label, ::Prism::Host::EParamKind::Float, uint32_t(offsetof(StructType, Member)), float(MinValue),     \
+			float(MaxValue), (Flags), nullptr                                                                          \
+	}
+} // namespace Prism::Host

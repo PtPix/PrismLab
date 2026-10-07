@@ -17,54 +17,54 @@
 #include <string>
 #include <vector>
 
-namespace prism::host
+namespace Prism::Host
 {
-    struct FloatImage
-    {
-        Extent2D size;
-        uint32_t channels = 4;              // 统一按 RGBA 存；缺失的通道为 0，alpha 为 1
-        std::vector<float> pixels;
+	struct FFloatImage
+	{
+		FExtent2D Size;
+		uint32_t Channels = 4; // 统一按 RGBA 存；缺失的通道为 0，alpha 为 1
+		std::vector<float> Pixels;
 
-        [[nodiscard]] bool IsValid() const
-        {
-            return size.IsValid() && channels > 0 &&
-                pixels.size() == size_t(size.width) * size_t(size.height) * channels;
-        }
+		[[nodiscard]] bool IsValid() const
+		{
+			return Size.IsValid() && Channels > 0 &&
+				   Pixels.size() == size_t(Size.Width) * size_t(Size.Height) * Channels;
+		}
 
-        [[nodiscard]] float At(uint32_t x, uint32_t y, uint32_t channel) const
-        {
-            if (x >= size.width || y >= size.height || channel >= channels)
-                return 0.f;
+		[[nodiscard]] float At(uint32_t X, uint32_t Y, uint32_t Channel) const
+		{
+			if (X >= Size.Width || Y >= Size.Height || Channel >= Channels)
+				return 0.f;
 
-            return pixels[(size_t(y) * size.width + x) * channels + channel];
-        }
-    };
+			return Pixels[(size_t(Y) * Size.Width + X) * Channels + Channel];
+		}
+	};
 
-    // 从 GPU 纹理读回为浮点图（支持 RGBA32_FLOAT / RGBA16_FLOAT / R32_FLOAT / R16_FLOAT）。
-    Result<FloatImage> ReadTextureAsFloat(nvrhi::IDevice* device, nvrhi::ITexture* texture);
+	// 从 GPU 纹理读回为浮点图（支持 RGBA32_FLOAT / RGBA16_FLOAT / R32_FLOAT / R16_FLOAT）。
+	TResult<FFloatImage> ReadTextureAsFloat(nvrhi::IDevice* Device, nvrhi::ITexture* Texture);
 
-    bool SaveFloatImage(const std::filesystem::path& path, const FloatImage& image);
-    Result<FloatImage> LoadFloatImage(const std::filesystem::path& path);
+	bool SaveFloatImage(const std::filesystem::path& Path, const FFloatImage& Image);
+	TResult<FFloatImage> LoadFloatImage(const std::filesystem::path& Path);
 
-    struct ImageComparison
-    {
-        bool valid = false;
-        uint32_t differingPixels = 0;
+	struct FImageComparison
+	{
+		bool bValid = false;
+		uint32_t DifferingPixels = 0;
 
-        // 任一图像出现 inf / NaN 的像素数：非有限值必须显式报告，不能靠 max 差异掩盖
-        uint32_t nonFinitePixels = 0;
+		// 任一图像出现 inf / NaN 的像素数：非有限值必须显式报告，不能靠 max 差异掩盖
+		uint32_t NonFinitePixels = 0;
 
-        float maxAbsolute = 0.f;
-        float meanAbsolute = 0.f;
-        std::string message;
+		float MaxAbsolute = 0.f;
+		float MeanAbsolute = 0.f;
+		std::string Message;
 
-        // 判定：没有非有限值，且最大差异在容差内
-        [[nodiscard]] bool Passed(float tolerance) const
-        {
-            return valid && nonFinitePixels == 0 && maxAbsolute <= tolerance;
-        }
-    };
+		// 判定：没有非有限值，且最大差异在容差内
+		[[nodiscard]] bool Passed(float Tolerance) const
+		{
+			return bValid && NonFinitePixels == 0 && MaxAbsolute <= Tolerance;
+		}
+	};
 
-    // 逐像素逐通道比较；差异超过 tolerance 的像素计入 differingPixels。
-    ImageComparison CompareImages(const FloatImage& reference, const FloatImage& current, float tolerance);
-}
+	// 逐像素逐通道比较；差异超过 tolerance 的像素计入 differingPixels。
+	FImageComparison CompareImages(const FFloatImage& Reference, const FFloatImage& Current, float Tolerance);
+} // namespace Prism::Host

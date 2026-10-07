@@ -14,49 +14,70 @@
 #include <donut/app/Camera.h>
 #include <donut/engine/View.h>
 
-namespace prism::adapter
+namespace Prism::Adapter
 {
-    class CameraController
-    {
-    public:
-        void Initialize(const CameraPreset& preset);
+	class FCameraController
+	{
+	  public:
+		void Initialize(const FCameraPreset& InPreset);
 
-        // 每帧调用一次：更新相机动画、投影矩阵、视图缓存，并把结果写入 CameraData。
-        void Update(float deltaTimeSeconds, const Extent2D& renderSize, bool animate = true);
+		// 每帧调用一次：更新相机动画、投影矩阵、视图缓存，并把结果写入 CameraData。
+		void Update(float DeltaTimeSeconds, const FExtent2D& InRenderSize, bool bAnimate = true);
 
-        bool KeyboardUpdate(int key, int scancode, int action, int mods);
-        bool MousePosUpdate(double xpos, double ypos);
-        bool MouseButtonUpdate(int button, int action, int mods);
-        bool MouseScrollUpdate(double xoffset, double yoffset);
+		bool KeyboardUpdate(int Key, int Scancode, int Action, int Mods);
+		bool MousePosUpdate(double Xpos, double Ypos);
+		bool MouseButtonUpdate(int Button, int Action, int Mods);
+		bool MouseScrollUpdate(double Xoffset, double Yoffset);
 
-        void SwitchToFirstPerson(bool animate);
-        void SwitchToThirdPerson(bool animate);
-        [[nodiscard]] bool IsFirstPerson() const { return m_Camera.IsFirstPersonActive(); }
+		void SwitchToFirstPerson(bool bAnimate);
+		void SwitchToThirdPerson(bool bAnimate);
+		[[nodiscard]] bool IsFirstPerson() const
+		{
+			return Camera.IsFirstPersonActive();
+		}
 
-        [[nodiscard]] donut::engine::PlanarView& GetView() { return m_View; }
-        [[nodiscard]] const donut::engine::PlanarView& GetView() const { return m_View; }
+		[[nodiscard]] donut::engine::PlanarView& GetView()
+		{
+			return View;
+		}
+		[[nodiscard]] const donut::engine::PlanarView& GetView() const
+		{
+			return View;
+		}
 
-        [[nodiscard]] const prism::CameraData& GetCameraData() const { return m_CameraData; }
-        [[nodiscard]] dm::float3 GetPosition() const { return m_CameraData.position; }
-        [[nodiscard]] dm::float3 GetDirection() const { return m_CameraData.forward; }
-        [[nodiscard]] float GetDistance() const { return dm::length(m_CameraData.position - m_TargetPosition); }
+		[[nodiscard]] const Prism::FCameraData& GetCameraData() const
+		{
+			return CameraData;
+		}
+		[[nodiscard]] dm::float3 GetPosition() const
+		{
+			return CameraData.Position;
+		}
+		[[nodiscard]] dm::float3 GetDirection() const
+		{
+			return CameraData.Forward;
+		}
+		[[nodiscard]] float GetDistance() const
+		{
+			return dm::length(CameraData.Position - TargetPosition);
+		}
 
-        // 相机不连续（切换视角、瞬移）时置位；宿主据此请求历史重置。
-        [[nodiscard]] bool ConsumeDiscontinuity();
+		// 相机不连续（切换视角、瞬移）时置位；宿主据此请求历史重置。
+		[[nodiscard]] bool ConsumeDiscontinuity();
 
-        void SetJitter(const dm::float2& jitterInPixels);
-        void ApplyPose(const CameraPose& pose);
+		void SetJitter(const dm::float2& JitterInPixels);
+		void ApplyPose(const FCameraPose& Pose);
 
-    private:
-        donut::app::SwitchableCamera m_Camera;
-        donut::engine::PlanarView m_View;
+	  private:
+		donut::app::SwitchableCamera Camera;
+		donut::engine::PlanarView View;
 
-        prism::CameraData m_CameraData;
-        CameraPreset m_Preset;
+		Prism::FCameraData CameraData;
+		FCameraPreset CameraPreset;
 
-        dm::float3 m_TargetPosition = dm::float3(0.f);
-        dm::uint2 m_RenderSize = dm::uint2(1);
-        bool m_UpdatedOnce = false;
-        bool m_Discontinuity = false;
-    };
-}
+		dm::float3 TargetPosition = dm::float3(0.f);
+		dm::uint2 RenderSize = dm::uint2(1);
+		bool bUpdatedOnce = false;
+		bool bDiscontinuity = false;
+	};
+} // namespace Prism::Adapter

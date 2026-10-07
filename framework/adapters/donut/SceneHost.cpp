@@ -9,219 +9,224 @@
 #include <unordered_map>
 #include <unordered_set>
 
-namespace prism::adapter
+namespace Prism::Adapter
 {
-    namespace
-    {
-        bool EndsWith(const std::string& value, const char* suffix)
-        {
-            const size_t suffixLength = std::strlen(suffix);
-            return value.size() >= suffixLength && value.compare(value.size() - suffixLength, suffixLength, suffix) == 0;
-        }
-    }
+	namespace
+	{
+		bool EndsWith(const std::string& Value, const char* Suffix)
+		{
+			const size_t SuffixLength = std::strlen(Suffix);
+			return Value.size() >= SuffixLength &&
+				   Value.compare(Value.size() - SuffixLength, SuffixLength, Suffix) == 0;
+		}
+	} // namespace
 
-    Status SceneHost::Load(
-        nvrhi::IDevice* device,
-        const std::shared_ptr<donut::engine::ShaderFactory>& shaderFactory,
-        const std::shared_ptr<donut::vfs::IFileSystem>& fileSystem,
-        const ScenePreset& scene, const LightingPreset& lighting)
-    {
-        Reset();
+	FStatus FSceneHost::Load(nvrhi::IDevice* InDevice,
+							 const std::shared_ptr<donut::engine::ShaderFactory>& InShaderFactory,
+							 const std::shared_ptr<donut::vfs::IFileSystem>& InFileSystem,
+							 const FScenePreset& InScenePreset, const FLightingPreset& InLightingPreset)
+	{
+		Reset();
 
-        m_Device = device;
-        m_FileSystem = fileSystem;
+		Device = InDevice;
+		FileSystem = InFileSystem;
 
-        const std::string& source = scene.source;
-        const bool wantsAssetScene =
-            source == "gltf" || source == "glb" || EndsWith(source, ".gltf") || EndsWith(source, ".glb") || !scene.asset.empty();
+		const std::string& Source = InScenePreset.Source;
+		const bool bWantsAssetScene = Source == "gltf" || Source == "glb" || EndsWith(Source, ".gltf") ||
+									  EndsWith(Source, ".glb") || !InScenePreset.Asset.empty();
 
-        if (wantsAssetScene)
-        {
-            if (scene.asset.empty())
-                return Status::Error(ErrorCode::InvalidArgument, "scene.asset must name a scene .json, .gltf or .glb file");
+		if (bWantsAssetScene)
+		{
+			if (InScenePreset.Asset.empty())
+				return FStatus::Error(EErrorCode::InvalidArgument,
+									  "scene.asset must name a scene .json, .gltf or .glb file");
 
-            if (!shaderFactory)
-                return Status::Error(ErrorCode::NotInitialized, "a shader factory is required to load an asset scene");
+			if (!InShaderFactory)
+				return FStatus::Error(EErrorCode::NotInitialized,
+									  "a shader factory is required to load an asset scene");
 
-            m_TextureCache = std::make_shared<donut::engine::TextureCache>(device, fileSystem, nullptr);
-            m_LoadedScene = std::make_unique<donut::engine::Scene>(
-                device, *shaderFactory, fileSystem, m_TextureCache, nullptr, nullptr);
+			TextureCache = std::make_shared<donut::engine::TextureCache>(Device, FileSystem, nullptr);
+			LoadedScene = std::make_unique<donut::engine::Scene>(Device, *InShaderFactory, FileSystem, TextureCache,
+																 nullptr, nullptr);
 
-            donut::log::info("Prism: loading scene asset '%s'...", scene.asset.c_str());
+			donut::log::info("Prism: loading scene asset '%s'...", InScenePreset.Asset.c_str());
 
-            if (!m_LoadedScene->Load(scene.asset))
-            {
-                m_LoadedScene.reset();
-                m_TextureCache.reset();
-                return Status::Error(ErrorCode::ResourceMissing, "failed to load scene asset: " + scene.asset);
-            }
+			if (!LoadedScene->Load(InScenePreset.Asset))
+			{
+				LoadedScene.reset();
+				TextureCache.reset();
+				return FStatus::Error(EErrorCode::ResourceMissing,
+									  "failed to load scene asset: " + InScenePreset.Asset);
+			}
 
-            m_LoadedScene->FinishedLoading(0);
+			LoadedScene->FinishedLoading(0);
 
-            nvrhi::CommandListHandle commands = device->createCommandList();
-            commands->open();
-            m_LoadedScene->Refresh(commands, 0);
-            commands->close();
-            device->executeCommandList(commands);
-            device->waitForIdle();
+			nvrhi::CommandListHandle Commands = Device->createCommandList();
+			Commands->open();
+			LoadedScene->Refresh(Commands, 0);
+			Commands->close();
+			Device->executeCommandList(Commands);
+			Device->waitForIdle();
 
-            m_Scene.graph = m_LoadedScene->GetSceneGraph();
-            m_Scene.sharedBuffers = nullptr;
-            m_Scene.description = "asset scene: " + scene.asset;
-            m_Scene.lights = CollectLights(*m_Scene.graph);
+			Scene.Graph = LoadedScene->GetSceneGraph();
+			Scene.SharedBuffers = nullptr;
+			Scene.Description = "asset scene: " + InScenePreset.Asset;
+			Scene.Lights = CollectLights(*Scene.Graph);
 
-            BuildGeometryBatchFromSceneGraph();
-            CollectStats();
+			BuildGeometryBatchFromSceneGraph();
+			CollectStats();
 
-            donut::log::info("Prism: asset scene ready -- %u meshes / %u instances / %u lights / %u triangles.",
-                m_Scene.stats.meshes, m_Scene.stats.instances, m_Scene.stats.lights, m_Scene.stats.triangles);
+			donut::log::info("Prism: asset scene ready -- %u meshes / %u instances / %u lights / %u triangles.",
+							 Scene.Stats.Meshes, Scene.Stats.Instances, Scene.Stats.Lights, Scene.Stats.Triangles);
 
-            return Status::Ok();
-        }
+			return FStatus::Ok();
+		}
 
-        nvrhi::CommandListHandle commands = device->createCommandList();
-        commands->open();
-        m_Scene = CreateProceduralScene(device, commands, lighting);
-        commands->close();
-        device->executeCommandList(commands);
+		nvrhi::CommandListHandle Commands = Device->createCommandList();
+		Commands->open();
+		Scene = CreateProceduralScene(Device, Commands, InLightingPreset);
+		Commands->close();
+		Device->executeCommandList(Commands);
 
-        return Status::Ok();
-    }
+		return FStatus::Ok();
+	}
 
-    void SceneHost::Reset()
-    {
-        m_Scene = SceneData{};
-        m_LoadedScene.reset();
-        m_TextureCache.reset();
-    }
+	void FSceneHost::Reset()
+	{
+		Scene = FSceneData{};
+		LoadedScene.reset();
+		TextureCache.reset();
+	}
 
-    void SceneHost::Update(nvrhi::ICommandList* commands, uint32_t frameIndex)
-    {
-        if (!m_LoadedScene)
-            return;
+	void FSceneHost::Update(nvrhi::ICommandList* Commands, uint32_t FrameIndex)
+	{
+		if (!LoadedScene)
+			return;
 
-        m_LoadedScene->Refresh(commands, frameIndex);
-    }
+		LoadedScene->Refresh(Commands, FrameIndex);
+	}
 
-    void SceneHost::BuildGeometryBatchFromSceneGraph()
-    {
-        m_Scene.geometry = gpu::GeometryBatch{};
-        m_Scene.materials.clear();
+	void FSceneHost::BuildGeometryBatchFromSceneGraph()
+	{
+		Scene.Geometry = Gpu::FGeometryBatch{};
+		Scene.Materials.clear();
 
-        if (!m_Scene.graph)
-            return;
+		if (!Scene.Graph)
+			return;
 
-        // 同一批几何体共享一组缓冲；用指针标识分组，避免假设整个场景只有一组。
-        std::unordered_map<const donut::engine::BufferGroup*, uint32_t> bufferGroupIndices;
-        std::unordered_map<int, uint32_t> materialIndices;
+		// 同一批几何体共享一组缓冲；用指针标识分组，避免假设整个场景只有一组。
+		std::unordered_map<const donut::engine::BufferGroup*, uint32_t> BufferGroupIndices;
+		std::unordered_map<int, uint32_t> MaterialIndices;
 
-        dm::box3 worldBounds = dm::box3::empty();
-        uint32_t instanceIndex = 0;
+		dm::box3 WorldBounds = dm::box3::empty();
+		uint32_t InstanceIndex = 0;
 
-        for (const std::shared_ptr<donut::engine::MeshInstance>& instance : m_Scene.graph->GetMeshInstances())
-        {
-            if (!instance)
-                continue;
+		for (const std::shared_ptr<donut::engine::MeshInstance>& Instance : Scene.Graph->GetMeshInstances())
+		{
+			if (!Instance)
+				continue;
 
-            const std::shared_ptr<donut::engine::MeshInfo>& mesh = instance->GetMesh();
-            if (!mesh || !mesh->buffers)
-                continue;
+			const std::shared_ptr<donut::engine::MeshInfo>& Mesh = Instance->GetMesh();
+			if (!Mesh || !Mesh->buffers)
+				continue;
 
-            // 首版只支持不透明、无形变的三角形；蒙皮与曲线几何在此明确跳过。
-            if (mesh->type != donut::engine::MeshType::Triangles)
-                continue;
+			// 首版只支持不透明、无形变的三角形；蒙皮与曲线几何在此明确跳过。
+			if (Mesh->type != donut::engine::MeshType::Triangles)
+				continue;
 
-            const donut::engine::BufferGroup* group = mesh->buffers.get();
-            auto groupIt = bufferGroupIndices.find(group);
-            if (groupIt == bufferGroupIndices.end())
-            {
-                gpu::GeometryBuffers buffers;
-                buffers.vertexBuffer = mesh->buffers->vertexBuffer;
-                buffers.indexBuffer = mesh->buffers->indexBuffer;
-                buffers.positionRange = mesh->buffers->getVertexBufferRange(donut::engine::VertexAttribute::Position);
-                buffers.texCoordRange = mesh->buffers->getVertexBufferRange(donut::engine::VertexAttribute::TexCoord1);
-                buffers.normalRange = mesh->buffers->getVertexBufferRange(donut::engine::VertexAttribute::Normal);
-                buffers.tangentRange = mesh->buffers->getVertexBufferRange(donut::engine::VertexAttribute::Tangent);
+			const donut::engine::BufferGroup* Group = Mesh->buffers.get();
+			auto GroupIt = BufferGroupIndices.find(Group);
+			if (GroupIt == BufferGroupIndices.end())
+			{
+				Gpu::FGeometryBuffers Buffers;
+				Buffers.VertexBuffer = Mesh->buffers->vertexBuffer;
+				Buffers.IndexBuffer = Mesh->buffers->indexBuffer;
+				Buffers.PositionRange = Mesh->buffers->getVertexBufferRange(donut::engine::VertexAttribute::Position);
+				Buffers.TexCoordRange = Mesh->buffers->getVertexBufferRange(donut::engine::VertexAttribute::TexCoord1);
+				Buffers.NormalRange = Mesh->buffers->getVertexBufferRange(donut::engine::VertexAttribute::Normal);
+				Buffers.TangentRange = Mesh->buffers->getVertexBufferRange(donut::engine::VertexAttribute::Tangent);
 
-                if (!buffers.IsValid())
-                    continue;
+				if (!Buffers.IsValid())
+					continue;
 
-                const uint32_t newIndex = uint32_t(m_Scene.geometry.bufferGroups.size());
-                m_Scene.geometry.bufferGroups.push_back(buffers);
-                groupIt = bufferGroupIndices.emplace(group, newIndex).first;
-            }
+				const uint32_t NewIndex = uint32_t(Scene.Geometry.BufferGroups.size());
+				Scene.Geometry.BufferGroups.push_back(Buffers);
+				GroupIt = BufferGroupIndices.emplace(Group, NewIndex).first;
+			}
 
-            const uint32_t bufferGroupIndex = groupIt->second;
-            const dm::affine3 objectToWorld = instance->GetNode() ? instance->GetNode()->GetLocalToWorldTransformFloat() : dm::affine3::identity();
-            const dm::affine3 prevObjectToWorld = instance->GetNode() ? instance->GetNode()->GetPrevLocalToWorldTransformFloat() : objectToWorld;
+			const uint32_t BufferGroupIndex = GroupIt->second;
+			const dm::affine3 ObjectToWorld =
+				Instance->GetNode() ? Instance->GetNode()->GetLocalToWorldTransformFloat() : dm::affine3::identity();
+			const dm::affine3 PrevObjectToWorld =
+				Instance->GetNode() ? Instance->GetNode()->GetPrevLocalToWorldTransformFloat() : ObjectToWorld;
 
-            for (const std::shared_ptr<donut::engine::MeshGeometry>& geometry : mesh->geometries)
-            {
-                if (!geometry || geometry->type != donut::engine::MeshGeometryPrimitiveType::Triangles)
-                    continue;
+			for (const std::shared_ptr<donut::engine::MeshGeometry>& Geometry : Mesh->geometries)
+			{
+				if (!Geometry || Geometry->type != donut::engine::MeshGeometryPrimitiveType::Triangles)
+					continue;
 
-                if (!geometry->material)
-                    continue;
+				if (!Geometry->material)
+					continue;
 
-                auto materialIt = materialIndices.find(geometry->material->materialID);
-                if (materialIt == materialIndices.end())
-                {
-                    const uint32_t newIndex = uint32_t(m_Scene.materials.size());
-                    m_Scene.materials.push_back(geometry->material);
-                    materialIt = materialIndices.emplace(geometry->material->materialID, newIndex).first;
-                }
+				auto MaterialIt = MaterialIndices.find(Geometry->material->materialID);
+				if (MaterialIt == MaterialIndices.end())
+				{
+					const uint32_t NewIndex = uint32_t(Scene.Materials.size());
+					Scene.Materials.push_back(Geometry->material);
+					MaterialIt = MaterialIndices.emplace(Geometry->material->materialID, NewIndex).first;
+				}
 
-                gpu::DrawRecord draw;
-                draw.debugName = mesh->name;
-                draw.bufferGroupIndex = bufferGroupIndex;
-                draw.meshIndex = uint32_t(mesh->globalMeshIndex);
-                draw.instanceIndex = instanceIndex;
-                draw.materialIndex = materialIt->second;
-                draw.firstIndex = mesh->indexOffset + geometry->indexOffsetInMesh;
-                draw.indexCount = geometry->numIndices;
-                draw.baseVertex = int32_t(mesh->vertexOffset + geometry->vertexOffsetInMesh);
-                draw.objectToWorld = objectToWorld;
-                draw.prevObjectToWorld = prevObjectToWorld;
-                draw.worldBounds = gpu::TransformBounds(mesh->objectSpaceBounds, objectToWorld);
+				Gpu::FDrawRecord Draw;
+				Draw.DebugName = Mesh->name;
+				Draw.BufferGroupIndex = BufferGroupIndex;
+				Draw.MeshIndex = uint32_t(Mesh->globalMeshIndex);
+				Draw.InstanceIndex = InstanceIndex;
+				Draw.MaterialIndex = MaterialIt->second;
+				Draw.FirstIndex = Mesh->indexOffset + Geometry->indexOffsetInMesh;
+				Draw.IndexCount = Geometry->numIndices;
+				Draw.BaseVertex = int32_t(Mesh->vertexOffset + Geometry->vertexOffsetInMesh);
+				Draw.ObjectToWorld = ObjectToWorld;
+				Draw.PrevObjectToWorld = PrevObjectToWorld;
+				Draw.WorldBounds = Gpu::TransformBounds(Mesh->objectSpaceBounds, ObjectToWorld);
 
-                if (!draw.worldBounds.isempty())
-                    worldBounds = worldBounds.isempty() ? draw.worldBounds : (worldBounds | draw.worldBounds);
+				if (!Draw.WorldBounds.isempty())
+					WorldBounds = WorldBounds.isempty() ? Draw.WorldBounds : (WorldBounds | Draw.WorldBounds);
 
-                m_Scene.geometry.draws.push_back(std::move(draw));
-            }
+				Scene.Geometry.Draws.push_back(std::move(Draw));
+			}
 
-            ++instanceIndex;
-        }
+			++InstanceIndex;
+		}
 
-        m_Scene.geometry.worldBounds = worldBounds;
-    }
+		Scene.Geometry.WorldBounds = WorldBounds;
+	}
 
-    void SceneHost::CollectStats()
-    {
-        SceneStats stats;
-        stats.lights = uint32_t(m_Scene.lights.size());
+	void FSceneHost::CollectStats()
+	{
+		FSceneStats Stats;
+		Stats.Lights = uint32_t(Scene.Lights.size());
 
-        if (m_Scene.graph)
-        {
-            std::unordered_set<const donut::engine::MeshInfo*> uniqueMeshes;
+		if (Scene.Graph)
+		{
+			std::unordered_set<const donut::engine::MeshInfo*> UniqueMeshes;
 
-            for (const std::shared_ptr<donut::engine::MeshInstance>& instance : m_Scene.graph->GetMeshInstances())
-            {
-                if (!instance || !instance->GetMesh())
-                    continue;
+			for (const std::shared_ptr<donut::engine::MeshInstance>& Instance : Scene.Graph->GetMeshInstances())
+			{
+				if (!Instance || !Instance->GetMesh())
+					continue;
 
-                ++stats.instances;
+				++Stats.Instances;
 
-                const donut::engine::MeshInfo* mesh = instance->GetMesh().get();
-                if (uniqueMeshes.insert(mesh).second)
-                {
-                    ++stats.meshes;
-                    stats.vertices += mesh->totalVertices;
-                    stats.triangles += mesh->totalIndices / 3;
-                }
-            }
-        }
+				const donut::engine::MeshInfo* Mesh = Instance->GetMesh().get();
+				if (UniqueMeshes.insert(Mesh).second)
+				{
+					++Stats.Meshes;
+					Stats.Vertices += Mesh->totalVertices;
+					Stats.Triangles += Mesh->totalIndices / 3;
+				}
+			}
+		}
 
-        m_Scene.stats = stats;
-    }
-}
+		Scene.Stats = Stats;
+	}
+} // namespace Prism::Adapter

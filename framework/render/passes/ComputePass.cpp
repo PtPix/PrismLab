@@ -1,43 +1,64 @@
 #include "ComputePass.h"
 
-namespace prism::gpu
+namespace Prism::Gpu
 {
-    Status ComputePass::Initialize(nvrhi::IDevice* device, ShaderLibrary& shaders, ShaderEntry shader,
-        const nvrhi::BindingLayoutVector& layouts, dm::uint3 threads)
-    {
-        if (!device || shader.stage != nvrhi::ShaderType::Compute || !threads.x || !threads.y || !threads.z)
-            return Status::Error(ErrorCode::InvalidArgument, "invalid compute pass description");
-        Attach(device, shaders);
-        m_Shader = std::move(shader); m_Layouts = layouts; m_Threads = threads;
-        auto status = PrepareShaders(shaders);
-        if (status) CommitShaders();
-        return status;
-    }
-    Status ComputePass::PrepareShaders(ShaderLibrary& candidate)
-    {
-        auto shader = m_Shader.Load(candidate);
-        if (!shader) return Status::Error(ErrorCode::ShaderCompileFailed, candidate.GetLastError());
-        nvrhi::ComputePipelineDesc desc;
-        desc.CS = shader; desc.bindingLayouts = m_Layouts;
-        m_Candidate = m_Device->createComputePipeline(desc);
-        return m_Candidate ? Status::Ok() : Status::Error(ErrorCode::PipelineCreationFailed, m_Shader.path);
-    }
-    void ComputePass::CommitShaders() { m_Pipeline = std::move(m_Candidate); ClearBindings(); }
-    Status ComputePass::Dispatch(nvrhi::ICommandList* commands, const nvrhi::BindingSetVector& bindings, dm::uint3 groups) const
-    {
-        if (!commands || !m_Pipeline || bindings.size() != m_Layouts.size())
-            return Status::Error(ErrorCode::InvalidArgument, "compute state is incomplete");
-        if (!groups.x || !groups.y || !groups.z) return Status::Ok();
-        nvrhi::ComputeState state; state.pipeline = m_Pipeline; state.bindings = bindings;
-        commands->beginMarker(m_Shader.path.c_str());
-        commands->setComputeState(state);
-        commands->dispatch(groups.x, groups.y, groups.z);
-        commands->endMarker();
-        return Status::Ok();
-    }
-    Status ComputePass::DispatchExtent(nvrhi::ICommandList* commands, const nvrhi::BindingSetVector& bindings, dm::uint3 extent) const
-    {
-        auto ceil = [](uint32_t n, uint32_t d) { return n / d + uint32_t(n % d != 0); };
-        return Dispatch(commands, bindings, dm::uint3(ceil(extent.x, m_Threads.x), ceil(extent.y, m_Threads.y), ceil(extent.z, m_Threads.z)));
-    }
-}
+	FStatus FComputePass::Initialize(nvrhi::IDevice* InDevice, FShaderLibrary& InShaderLibrary,
+									 FShaderEntry InShaderEntry, const nvrhi::BindingLayoutVector& InBindingLayouts,
+									 dm::uint3 InThreadGroupSize)
+	{
+		if (!InDevice || InShaderEntry.Stage != nvrhi::ShaderType::Compute || !InThreadGroupSize.x ||
+			!InThreadGroupSize.y || !InThreadGroupSize.z)
+			return FStatus::Error(EErrorCode::InvalidArgument, "invalid compute pass description");
+		Attach(InDevice, InShaderLibrary);
+		ShaderEntry = std::move(InShaderEntry);
+		BindingLayouts = InBindingLayouts;
+		ThreadGroupSize = InThreadGroupSize;
+		FStatus Status = PrepareShaders(InShaderLibrary);
+		if (Status)
+			CommitShaders();
+		return Status;
+	}
+	FStatus FComputePass::PrepareShaders(FShaderLibrary& CandidateLibrary)
+	{
+		nvrhi::ShaderHandle ShaderHandle = ShaderEntry.Load(CandidateLibrary);
+		if (!ShaderHandle)
+			return FStatus::Error(EErrorCode::ShaderCompileFailed, CandidateLibrary.GetLastError());
+		nvrhi::ComputePipelineDesc Desc;
+		Desc.CS = ShaderHandle;
+		Desc.bindingLayouts = BindingLayouts;
+		CandidatePipeline = Device->createComputePipeline(Desc);
+		return CandidatePipeline ? FStatus::Ok() : FStatus::Error(EErrorCode::PipelineCreationFailed, ShaderEntry.Path);
+	}
+	void FComputePass::CommitShaders()
+	{
+		Pipeline = std::move(CandidatePipeline);
+		ClearBindings();
+	}
+	FStatus FComputePass::Dispatch(nvrhi::ICommandList* Commands, const nvrhi::BindingSetVector& Bindings,
+								   dm::uint3 Groups) const
+	{
+		if (!Commands || !Pipeline || Bindings.size() != BindingLayouts.size())
+			return FStatus::Error(EErrorCode::InvalidArgument, "compute state is incomplete");
+		if (!Groups.x || !Groups.y || !Groups.z)
+			return FStatus::Ok();
+		nvrhi::ComputeState State;
+		State.pipeline = Pipeline;
+		State.bindings = Bindings;
+		Commands->beginMarker(ShaderEntry.Path.c_str());
+		Commands->setComputeState(State);
+		Commands->dispatch(Groups.x, Groups.y, Groups.z);
+		Commands->endMarker();
+		return FStatus::Ok();
+	}
+	FStatus FComputePass::DispatchExtent(nvrhi::ICommandList* Commands, const nvrhi::BindingSetVector& Bindings,
+										 dm::uint3 Extent) const
+	{
+		auto Ceil = [](uint32_t N, uint32_t D)
+		{
+			return N / D + uint32_t(N % D != 0);
+		};
+		return Dispatch(Commands, Bindings,
+						dm::uint3(Ceil(Extent.x, ThreadGroupSize.x), Ceil(Extent.y, ThreadGroupSize.y),
+								  Ceil(Extent.z, ThreadGroupSize.z)));
+	}
+} // namespace Prism::Gpu

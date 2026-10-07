@@ -4,112 +4,125 @@
 
 #include <algorithm>
 
-namespace prism::gpu
+namespace Prism::Gpu
 {
-    GpuProfiler::GpuProfiler(nvrhi::IDevice* device, uint32_t maxScopes)
-        : m_Device(device)
-        , m_MaxScopes(maxScopes)
-    {
-    }
+	FGpuProfiler::FGpuProfiler(nvrhi::IDevice* InDevice, uint32_t InMaxScopes)
+		: Device(InDevice), MaxScopes(InMaxScopes)
+	{
+	}
 
-    GpuProfiler::Scope* GpuProfiler::FindOrCreateScope(const char* name)
-    {
-        if (!name)
-            return nullptr;
+	FGpuProfiler::FScope* FGpuProfiler::FindOrCreateScope(const char* Name)
+	{
+		if (!Name)
+			return nullptr;
 
-        for (Scope& scope : m_Scopes)
-        {
-            if (scope.name == name)
-                return &scope;
-        }
+		for (FScope& Scope : Scopes)
+		{
+			if (Scope.Name == Name)
+				return &Scope;
+		}
 
-        if (m_Scopes.size() >= m_MaxScopes)
-        {
-            donut::log::warning("GpuProfiler: scope '%s' exceeds the limit of %u scopes.", name, m_MaxScopes);
-            return nullptr;
-        }
+		if (Scopes.size() >= MaxScopes)
+		{
+			donut::log::warning("GpuProfiler: scope '%s' exceeds the limit of %u scopes.", Name, MaxScopes);
+			return nullptr;
+		}
 
-        Scope scope;
-        scope.name = name;
-        scope.queries.reserve(kFramesInFlight);
+		FScope Scope;
+		Scope.Name = Name;
+		Scope.Queries.reserve(KFramesInFlight);
 
-        for (uint32_t i = 0; i < kFramesInFlight; ++i)
-            scope.queries.push_back(m_Device->createTimerQuery());
+		for (uint32_t I = 0; I < KFramesInFlight; ++I)
+			Scope.Queries.push_back(Device->createTimerQuery());
 
-        m_Scopes.push_back(std::move(scope));
+		Scopes.push_back(std::move(Scope));
 
-        ScopeTiming timing;
-        timing.name = name;
-        m_Timings.push_back(std::move(timing));
+		FScopeTiming Timing;
+		Timing.Name = Name;
+		Timings.push_back(std::move(Timing));
 
-        return &m_Scopes.back();
-    }
+		return &Scopes.back();
+	}
 
-    void GpuProfiler::BeginFrame(nvrhi::ICommandList* commands)
-    {
-        (void)commands;
-        m_FrameSlot = uint32_t(m_FrameCount % kFramesInFlight);
-        for (size_t i = 0; i < m_Scopes.size(); ++i)
-        {
-            auto& scope = m_Scopes[i];
-            for (uint32_t slot = 0; slot < kFramesInFlight; ++slot)
-            {
-                if (!scope.pending[slot] || !m_Device->pollTimerQuery(scope.queries[slot])) continue;
-                const float ms = m_Device->getTimerQueryTime(scope.queries[slot]) * 1000.f;
-                m_Device->resetTimerQuery(scope.queries[slot]); scope.pending[slot] = false;
-                auto& timing = m_Timings[i];
-                if (scope.frames[slot] < m_MinResultFrame || (timing.valid && scope.frames[slot] <= timing.frameIndex)) continue;
-                timing.milliseconds = ms;
-                timing.smoothedMilliseconds = timing.valid ? timing.smoothedMilliseconds * 0.9f + ms * 0.1f : ms;
-                timing.frameIndex = scope.frames[slot]; timing.valid = true;
-            }
-        }
-        m_FrameOpen = true;
-    }
+	void FGpuProfiler::BeginFrame(nvrhi::ICommandList* Commands)
+	{
+		(void)Commands;
+		FrameSlot = uint32_t(FrameCount % KFramesInFlight);
+		for (size_t I = 0; I < Scopes.size(); ++I)
+		{
+			auto& Scope = Scopes[I];
+			for (uint32_t Slot = 0; Slot < KFramesInFlight; ++Slot)
+			{
+				if (!Scope.bPending[Slot] || !Device->pollTimerQuery(Scope.Queries[Slot]))
+					continue;
+				const float Ms = Device->getTimerQueryTime(Scope.Queries[Slot]) * 1000.f;
+				Device->resetTimerQuery(Scope.Queries[Slot]);
+				Scope.bPending[Slot] = false;
+				auto& Timing = Timings[I];
+				if (Scope.Frames[Slot] < MinResultFrame || (Timing.bValid && Scope.Frames[Slot] <= Timing.FrameIndex))
+					continue;
+				Timing.Milliseconds = Ms;
+				Timing.SmoothedMilliseconds = Timing.bValid ? Timing.SmoothedMilliseconds * 0.9f + Ms * 0.1f : Ms;
+				Timing.FrameIndex = Scope.Frames[Slot];
+				Timing.bValid = true;
+			}
+		}
+		bFrameOpen = true;
+	}
 
-    void GpuProfiler::EndFrame()
-    {
-        assert(m_Stack.empty());
-        m_FrameOpen = false; ++m_FrameCount;
-    }
+	void FGpuProfiler::EndFrame()
+	{
+		assert(Stack.empty());
+		bFrameOpen = false;
+		++FrameCount;
+	}
 
-    void GpuProfiler::BeginScope(nvrhi::ICommandList* commands, const char* name)
-    {
-        m_Stack.push_back(-1);
-        if (!m_Enabled || !m_FrameOpen || !commands) return;
-        auto* scope = FindOrCreateScope(name);
-        if (!scope || scope->active || scope->pending[m_FrameSlot] || scope->lastRecordedFrame == m_FrameCount) return;
-        m_Stack.back() = int(scope - m_Scopes.data());
-        commands->beginTimerQuery(scope->queries[m_FrameSlot]);
-        scope->active = true; scope->lastRecordedFrame = m_FrameCount;
-        scope->frames[m_FrameSlot] = m_FrameCount;
-    }
+	void FGpuProfiler::BeginScope(nvrhi::ICommandList* Commands, const char* Name)
+	{
+		Stack.push_back(-1);
+		if (!bEnabled || !bFrameOpen || !Commands)
+			return;
+		auto* Scope = FindOrCreateScope(Name);
+		if (!Scope || Scope->bActive || Scope->bPending[FrameSlot] || Scope->LastRecordedFrame == FrameCount)
+			return;
+		Stack.back() = int(Scope - Scopes.data());
+		Commands->beginTimerQuery(Scope->Queries[FrameSlot]);
+		Scope->bActive = true;
+		Scope->LastRecordedFrame = FrameCount;
+		Scope->Frames[FrameSlot] = FrameCount;
+	}
 
-    void GpuProfiler::EndScope(nvrhi::ICommandList* commands)
-    {
-        if (m_Stack.empty()) return;
-        int index = m_Stack.back(); m_Stack.pop_back();
-        if (index < 0 || !commands) return;
-        auto& scope = m_Scopes[size_t(index)];
-        commands->endTimerQuery(scope.queries[m_FrameSlot]);
-        scope.active = false; scope.pending[m_FrameSlot] = true;
-    }
+	void FGpuProfiler::EndScope(nvrhi::ICommandList* Commands)
+	{
+		if (Stack.empty())
+			return;
+		int Index = Stack.back();
+		Stack.pop_back();
+		if (Index < 0 || !Commands)
+			return;
+		auto& Scope = Scopes[size_t(Index)];
+		Commands->endTimerQuery(Scope.Queries[FrameSlot]);
+		Scope.bActive = false;
+		Scope.bPending[FrameSlot] = true;
+	}
 
-    float GpuProfiler::GetTotalMilliseconds() const
-    {
-        for (const auto& timing : m_Timings)
-            if (timing.name == "Frame" && timing.valid) return timing.milliseconds;
-        return 0.f;
-    }
+	float FGpuProfiler::GetTotalMilliseconds() const
+	{
+		for (const auto& Timing : Timings)
+			if (Timing.Name == "Frame" && Timing.bValid)
+				return Timing.Milliseconds;
+		return 0.f;
+	}
 
-    void GpuProfiler::SetEnabled(bool enabled)
-    {
-        m_Enabled = enabled;
-    }
+	void FGpuProfiler::SetEnabled(bool bInEnabled)
+	{
+		bEnabled = bInEnabled;
+	}
 
-    void GpuProfiler::Reset()
-    {
-        m_MinResultFrame = m_FrameCount;
-        for (auto& timing : m_Timings) timing.valid = false;
-    }
-}
+	void FGpuProfiler::Reset()
+	{
+		MinResultFrame = FrameCount;
+		for (auto& Timing : Timings)
+			Timing.bValid = false;
+	}
+} // namespace Prism::Gpu

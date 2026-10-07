@@ -2,30 +2,60 @@
 #include <framework/render/passes/FullscreenPass.h>
 #include <framework/render/data/ColorSpace.h>
 
-namespace prism::gpu
+namespace Prism::Gpu
 {
-    enum class ComparisonMode { Off, A, B, SideBySide, Wipe, Difference };
-    struct ComparisonImage { nvrhi::ITexture* texture = nullptr; ColorSpace colorSpace = ColorSpace::SceneLinear; };
-    struct ComparisonSettings { ComparisonMode mode = ComparisonMode::Off; float split = 0.5f; float gain = 1.f; };
+	enum class EComparisonMode
+	{
+		Off,
+		A,
+		B,
+		SideBySide,
+		Wipe,
+		Difference
+	};
+	struct FComparisonImage
+	{
+		nvrhi::ITexture* Texture = nullptr;
+		EColorSpace ColorSpace = EColorSpace::SceneLinear;
+	};
+	struct FComparisonSettings
+	{
+		EComparisonMode Mode = EComparisonMode::Off;
+		float Split = 0.5f;
+		float Gain = 1.f;
+	};
 
-    class ComparisonPass
-    {
-    public:
-        Status Initialize(nvrhi::IDevice* device, ShaderLibrary& shaders, donut::engine::CommonRenderPasses& common);
-        Status Record(nvrhi::ICommandList* commands, ComparisonImage a, ComparisonImage b, const ComparisonSettings& settings);
-        Status Freeze(nvrhi::ICommandList* commands, ComparisonImage image);
-        void ClearFrozen() { m_Frozen = nullptr; }
-        ComparisonImage Frozen() const { return {m_Frozen, m_FrozenSpace}; }
-        nvrhi::ITexture* Output() const { return m_Output; }
-    private:
-        nvrhi::IDevice* m_Device = nullptr;
-        donut::engine::CommonRenderPasses* m_Common = nullptr;
-        std::unique_ptr<donut::engine::BindingCache> m_BlitBindings;
-        FullscreenPass m_Difference;
-        PassConstants m_Constants;
-        nvrhi::BindingLayoutHandle m_Layout;
-        nvrhi::TextureHandle m_Output, m_Frozen;
-        nvrhi::FramebufferHandle m_Framebuffer;
-        ColorSpace m_FrozenSpace = ColorSpace::SceneLinear;
-    };
-}
+	class FComparisonPass
+	{
+	  public:
+		FStatus Initialize(nvrhi::IDevice* InDevice, FShaderLibrary& InShaders,
+						   donut::engine::CommonRenderPasses& InCommonPasses);
+		FStatus Record(nvrhi::ICommandList* Commands, FComparisonImage A, FComparisonImage B,
+					   const FComparisonSettings& Settings);
+		FStatus Freeze(nvrhi::ICommandList* Commands, FComparisonImage Image);
+		void ClearFrozen()
+		{
+			FrozenTexture = nullptr;
+		}
+		FComparisonImage GetFrozenImage() const
+		{
+			return {FrozenTexture, FrozenColorSpace};
+		}
+		nvrhi::ITexture* GetOutputTexture() const
+		{
+			return OutputTexture;
+		}
+
+	  private:
+		nvrhi::IDevice* Device = nullptr;
+		donut::engine::CommonRenderPasses* CommonPasses = nullptr;
+		std::unique_ptr<donut::engine::BindingCache> BlitBindings;
+		FFullscreenPass DifferencePass;
+		FPassConstants Constants;
+		nvrhi::BindingLayoutHandle Layout;
+		nvrhi::TextureHandle OutputTexture;
+		nvrhi::TextureHandle FrozenTexture;
+		nvrhi::FramebufferHandle Framebuffer;
+		EColorSpace FrozenColorSpace = EColorSpace::SceneLinear;
+	};
+} // namespace Prism::Gpu

@@ -14,86 +14,101 @@
 #include <string>
 #include <vector>
 
-namespace prism::gpu
+namespace Prism::Gpu
 {
-    enum class BufferUsage : uint32_t
-    {
-        None = 0,
-        ShaderResource = 1u << 0,
-        UnorderedAccess = 1u << 1,
-        Constant = 1u << 2,     // 常量缓冲（cbuffer）
-        IndirectArgs = 1u << 3, // 间接绘制/派发参数
-    };
+	enum class EBufferUsage : uint32_t
+	{
+		None = 0,
+		ShaderResource = 1u << 0,
+		UnorderedAccess = 1u << 1,
+		Constant = 1u << 2,		// 常量缓冲（cbuffer）
+		IndirectArgs = 1u << 3, // 间接绘制/派发参数
+	};
 
-    constexpr BufferUsage operator|(BufferUsage a, BufferUsage b) { return BufferUsage(uint32_t(a) | uint32_t(b)); }
-    constexpr BufferUsage operator&(BufferUsage a, BufferUsage b) { return BufferUsage(uint32_t(a) & uint32_t(b)); }
-    constexpr bool HasAny(BufferUsage value, BufferUsage test) { return (uint32_t(value) & uint32_t(test)) != 0; }
+	constexpr EBufferUsage operator|(EBufferUsage A, EBufferUsage B)
+	{
+		return EBufferUsage(uint32_t(A) | uint32_t(B));
+	}
+	constexpr EBufferUsage operator&(EBufferUsage A, EBufferUsage B)
+	{
+		return EBufferUsage(uint32_t(A) & uint32_t(B));
+	}
+	constexpr bool HasAny(EBufferUsage Value, EBufferUsage Test)
+	{
+		return (uint32_t(Value) & uint32_t(Test)) != 0;
+	}
 
-    struct BufferRequest
-    {
-        ResourceId id = AllocateResourceId();
-        std::string name;
-        BufferUsage usage = BufferUsage::ShaderResource;
+	struct FBufferRequest
+	{
+		FResourceId Id = AllocateResourceId();
+		std::string Name;
+		EBufferUsage Usage = EBufferUsage::ShaderResource;
 
-        // 结构化缓冲：元素步长（0 表示按 raw / 常量缓冲处理）
-        uint64_t structStride = 0;
+		// 结构化缓冲：元素步长（0 表示按 raw / 常量缓冲处理）
+		uint64_t StructStride = 0;
 
-        // 元素数量的三种来源，优先级：byteSize > elementsPerPixel > elementCount
-        uint64_t elementCount = 0;
-        uint32_t elementsPerPixel = 0;   // 按渲染分辨率像素数 × 该系数（每像素一个 reservoir 时为 1）
-        uint64_t byteSize = 0;
+		// 元素数量的三种来源，优先级：byteSize > elementsPerPixel > elementCount
+		uint64_t ElementCount = 0;
+		uint32_t ElementsPerPixel = 0; // 按渲染分辨率像素数 × 该系数（每像素一个 reservoir 时为 1）
+		uint64_t ByteSize = 0;
 
-        // 每帧由 CPU 写入。配合 BufferUsage::Constant 时创建为 volatile 常量缓冲，
-        // 每帧可写入 maxVersions 次；其他用法下普通缓冲本身就支持 writeBuffer，无需该标志。
-        bool cpuWritable = false;
+		// 每帧由 CPU 写入。配合 BufferUsage::Constant 时创建为 volatile 常量缓冲，
+		// 每帧可写入 maxVersions 次；其他用法下普通缓冲本身就支持 writeBuffer，无需该标志。
+		bool bCpuWritable = false;
 
-        // volatile 常量缓冲的每帧版本数；NVRHI 要求非零，仅在 cpuWritable + Constant 时有效。
-        uint32_t maxVersions = 16;
+		// volatile 常量缓冲的每帧版本数；NVRHI 要求非零，仅在 cpuWritable + Constant 时有效。
+		uint32_t MaxVersions = 16;
 
-        [[nodiscard]] uint64_t ResolveByteSize(const Extent2D& renderSize) const;
-        [[nodiscard]] uint32_t ResolveStride() const { return uint32_t(structStride); }
+		[[nodiscard]] uint64_t ResolveByteSize(const FExtent2D& RenderSize) const;
+		[[nodiscard]] uint32_t ResolveStride() const
+		{
+			return uint32_t(StructStride);
+		}
 
-        // 用法组合是否自相矛盾；返回的错误直接说明该改哪个字段。
-        [[nodiscard]] Status Validate() const;
-    };
+		// 用法组合是否自相矛盾；返回的错误直接说明该改哪个字段。
+		[[nodiscard]] FStatus Validate() const;
+	};
 
-    class BufferCache
-    {
-    public:
-        explicit BufferCache(nvrhi::IDevice* device);
+	class FBufferCache
+	{
+	  public:
+		explicit FBufferCache(nvrhi::IDevice* Device);
 
-        // 渲染分辨率变化时调用：按分辨率计算的缓冲会被释放，下一帧按新尺寸重建。
-        void SetRenderSize(const Extent2D& renderSize);
-        [[nodiscard]] const Extent2D& GetRenderSize() const { return m_RenderSize; }
+		// 渲染分辨率变化时调用：按分辨率计算的缓冲会被释放，下一帧按新尺寸重建。
+		void SetRenderSize(const FExtent2D& RenderSize);
+		[[nodiscard]] const FExtent2D& GetRenderSize() const
+		{
+			return RenderSize;
+		}
 
-        // Persistent cache keyed by request ID; names are diagnostic labels.
-        nvrhi::IBuffer* GetOrCreate(const BufferRequest& request);
-        nvrhi::IBuffer* Find(ResourceId id);
+		// Persistent cache keyed by request ID; names are diagnostic labels.
+		nvrhi::IBuffer* GetOrCreate(const FBufferRequest& Request);
+		nvrhi::IBuffer* Find(FResourceId Id);
 
-        // 释放全部缓冲；调用前必须保证 GPU 已空闲。
-        void Clear();
+		// 释放全部缓冲；调用前必须保证 GPU 已空闲。
+		void Clear();
 
-        struct EntryInfo
-        {
-            std::string name;
-            uint64_t byteSize = 0;
-            uint32_t structStride = 0;
-        };
+		struct FEntryInfo
+		{
+			std::string Name;
+			uint64_t ByteSize = 0;
+			uint32_t StructStride = 0;
+		};
 
-        [[nodiscard]] std::vector<EntryInfo> GetEntries() const;
+		[[nodiscard]] std::vector<FEntryInfo> GetEntries() const;
 
-    private:
-        struct Entry
-        {
-            BufferRequest request;
-            nvrhi::BufferHandle buffer;
-            uint64_t byteSize = 0;
-        };
+	  private:
+		struct FEntry
+		{
+			FBufferRequest Request;
+			nvrhi::BufferHandle Buffer;
+			uint64_t ByteSize = 0;
+		};
 
-        Entry* FindEntry(ResourceId id);
+		FEntry* FindEntry(FResourceId Id);
 
-        nvrhi::IDevice* m_Device = nullptr;
-        Extent2D m_RenderSize{ 1, 1 };
-        std::vector<Entry> m_Entries;
-    };
-}
+		nvrhi::IDevice* Device = nullptr;
+		FExtent2D RenderSize{1, 1};
+		std::vector<FEntry> Entries;
+	};
+} // namespace Prism::Gpu

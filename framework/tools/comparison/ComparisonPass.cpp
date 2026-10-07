@@ -2,84 +2,131 @@
 #include <algorithm>
 #include <cmath>
 
-namespace prism::gpu
+namespace Prism::Gpu
 {
-    namespace
-    {
-        bool Valid(nvrhi::ITexture* texture)
-        {
-            if (!texture) return false;
-            const auto& d = texture->getDesc();
-            return d.dimension == nvrhi::TextureDimension::Texture2D && d.sampleCount == 1 && d.isShaderResource;
-        }
-    }
-    Status ComparisonPass::Initialize(nvrhi::IDevice* device, ShaderLibrary& shaders, donut::engine::CommonRenderPasses& common)
-    {
-        m_Device = device; m_Common = &common;
-        m_BlitBindings = std::make_unique<donut::engine::BindingCache>(device);
-        if (!m_Constants.Initialize(device, 16, "Comparison.Constants"))
-            return Status::Error(ErrorCode::DeviceError, "comparison constants failed");
-        nvrhi::BindingLayoutDesc layout; layout.visibility = nvrhi::ShaderType::Pixel;
-        layout.bindings = {nvrhi::BindingLayoutItem::VolatileConstantBuffer(0), nvrhi::BindingLayoutItem::Texture_SRV(0), nvrhi::BindingLayoutItem::Texture_SRV(1)};
-        m_Layout = device->createBindingLayout(layout);
-        if (!m_Layout) return Status::Error(ErrorCode::DeviceError, "comparison layout failed");
-        return m_Difference.Initialize(device, shaders, common, {"prism/PrismTools/Difference.hlsl", "main_ps", nvrhi::ShaderType::Pixel, {}}, {m_Layout});
-    }
-    Status ComparisonPass::Freeze(nvrhi::ICommandList* commands, ComparisonImage image)
-    {
-        if (!commands || !Valid(image.texture)) return Status::Error(ErrorCode::InvalidArgument, "freeze requires a 2D single-sample SRV");
-        auto desc = image.texture->getDesc(); desc.debugName = "Comparison.Frozen";
-        desc.mipLevels = 1; desc.isVirtual = false; desc.sharedResourceFlags = nvrhi::SharedResourceFlags::None;
-        desc.initialState = nvrhi::ResourceStates::ShaderResource; desc.keepInitialState = true;
-        auto frozen = m_Device->createTexture(desc);
-        if (!frozen) return Status::Error(ErrorCode::DeviceError, "freeze allocation failed");
-        commands->copyTexture(frozen, nvrhi::TextureSlice(), image.texture, nvrhi::TextureSlice());
-        m_Frozen = frozen; m_FrozenSpace = image.colorSpace;
-        m_BlitBindings->Clear(); m_Difference.ClearBindings();
-        return Status::Ok();
-    }
-    Status ComparisonPass::Record(nvrhi::ICommandList* commands, ComparisonImage a, ComparisonImage b, const ComparisonSettings& settings)
-    {
-        if (!commands || !Valid(a.texture) || !Valid(b.texture) || !std::isfinite(settings.split) || !std::isfinite(settings.gain))
-            return Status::Error(ErrorCode::InvalidArgument, "comparison requires two 2D single-sample SRVs and finite settings");
-        const auto& da = a.texture->getDesc(); const auto& db = b.texture->getDesc();
-        if (da.width != db.width || da.height != db.height)
-            return Status::Error(ErrorCode::ExtentMismatch, "comparison inputs must have equal extents");
-        if (a.colorSpace != b.colorSpace)
-            return Status::Error(ErrorCode::FormatMismatch, "comparison inputs must use the same color space");
-        if (a.texture == m_Output || b.texture == m_Output)
-            return Status::Error(ErrorCode::InvalidArgument, "comparison output cannot be an input");
-        if (!m_Output || m_Output->getDesc().width != da.width || m_Output->getDesc().height != da.height)
-        {
-            nvrhi::TextureDesc desc; desc.width = da.width; desc.height = da.height; desc.format = nvrhi::Format::RGBA16_FLOAT;
-            desc.isRenderTarget = true; desc.initialState = nvrhi::ResourceStates::RenderTarget; desc.keepInitialState = true; desc.debugName = "Comparison.Output";
-            m_Output = m_Device->createTexture(desc);
-            if (!m_Output) return Status::Error(ErrorCode::DeviceError, "comparison output allocation failed");
-            m_Framebuffer = m_Device->createFramebuffer(nvrhi::FramebufferDesc().addColorAttachment(m_Output));
-            m_BlitBindings->Clear(); m_Difference.ClearBindings();
-        }
-        if (!m_Framebuffer) return Status::Error(ErrorCode::DeviceError, "comparison framebuffer failed");
-        if (settings.mode == ComparisonMode::Difference)
-        {
-            struct Constants { float gain; float pad[3]; } constants{settings.gain, {0, 0, 0}};
-            m_Constants.Write(commands, constants);
-            nvrhi::BindingSetDesc bindings;
-            bindings.bindings = {nvrhi::BindingSetItem::ConstantBuffer(0, m_Constants.Get()),
-                nvrhi::BindingSetItem::Texture_SRV(0, a.texture), nvrhi::BindingSetItem::Texture_SRV(1, b.texture)};
-            return m_Difference.Record(commands, m_Framebuffer, {m_Difference.Bindings(bindings, m_Layout)});
-        }
-        auto blit = [&](nvrhi::ITexture* texture, float left, float right, bool crop)
-        {
-            if (right <= left) return;
-            donut::engine::BlitParameters p; p.sourceTexture = texture; p.targetFramebuffer = m_Framebuffer;
-            p.targetBox = dm::box2(dm::float2(left, 0), dm::float2(right, 1));
-            if (crop) p.sourceBox = p.targetBox;
-            m_Common->BlitTexture(commands, p, m_BlitBindings.get());
-        };
-        const float split = std::clamp(settings.split, 0.f, 1.f);
-        if (settings.mode == ComparisonMode::A || settings.mode == ComparisonMode::Off) blit(a.texture, 0, 1, false);
-        else if (settings.mode == ComparisonMode::B) blit(b.texture, 0, 1, false);
-        else { blit(a.texture, 0, split, settings.mode == ComparisonMode::Wipe); blit(b.texture, split, 1, settings.mode == ComparisonMode::Wipe); }
-        return Status::Ok();
-    }
-}
+	namespace
+	{
+		bool Valid(nvrhi::ITexture* Texture)
+		{
+			if (!Texture)
+				return false;
+			const auto& D = Texture->getDesc();
+			return D.dimension == nvrhi::TextureDimension::Texture2D && D.sampleCount == 1 && D.isShaderResource;
+		}
+	} // namespace
+	FStatus FComparisonPass::Initialize(nvrhi::IDevice* InDevice, FShaderLibrary& InShaders,
+										donut::engine::CommonRenderPasses& InCommonPasses)
+	{
+		Device = InDevice;
+		CommonPasses = &InCommonPasses;
+		BlitBindings = std::make_unique<donut::engine::BindingCache>(Device);
+		if (!Constants.Initialize(Device, 16, "Comparison.Constants"))
+			return FStatus::Error(EErrorCode::DeviceError, "comparison constants failed");
+		nvrhi::BindingLayoutDesc LayoutDescription;
+		LayoutDescription.visibility = nvrhi::ShaderType::Pixel;
+		LayoutDescription.bindings = {nvrhi::BindingLayoutItem::VolatileConstantBuffer(0),
+									  nvrhi::BindingLayoutItem::Texture_SRV(0),
+									  nvrhi::BindingLayoutItem::Texture_SRV(1)};
+		Layout = Device->createBindingLayout(LayoutDescription);
+		if (!Layout)
+			return FStatus::Error(EErrorCode::DeviceError, "comparison layout failed");
+		return DifferencePass.Initialize(Device, InShaders, InCommonPasses,
+										 {"prism/PrismTools/Difference.hlsl", "main_ps", nvrhi::ShaderType::Pixel, {}},
+										 {Layout});
+	}
+	FStatus FComparisonPass::Freeze(nvrhi::ICommandList* Commands, FComparisonImage Image)
+	{
+		if (!Commands || !Valid(Image.Texture))
+			return FStatus::Error(EErrorCode::InvalidArgument, "freeze requires a 2D single-sample SRV");
+		auto Desc = Image.Texture->getDesc();
+		Desc.debugName = "Comparison.Frozen";
+		Desc.mipLevels = 1;
+		Desc.isVirtual = false;
+		Desc.sharedResourceFlags = nvrhi::SharedResourceFlags::None;
+		Desc.initialState = nvrhi::ResourceStates::ShaderResource;
+		Desc.keepInitialState = true;
+		auto NewFrozenTexture = Device->createTexture(Desc);
+		if (!NewFrozenTexture)
+			return FStatus::Error(EErrorCode::DeviceError, "freeze allocation failed");
+		Commands->copyTexture(NewFrozenTexture, nvrhi::TextureSlice(), Image.Texture, nvrhi::TextureSlice());
+		FrozenTexture = NewFrozenTexture;
+		FrozenColorSpace = Image.ColorSpace;
+		BlitBindings->Clear();
+		DifferencePass.ClearBindings();
+		return FStatus::Ok();
+	}
+	FStatus FComparisonPass::Record(nvrhi::ICommandList* Commands, FComparisonImage A, FComparisonImage B,
+									const FComparisonSettings& Settings)
+	{
+		if (!Commands || !Valid(A.Texture) || !Valid(B.Texture) || !std::isfinite(Settings.Split) ||
+			!std::isfinite(Settings.Gain))
+			return FStatus::Error(EErrorCode::InvalidArgument,
+								  "comparison requires two 2D single-sample SRVs and finite settings");
+		const auto& Da = A.Texture->getDesc();
+		const auto& Db = B.Texture->getDesc();
+		if (Da.width != Db.width || Da.height != Db.height)
+			return FStatus::Error(EErrorCode::ExtentMismatch, "comparison inputs must have equal extents");
+		if (A.ColorSpace != B.ColorSpace)
+			return FStatus::Error(EErrorCode::FormatMismatch, "comparison inputs must use the same color space");
+		if (A.Texture == OutputTexture || B.Texture == OutputTexture)
+			return FStatus::Error(EErrorCode::InvalidArgument, "comparison output cannot be an input");
+		if (!OutputTexture || OutputTexture->getDesc().width != Da.width ||
+			OutputTexture->getDesc().height != Da.height)
+		{
+			nvrhi::TextureDesc Desc;
+			Desc.width = Da.width;
+			Desc.height = Da.height;
+			Desc.format = nvrhi::Format::RGBA16_FLOAT;
+			Desc.isRenderTarget = true;
+			Desc.initialState = nvrhi::ResourceStates::RenderTarget;
+			Desc.keepInitialState = true;
+			Desc.debugName = "Comparison.Output";
+			OutputTexture = Device->createTexture(Desc);
+			if (!OutputTexture)
+				return FStatus::Error(EErrorCode::DeviceError, "comparison output allocation failed");
+			Framebuffer = Device->createFramebuffer(nvrhi::FramebufferDesc().addColorAttachment(OutputTexture));
+			BlitBindings->Clear();
+			DifferencePass.ClearBindings();
+		}
+		if (!Framebuffer)
+			return FStatus::Error(EErrorCode::DeviceError, "comparison framebuffer failed");
+		if (Settings.Mode == EComparisonMode::Difference)
+		{
+			struct FConstants
+			{
+				float Gain;
+				float Pad[3];
+			} ConstantsData{Settings.Gain, {0, 0, 0}};
+			Constants.Write(Commands, ConstantsData);
+			nvrhi::BindingSetDesc Bindings;
+			Bindings.bindings = {nvrhi::BindingSetItem::ConstantBuffer(0, Constants.Get()),
+								 nvrhi::BindingSetItem::Texture_SRV(0, A.Texture),
+								 nvrhi::BindingSetItem::Texture_SRV(1, B.Texture)};
+			return DifferencePass.Record(Commands, Framebuffer,
+										 {DifferencePass.GetOrCreateBindingSet(Bindings, Layout)});
+		}
+		auto Blit = [&](nvrhi::ITexture* Texture, float Left, float Right, bool bCrop)
+		{
+			if (Right <= Left)
+				return;
+			donut::engine::BlitParameters P;
+			P.sourceTexture = Texture;
+			P.targetFramebuffer = Framebuffer;
+			P.targetBox = dm::box2(dm::float2(Left, 0), dm::float2(Right, 1));
+			if (bCrop)
+				P.sourceBox = P.targetBox;
+			CommonPasses->BlitTexture(Commands, P, BlitBindings.get());
+		};
+		const float Split = std::clamp(Settings.Split, 0.f, 1.f);
+		if (Settings.Mode == EComparisonMode::A || Settings.Mode == EComparisonMode::Off)
+			Blit(A.Texture, 0, 1, false);
+		else if (Settings.Mode == EComparisonMode::B)
+			Blit(B.Texture, 0, 1, false);
+		else
+		{
+			Blit(A.Texture, 0, Split, Settings.Mode == EComparisonMode::Wipe);
+			Blit(B.Texture, Split, 1, Settings.Mode == EComparisonMode::Wipe);
+		}
+		return FStatus::Ok();
+	}
+} // namespace Prism::Gpu

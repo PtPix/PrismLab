@@ -27,10 +27,10 @@
     },
     "experiments": {
         "ContractExperiment": {
-            "verifyFrame": 3,
-            "sampleStride": 32,
-            "toleranceMeters": 0.01,
-            "tolerancePixels": 0.05
+            "VerifyFrame": 3,
+            "SampleStride": 32,
+            "ToleranceMeters": 0.01,
+            "TolerancePixels": 0.05
         }
     }
 }

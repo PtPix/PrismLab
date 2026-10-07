@@ -1,0 +1,33 @@
+---
+Checks: '-*,readability-identifier-naming'
+WarningsAsErrors: 'readability-identifier-naming'
+HeaderFileExtensions: ['', 'h']
+CheckOptions:
+  readability-identifier-naming.NamespaceCase: CamelCase
+  readability-identifier-naming.ClassCase: CamelCase
+  readability-identifier-naming.ClassPrefix: F
+  readability-identifier-naming.AbstractClassCase: CamelCase
+  readability-identifier-naming.AbstractClassPrefix: I
+  readability-identifier-naming.StructCase: CamelCase
+  readability-identifier-naming.StructPrefix: F
+  readability-identifier-naming.EnumCase: CamelCase
+  readability-identifier-naming.EnumPrefix: E
+  readability-identifier-naming.EnumConstantCase: CamelCase
+  readability-identifier-naming.TypeAliasCase: CamelCase
+  readability-identifier-naming.TypeAliasPrefix: F
+  readability-identifier-naming.TypeTemplateParameterCase: CamelCase
+  readability-identifier-naming.TypeTemplateParameterPrefix: In
+  readability-identifier-naming.FunctionCase: CamelCase
+  readability-identifier-naming.MethodCase: CamelCase
+  readability-identifier-naming.VariableCase: CamelCase
+  readability-identifier-naming.ParameterCase: CamelCase
+  readability-identifier-naming.ParameterIgnoredRegexp: '^b[A-Z].*'
+  readability-identifier-naming.LocalVariableCase: CamelCase
+  readability-identifier-naming.LocalVariableIgnoredRegexp: '^b[A-Z].*'
+  readability-identifier-naming.MemberCase: CamelCase
+  readability-identifier-naming.MemberIgnoredRegexp: '^b[A-Z].*'
+  readability-identifier-naming.PrivateMemberCase: CamelCase
+  readability-identifier-naming.PrivateMemberIgnoredRegexp: '^b[A-Z].*'
+  readability-identifier-naming.ProtectedMemberCase: CamelCase
+  readability-identifier-naming.ProtectedMemberIgnoredRegexp: '^b[A-Z].*'
+...

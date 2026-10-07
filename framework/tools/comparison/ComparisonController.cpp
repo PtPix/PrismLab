@@ -1,27 +1,49 @@
 #include "ComparisonController.h"
 
-namespace prism::host
+namespace Prism::Host
 {
-    void ComparisonController::Publish(std::string id, gpu::ComparisonImage image)
-    {
-        for (auto& source : m_Sources) if (source.id == id) { source.image = image; return; }
-        m_Sources.push_back({std::move(id), image});
-    }
-    gpu::ComparisonImage ComparisonController::Find(const std::string& id) const
-    { for (const auto& source : m_Sources) if (source.id == id) return source.image; return {}; }
-    gpu::ComparisonImage ComparisonController::Record(nvrhi::ICommandList* commands, gpu::ComparisonImage fallback)
-    {
-        Publish("Output", fallback); m_Message.clear();
-        auto a = Find(sourceA), b = Find(sourceB);
-        if (m_Freeze)
-        {
-            m_Freeze = false; auto status = m_Pass.Freeze(commands, b);
-            if (!status) m_Message = status.ToStringWithCode(); else useFrozenB = true;
-        }
-        if (settings.mode == gpu::ComparisonMode::Off) return fallback;
-        if (useFrozenB) b = m_Pass.Frozen();
-        auto status = m_Pass.Record(commands, a, b, settings);
-        if (!status) { m_Message = status.ToStringWithCode(); return fallback; }
-        return {m_Pass.Output(), settings.mode == gpu::ComparisonMode::Difference ? ColorSpace::DisplayEncoded : a.colorSpace};
-    }
-}
+	void FComparisonController::Publish(std::string Id, Gpu::FComparisonImage Image)
+	{
+		for (FSource& Source : PublishedSources)
+			if (Source.Id == Id)
+			{
+				Source.Image = Image;
+				return;
+			}
+		PublishedSources.push_back({std::move(Id), Image});
+	}
+	Gpu::FComparisonImage FComparisonController::Find(const std::string& Id) const
+	{
+		for (const FSource& Source : PublishedSources)
+			if (Source.Id == Id)
+				return Source.Image;
+		return {};
+	}
+	Gpu::FComparisonImage FComparisonController::Record(nvrhi::ICommandList* Commands, Gpu::FComparisonImage Fallback)
+	{
+		Publish("Output", Fallback);
+		StatusMessage.clear();
+		auto ImageA = Find(SourceA), ImageB = Find(SourceB);
+		if (bFreezeRequested)
+		{
+			bFreezeRequested = false;
+			auto Status = Pass.Freeze(Commands, ImageB);
+			if (!Status)
+				StatusMessage = Status.ToStringWithCode();
+			else
+				bUseFrozenB = true;
+		}
+		if (Settings.Mode == Gpu::EComparisonMode::Off)
+			return Fallback;
+		if (bUseFrozenB)
+			ImageB = Pass.GetFrozenImage();
+		auto Status = Pass.Record(Commands, ImageA, ImageB, Settings);
+		if (!Status)
+		{
+			StatusMessage = Status.ToStringWithCode();
+			return Fallback;
+		}
+		return {Pass.GetOutputTexture(),
+				Settings.Mode == Gpu::EComparisonMode::Difference ? EColorSpace::DisplayEncoded : ImageA.ColorSpace};
+	}
+} // namespace Prism::Host

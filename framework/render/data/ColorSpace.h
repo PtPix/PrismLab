@@ -7,24 +7,28 @@
 
 #include <cstdint>
 
-namespace prism
+namespace Prism
 {
-    enum class ColorSpace : uint32_t
-    {
-        SceneLinear = 0,    // 场景线性 HDR 辐射；不做 gamma，不预曝光（默认）
-        PreExposed,         // 已乘过曝光，仍是线性
-        DisplayEncoded,     // 已做显示变换与编码，仅可显示或做屏幕后处理
-        Count
-    };
+	enum class EColorSpace : uint32_t
+	{
+		SceneLinear = 0, // 场景线性 HDR 辐射；不做 gamma，不预曝光（默认）
+		PreExposed,		 // 已乘过曝光，仍是线性
+		DisplayEncoded,	 // 已做显示变换与编码，仅可显示或做屏幕后处理
+		Count
+	};
 
-    inline const char* ToString(ColorSpace colorSpace)
-    {
-        switch (colorSpace)
-        {
-        case ColorSpace::SceneLinear:    return "scene linear (HDR)";
-        case ColorSpace::PreExposed:     return "pre-exposed linear";
-        case ColorSpace::DisplayEncoded: return "display encoded";
-        default:                         return "unknown";
-        }
-    }
-}
+	inline const char* ToString(EColorSpace ColorSpace)
+	{
+		switch (ColorSpace)
+		{
+			case EColorSpace::SceneLinear:
+				return "scene linear (HDR)";
+			case EColorSpace::PreExposed:
+				return "pre-exposed linear";
+			case EColorSpace::DisplayEncoded:
+				return "display encoded";
+			default:
+				return "unknown";
+		}
+	}
+} // namespace Prism

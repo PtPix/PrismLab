@@ -5,198 +5,193 @@
 #include <algorithm>
 #include <cstdio>
 
-namespace prism::host
+namespace Prism::Host
 {
-    namespace
-    {
-        std::string EscapeCsv(const std::string& value)
-        {
-            if (value.find_first_of(",\"\n") == std::string::npos)
-                return value;
+	namespace
+	{
+		std::string EscapeCsv(const std::string& Value)
+		{
+			if (Value.find_first_of(",\"\n") == std::string::npos)
+				return Value;
 
-            std::string escaped = "\"";
-            for (const char character : value)
-            {
-                if (character == '"')
-                    escaped += '"';
+			std::string Escaped = "\"";
+			for (const char Character : Value)
+			{
+				if (Character == '"')
+					Escaped += '"';
 
-                escaped += character;
-            }
+				Escaped += Character;
+			}
 
-            escaped += '"';
-            return escaped;
-        }
-    }
+			Escaped += '"';
+			return Escaped;
+		}
+	} // namespace
 
-    void Metrics::SetContext(
-        std::string experimentName,
-        std::string sceneDescription,
-        std::string rendererDescription,
-        Extent2D renderSize,
-        Extent2D outputSize)
-    {
-        m_ExperimentName = std::move(experimentName);
-        m_SceneDescription = std::move(sceneDescription);
-        m_RendererDescription = std::move(rendererDescription);
-        m_RenderSize = renderSize;
-        m_OutputSize = outputSize;
-    }
+	void FMetrics::SetContext(std::string InExperimentName, std::string InSceneDescription,
+							  std::string InRendererDescription, FExtent2D InRenderSize, FExtent2D InOutputSize)
+	{
+		ExperimentName = std::move(InExperimentName);
+		SceneDescription = std::move(InSceneDescription);
+		RendererDescription = std::move(InRendererDescription);
+		RenderSize = InRenderSize;
+		OutputSize = InOutputSize;
+	}
 
-    int Metrics::FindOrAdd(const char* name)
-    {
-        if (!name)
-            return -1;
+	int FMetrics::FindOrAdd(const char* Name)
+	{
+		if (!Name)
+			return -1;
 
-        for (size_t index = 0; index < m_Series.size(); ++index)
-        {
-            if (m_Series[index].name == name)
-                return int(index);
-        }
+		for (size_t Index = 0; Index < MetricSeries.size(); ++Index)
+		{
+			if (MetricSeries[Index].Name == Name)
+				return int(Index);
+		}
 
-        Series series;
-        series.name = name;
-        m_Series.push_back(std::move(series));
-        m_Pending.push_back(0.0);
-        m_Touched.push_back(0);
+		FSeries NewSeries;
+		NewSeries.Name = Name;
+		MetricSeries.push_back(std::move(NewSeries));
+		Pending.push_back(0.0);
+		Touched.push_back(0);
 
-        return int(m_Series.size()) - 1;
-    }
+		return int(MetricSeries.size()) - 1;
+	}
 
-    void Metrics::BeginFrame(uint64_t frameIndex)
-    {
-        m_FrameIndex = frameIndex;
-        m_FrameOpen = true;
+	void FMetrics::BeginFrame(uint64_t InFrameIndex)
+	{
+		CurrentFrameIndex = InFrameIndex;
+		bFrameOpen = true;
 
-        std::fill(m_Pending.begin(), m_Pending.end(), 0.0);
-        std::fill(m_Touched.begin(), m_Touched.end(), 0);
-    }
+		std::fill(Pending.begin(), Pending.end(), 0.0);
+		std::fill(Touched.begin(), Touched.end(), 0);
+	}
 
-    void Metrics::Set(const char* name, double value)
-    {
-        if (!m_Enabled || !m_FrameOpen)
-            return;
+	void FMetrics::Set(const char* Name, double Value)
+	{
+		if (!bEnabled || !bFrameOpen)
+			return;
 
-        const int index = FindOrAdd(name);
-        if (index < 0)
-            return;
+		const int Index = FindOrAdd(Name);
+		if (Index < 0)
+			return;
 
-        m_Pending[size_t(index)] = value;
-        m_Touched[size_t(index)] = 1;
-    }
+		Pending[size_t(Index)] = Value;
+		Touched[size_t(Index)] = 1;
+	}
 
-    void Metrics::Add(const char* name, double value)
-    {
-        if (!m_Enabled || !m_FrameOpen)
-            return;
+	void FMetrics::Add(const char* Name, double Value)
+	{
+		if (!bEnabled || !bFrameOpen)
+			return;
 
-        const int index = FindOrAdd(name);
-        if (index < 0)
-            return;
+		const int Index = FindOrAdd(Name);
+		if (Index < 0)
+			return;
 
-        m_Pending[size_t(index)] += value;
-        m_Touched[size_t(index)] = 1;
-    }
+		Pending[size_t(Index)] += Value;
+		Touched[size_t(Index)] = 1;
+	}
 
-    void Metrics::EndFrame()
-    {
-        if (!m_FrameOpen)
-            return;
+	void FMetrics::EndFrame()
+	{
+		if (!bFrameOpen)
+			return;
 
-        m_FrameOpen = false;
+		bFrameOpen = false;
 
-        if (!m_Enabled)
-            return;
+		if (!bEnabled)
+			return;
 
-        FrameRow row;
-        row.frameIndex = m_FrameIndex;
-        row.values = m_Pending;
+		FFrameRow Row;
+		Row.FrameIndex = CurrentFrameIndex;
+		Row.Values = Pending;
 
-        for (size_t index = 0; index < m_Series.size(); ++index)
-        {
-            if (!m_Touched[index])
-                continue;
+		for (size_t Index = 0; Index < MetricSeries.size(); ++Index)
+		{
+			if (!Touched[Index])
+				continue;
 
-            Series& series = m_Series[index];
-            series.last = m_Pending[index];
+			FSeries& SeriesData = MetricSeries[Index];
+			SeriesData.Last = Pending[Index];
 
-            if (series.samples == 0)
-            {
-                series.min = series.last;
-                series.max = series.last;
-                series.mean = series.last;
-            }
-            else
-            {
-                series.min = std::min(series.min, series.last);
-                series.max = std::max(series.max, series.last);
-                series.mean += (series.last - series.mean) / double(series.samples + 1);
-            }
+			if (SeriesData.Samples == 0)
+			{
+				SeriesData.Min = SeriesData.Last;
+				SeriesData.Max = SeriesData.Last;
+				SeriesData.Mean = SeriesData.Last;
+			}
+			else
+			{
+				SeriesData.Min = std::min(SeriesData.Min, SeriesData.Last);
+				SeriesData.Max = std::max(SeriesData.Max, SeriesData.Last);
+				SeriesData.Mean += (SeriesData.Last - SeriesData.Mean) / double(SeriesData.Samples + 1);
+			}
 
-            ++series.samples;
-        }
+			++SeriesData.Samples;
+		}
 
-        m_Frames.push_back(std::move(row));
-        ++m_FrameCount;
-    }
+		Frames.push_back(std::move(Row));
+		++FrameCount;
+	}
 
-    void Metrics::Reset()
-    {
-        m_FrameCount = 0;
-        m_Frames.clear();
+	void FMetrics::Reset()
+	{
+		FrameCount = 0;
+		Frames.clear();
 
-        for (Series& series : m_Series)
-            series = Series{ series.name };
-    }
+		for (FSeries& SeriesData : MetricSeries)
+			SeriesData = FSeries{SeriesData.Name};
+	}
 
-    bool Metrics::WriteCsv(const std::filesystem::path& path) const
-    {
-        FILE* file = nullptr;
-        if (_wfopen_s(&file, path.c_str(), L"w") != 0 || !file)
-        {
-            donut::log::error("Prism: cannot write metrics to %s", path.string().c_str());
-            return false;
-        }
+	bool FMetrics::WriteCsv(const std::filesystem::path& Path) const
+	{
+		FILE* File = nullptr;
+		if (_wfopen_s(&File, Path.c_str(), L"w") != 0 || !File)
+		{
+			donut::log::error("Prism: cannot write metrics to %s", Path.string().c_str());
+			return false;
+		}
 
-        // 表头
-        fprintf(file, "frame");
-        for (const Series& series : m_Series)
-            fprintf(file, ",%s", series.name.c_str());
-        fprintf(file, "\n");
+		// 表头
+		fprintf(File, "frame");
+		for (const FSeries& SeriesData : MetricSeries)
+			fprintf(File, ",%s", SeriesData.Name.c_str());
+		fprintf(File, "\n");
 
-        // 逐帧数据
-        for (const FrameRow& row : m_Frames)
-        {
-            fprintf(file, "%llu", (unsigned long long)row.frameIndex);
-            for (size_t index = 0; index < m_Series.size(); ++index)
-            {
-                const double value = (index < row.values.size()) ? row.values[index] : 0.0;
-                fprintf(file, ",%.6f", value);
-            }
-            fprintf(file, "\n");
-        }
+		// 逐帧数据
+		for (const FFrameRow& Row : Frames)
+		{
+			fprintf(File, "%llu", (unsigned long long)Row.FrameIndex);
+			for (size_t Index = 0; Index < MetricSeries.size(); ++Index)
+			{
+				const double Value = (Index < Row.Values.size()) ? Row.Values[Index] : 0.0;
+				fprintf(File, ",%.6f", Value);
+			}
+			fprintf(File, "\n");
+		}
 
-        // 上下文与汇总（以 '#' 开头，便于解析时过滤）
-        fprintf(file, "# experiment,%s\n", EscapeCsv(m_ExperimentName).c_str());
-        fprintf(file, "# scene,%s\n", EscapeCsv(m_SceneDescription).c_str());
-        fprintf(file, "# renderer,%s\n", EscapeCsv(m_RendererDescription).c_str());
-        fprintf(file, "# render_size,%ux%u\n", m_RenderSize.width, m_RenderSize.height);
-        fprintf(file, "# output_size,%ux%u\n", m_OutputSize.width, m_OutputSize.height);
-        fprintf(file, "# measured_frames,%llu\n", (unsigned long long)m_FrameCount);
+		// 上下文与汇总（以 '#' 开头，便于解析时过滤）
+		fprintf(File, "# experiment,%s\n", EscapeCsv(ExperimentName).c_str());
+		fprintf(File, "# scene,%s\n", EscapeCsv(SceneDescription).c_str());
+		fprintf(File, "# renderer,%s\n", EscapeCsv(RendererDescription).c_str());
+		fprintf(File, "# render_size,%ux%u\n", RenderSize.Width, RenderSize.Height);
+		fprintf(File, "# output_size,%ux%u\n", OutputSize.Width, OutputSize.Height);
+		fprintf(File, "# measured_frames,%llu\n", (unsigned long long)FrameCount);
 
-        for (const Series& series : m_Series)
-        {
-            if (series.samples == 0)
-                continue;
+		for (const FSeries& SeriesData : MetricSeries)
+		{
+			if (SeriesData.Samples == 0)
+				continue;
 
-            fprintf(file, "# summary %s,mean=%.6f,min=%.6f,max=%.6f,samples=%llu\n",
-                series.name.c_str(), series.mean, series.min, series.max,
-                (unsigned long long)series.samples);
-        }
+			fprintf(File, "# summary %s,mean=%.6f,min=%.6f,max=%.6f,samples=%llu\n", SeriesData.Name.c_str(),
+					SeriesData.Mean, SeriesData.Min, SeriesData.Max, (unsigned long long)SeriesData.Samples);
+		}
 
-        fclose(file);
+		fclose(File);
 
-        donut::log::info("Prism: metrics written to %s (%llu measured frames).",
-            path.string().c_str(), (unsigned long long)m_FrameCount);
-        return true;
-    }
-}
+		donut::log::info("Prism: metrics written to %s (%llu measured frames).", Path.string().c_str(),
+						 (unsigned long long)FrameCount);
+		return true;
+	}
+} // namespace Prism::Host

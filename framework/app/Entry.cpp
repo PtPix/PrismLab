@@ -1,7 +1,7 @@
 // Host layer: the shared WinMain.
 //
-// An experiment executable only provides an Experiment subclass and the CreateExperiment() factory (host/Experiment.h); everything
-// else - window, device, camera, scene, UI, frame loop - comes from prism_app.
+// An experiment executable only provides an Experiment subclass and the CreateExperiment() factory (host/Experiment.h);
+// everything else - window, device, camera, scene, UI, frame loop - comes from prism_app.
 
 #include "Application.h"
 
@@ -9,5 +9,5 @@
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 {
-    return prism::host::Run(__argc, __argv);
+	return Prism::Host::Run(__argc, __argv);
 }

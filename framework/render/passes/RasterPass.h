@@ -1,23 +1,31 @@
 #pragma once
 #include "PassSupport.h"
 
-namespace prism::gpu
+namespace Prism::Gpu
 {
-    class RasterPass final : public ShaderPass
-    {
-    public:
-        Status Initialize(nvrhi::IDevice* device, ShaderLibrary& shaders,
-            const nvrhi::GraphicsPipelineDesc& description, std::vector<ShaderEntry> stages);
-        Status Bind(nvrhi::ICommandList* commands, nvrhi::GraphicsState state);
-        Status Draw(nvrhi::ICommandList* commands, nvrhi::GraphicsState state,
-            const nvrhi::DrawArguments& args, bool indexed = false);
-        Status PrepareShaders(ShaderLibrary& candidate) override;
-        void CommitShaders() override;
-        void DiscardShaders() override;
-    private:
-        struct Pipeline { nvrhi::FramebufferInfo format; nvrhi::GraphicsPipelineHandle handle; };
-        nvrhi::GraphicsPipelineDesc m_Description, m_CandidateDescription;
-        std::vector<ShaderEntry> m_Stages;
-        std::vector<Pipeline> m_Pipelines, m_CandidatePipelines;
-    };
-}
+	class FRasterPass final : public FShaderPass
+	{
+	  public:
+		FStatus Initialize(nvrhi::IDevice* InDevice, FShaderLibrary& InShaderLibrary,
+						   const nvrhi::GraphicsPipelineDesc& InPipelineDescription,
+						   std::vector<FShaderEntry> InShaderStages);
+		FStatus Bind(nvrhi::ICommandList* Commands, nvrhi::GraphicsState State);
+		FStatus Draw(nvrhi::ICommandList* Commands, nvrhi::GraphicsState State, const nvrhi::DrawArguments& Args,
+					 bool bIndexed = false);
+		FStatus PrepareShaders(FShaderLibrary& CandidateLibrary) override;
+		void CommitShaders() override;
+		void DiscardShaders() override;
+
+	  private:
+		struct FPipeline
+		{
+			nvrhi::FramebufferInfo Format;
+			nvrhi::GraphicsPipelineHandle Handle;
+		};
+		nvrhi::GraphicsPipelineDesc PipelineDescription;
+		nvrhi::GraphicsPipelineDesc CandidatePipelineDescription;
+		std::vector<FShaderEntry> ShaderStages;
+		std::vector<FPipeline> Pipelines;
+		std::vector<FPipeline> CandidatePipelines;
+	};
+} // namespace Prism::Gpu

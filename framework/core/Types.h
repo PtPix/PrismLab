@@ -9,42 +9,59 @@
 
 namespace dm = donut::math;
 
-namespace prism
+namespace Prism
 {
-    using ViewId = uint32_t;
-    constexpr ViewId kPrimaryViewId = 0;
-    constexpr uint32_t kMaxViews = 4;
+	using FViewId = uint32_t;
+	constexpr FViewId KPrimaryViewId = 0;
+	constexpr uint32_t KMaxViews = 4;
 
-    struct Extent2D
-    {
-        uint32_t width = 0;
-        uint32_t height = 0;
+	struct FExtent2D
+	{
+		uint32_t Width = 0;
+		uint32_t Height = 0;
 
-        [[nodiscard]] bool IsValid() const { return width > 0 && height > 0; }
-        [[nodiscard]] float AspectRatio() const { return (height > 0) ? float(width) / float(height) : 1.f; }
-        [[nodiscard]] uint64_t PixelCount() const { return uint64_t(width) * uint64_t(height); }
+		[[nodiscard]] bool IsValid() const
+		{
+			return Width > 0 && Height > 0;
+		}
+		[[nodiscard]] float AspectRatio() const
+		{
+			return (Height > 0) ? float(Width) / float(Height) : 1.f;
+		}
+		[[nodiscard]] uint64_t PixelCount() const
+		{
+			return uint64_t(Width) * uint64_t(Height);
+		}
 
-        [[nodiscard]] Extent2D Scaled(float factor) const
-        {
-            return Extent2D{
-                std::max(1u, uint32_t(float(width) * factor + 0.5f)),
-                std::max(1u, uint32_t(float(height) * factor + 0.5f)) };
-        }
+		[[nodiscard]] FExtent2D Scaled(float Factor) const
+		{
+			return FExtent2D{std::max(1u, uint32_t(float(Width) * Factor + 0.5f)),
+							 std::max(1u, uint32_t(float(Height) * Factor + 0.5f))};
+		}
 
-        [[nodiscard]] dm::uint2 ToUint2() const { return dm::uint2(width, height); }
+		[[nodiscard]] dm::uint2 ToUint2() const
+		{
+			return dm::uint2(Width, Height);
+		}
 
-        static Extent2D From(dm::uint2 value)
-        {
-            return Extent2D{ value.x, value.y };
-        }
+		static FExtent2D From(dm::uint2 Value)
+		{
+			return FExtent2D{Value.x, Value.y};
+		}
 
-        bool operator==(const Extent2D& other) const { return width == other.width && height == other.height; }
-        bool operator!=(const Extent2D& other) const { return !(*this == other); }
-    };
+		bool operator==(const FExtent2D& Other) const
+		{
+			return Width == Other.Width && Height == Other.Height;
+		}
+		bool operator!=(const FExtent2D& Other) const
+		{
+			return !(*this == Other);
+		}
+	};
 
-    // Aspect ratio without a zero-height division.
-    inline float AspectRatio(const Extent2D& extent)
-    {
-        return extent.AspectRatio();
-    }
-}
+	// Aspect ratio without a zero-height division.
+	inline float AspectRatio(const FExtent2D& Extent)
+	{
+		return Extent.AspectRatio();
+	}
+} // namespace Prism

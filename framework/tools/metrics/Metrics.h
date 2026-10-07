@@ -16,72 +16,80 @@
 #include <string>
 #include <vector>
 
-namespace prism::host
+namespace Prism::Host
 {
-    class Metrics
-    {
-    public:
-        void SetContext(
-            std::string experimentName,
-            std::string sceneDescription,
-            std::string rendererDescription,
-            Extent2D renderSize,
-            Extent2D outputSize);
+	class FMetrics
+	{
+	  public:
+		void SetContext(std::string InExperimentName, std::string InSceneDescription, std::string InRendererDescription,
+						FExtent2D InRenderSize, FExtent2D InOutputSize);
 
-        // 每帧一次：BeginFrame 清空本帧临时值，EndFrame 并入统计。
-        void BeginFrame(uint64_t frameIndex);
-        void EndFrame();
+		// 每帧一次：BeginFrame 清空本帧临时值，EndFrame 并入统计。
+		void BeginFrame(uint64_t InFrameIndex);
+		void EndFrame();
 
-        // 覆盖式写入（同一帧多次调用以最后一次为准）
-        void Set(const char* name, double value);
+		// 覆盖式写入（同一帧多次调用以最后一次为准）
+		void Set(const char* Name, double Value);
 
-        // 累加（同一帧多次调用求和，例如"本帧所有 Pass 的样本数"）
-        void Add(const char* name, double value);
+		// 累加（同一帧多次调用求和，例如"本帧所有 Pass 的样本数"）
+		void Add(const char* Name, double Value);
 
-        struct Series
-        {
-            std::string name;
-            double last = 0.0;
-            double mean = 0.0;
-            double min = 0.0;
-            double max = 0.0;
-            uint64_t samples = 0;
-        };
+		struct FSeries
+		{
+			std::string Name;
+			double Last = 0.0;
+			double Mean = 0.0;
+			double Min = 0.0;
+			double Max = 0.0;
+			uint64_t Samples = 0;
+		};
 
-        [[nodiscard]] const std::vector<Series>& GetSeries() const { return m_Series; }
-        [[nodiscard]] uint64_t GetMeasuredFrameCount() const { return m_FrameCount; }
+		[[nodiscard]] const std::vector<FSeries>& GetSeries() const
+		{
+			return MetricSeries;
+		}
+		[[nodiscard]] uint64_t GetMeasuredFrameCount() const
+		{
+			return FrameCount;
+		}
 
-        // 从下一次 BeginFrame 起丢弃已有统计（bench 的预热结束点）。
-        void Reset();
+		// 从下一次 BeginFrame 起丢弃已有统计（bench 的预热结束点）。
+		void Reset();
 
-        void SetEnabled(bool enabled) { m_Enabled = enabled; }
-        [[nodiscard]] bool IsEnabled() const { return m_Enabled; }
+		void SetEnabled(bool bInEnabled)
+		{
+			bEnabled = bInEnabled;
+		}
+		[[nodiscard]] bool IsEnabled() const
+		{
+			return bEnabled;
+		}
 
-        bool WriteCsv(const std::filesystem::path& path) const;
+		bool WriteCsv(const std::filesystem::path& Path) const;
 
-    private:
-        struct FrameRow
-        {
-            uint64_t frameIndex = 0;
-            std::vector<double> values;
-        };
+	  private:
+		struct FFrameRow
+		{
+			uint64_t FrameIndex = 0;
+			std::vector<double> Values;
+		};
 
-        int FindOrAdd(const char* name);
+		int FindOrAdd(const char* Name);
 
-        bool m_Enabled = true;
-        uint64_t m_FrameIndex = 0;
-        uint64_t m_FrameCount = 0;
-        bool m_FrameOpen = false;
+		bool bEnabled = true;
+		uint64_t CurrentFrameIndex = 0;
+		uint64_t FrameCount = 0;
+		bool bFrameOpen = false;
 
-        std::string m_ExperimentName = "(unknown)";
-        std::string m_SceneDescription = "(unknown)";
-        std::string m_RendererDescription = "(unknown)";
-        Extent2D m_RenderSize;
-        Extent2D m_OutputSize;
+		std::string ExperimentName = "(unknown)";
+		std::string SceneDescription = "(unknown)";
+		std::string RendererDescription = "(unknown)";
+		FExtent2D RenderSize;
+		FExtent2D OutputSize;
 
-        std::vector<Series> m_Series;
-        std::vector<double> m_Pending;
-        std::vector<uint8_t> m_Touched;
-        std::vector<FrameRow> m_Frames;
-    };
-}
+		std::vector<FSeries> MetricSeries;
+		std::vector<double> Pending;
+		std::vector<uint8_t> Touched;
+		std::vector<FFrameRow> Frames;
+	};
+} // namespace Prism::Host

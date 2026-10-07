@@ -1,14 +1,14 @@
 #pragma once
 #include <cstdint>
-namespace prism
+namespace Prism
 {
-    struct SceneStats
-    {
-        uint32_t meshes = 0;
-        uint32_t instances = 0;
-        uint32_t lights = 0;
-        uint32_t vertices = 0;
-        uint32_t triangles = 0;
-    };
+	struct FSceneStats
+	{
+		uint32_t Meshes = 0;
+		uint32_t Instances = 0;
+		uint32_t Lights = 0;
+		uint32_t Vertices = 0;
+		uint32_t Triangles = 0;
+	};
 
-}
+} // namespace Prism

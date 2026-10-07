@@ -1,22 +1,28 @@
 #include "FullscreenPass.h"
 
-namespace prism::gpu
+namespace Prism::Gpu
 {
-    Status FullscreenPass::Initialize(nvrhi::IDevice* device, ShaderLibrary& shaders, donut::engine::CommonRenderPasses& common,
-        ShaderEntry pixelShader, const nvrhi::BindingLayoutVector& layouts, nvrhi::RenderState state)
-    {
-        if (pixelShader.stage != nvrhi::ShaderType::Pixel)
-            return Status::Error(ErrorCode::InvalidArgument, "fullscreen shader must be a pixel shader");
-        nvrhi::GraphicsPipelineDesc desc;
-        desc.VS = common.m_FullscreenVS; desc.primType = nvrhi::PrimitiveType::TriangleStrip;
-        desc.bindingLayouts = layouts; desc.renderState = state;
-        desc.renderState.depthStencilState.setDepthTestEnable(false).setDepthWriteEnable(false);
-        return m_Raster.Initialize(device, shaders, desc, {std::move(pixelShader)});
-    }
-    Status FullscreenPass::Record(nvrhi::ICommandList* commands, nvrhi::IFramebuffer* target,
-        const nvrhi::BindingSetVector& bindings, nvrhi::ViewportState viewport)
-    {
-        nvrhi::GraphicsState state; state.framebuffer = target; state.bindings = bindings; state.viewport = viewport;
-        return m_Raster.Draw(commands, state, nvrhi::DrawArguments().setVertexCount(4));
-    }
-}
+	FStatus FFullscreenPass::Initialize(nvrhi::IDevice* Device, FShaderLibrary& Shaders,
+										donut::engine::CommonRenderPasses& Common, FShaderEntry PixelShader,
+										const nvrhi::BindingLayoutVector& Layouts, nvrhi::RenderState State)
+	{
+		if (PixelShader.Stage != nvrhi::ShaderType::Pixel)
+			return FStatus::Error(EErrorCode::InvalidArgument, "fullscreen shader must be a pixel shader");
+		nvrhi::GraphicsPipelineDesc Desc;
+		Desc.VS = Common.m_FullscreenVS;
+		Desc.primType = nvrhi::PrimitiveType::TriangleStrip;
+		Desc.bindingLayouts = Layouts;
+		Desc.renderState = State;
+		Desc.renderState.depthStencilState.setDepthTestEnable(false).setDepthWriteEnable(false);
+		return Raster.Initialize(Device, Shaders, Desc, {std::move(PixelShader)});
+	}
+	FStatus FFullscreenPass::Record(nvrhi::ICommandList* Commands, nvrhi::IFramebuffer* Target,
+									const nvrhi::BindingSetVector& Bindings, nvrhi::ViewportState Viewport)
+	{
+		nvrhi::GraphicsState State;
+		State.framebuffer = Target;
+		State.bindings = Bindings;
+		State.viewport = Viewport;
+		return Raster.Draw(Commands, State, nvrhi::DrawArguments().setVertexCount(4));
+	}
+} // namespace Prism::Gpu

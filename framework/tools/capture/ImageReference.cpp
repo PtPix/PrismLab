@@ -9,205 +9,210 @@
 #include <cmath>
 #include <cstdio>
 
-namespace prism::host
+namespace Prism::Host
 {
-    namespace
-    {
-        PixelFormat PickReadbackFormat(nvrhi::Format format)
-        {
-            switch (format)
-            {
-            case nvrhi::Format::RGBA32_FLOAT: return PixelFormat::RGBA32_FLOAT;
-            case nvrhi::Format::RGBA16_FLOAT: return PixelFormat::RGBA16_FLOAT;
-            case nvrhi::Format::R32_FLOAT:    return PixelFormat::R32_FLOAT;
-            case nvrhi::Format::R16_FLOAT:    return PixelFormat::R16_FLOAT;
-            default:                          return PixelFormat::Unknown;
-            }
-        }
-    }
+	namespace
+	{
+		EPixelFormat PickReadbackFormat(nvrhi::Format Format)
+		{
+			switch (Format)
+			{
+				case nvrhi::Format::RGBA32_FLOAT:
+					return EPixelFormat::RgbA32Float;
+				case nvrhi::Format::RGBA16_FLOAT:
+					return EPixelFormat::RgbA16Float;
+				case nvrhi::Format::R32_FLOAT:
+					return EPixelFormat::R32Float;
+				case nvrhi::Format::R16_FLOAT:
+					return EPixelFormat::R16Float;
+				default:
+					return EPixelFormat::Unknown;
+			}
+		}
+	} // namespace
 
-    Result<FloatImage> ReadTextureAsFloat(nvrhi::IDevice* device, nvrhi::ITexture* texture)
-    {
-        if (!device || !texture)
-            return Status::Error(ErrorCode::InvalidArgument, "device and texture are required");
+	TResult<FFloatImage> ReadTextureAsFloat(nvrhi::IDevice* Device, nvrhi::ITexture* Texture)
+	{
+		if (!Device || !Texture)
+			return FStatus::Error(EErrorCode::InvalidArgument, "device and texture are required");
 
-        const PixelFormat format = PickReadbackFormat(texture->getDesc().format);
-        if (format == PixelFormat::Unknown)
-        {
-            return Status::Error(ErrorCode::Unsupported,
-                "the reference image path supports RGBA32_FLOAT / RGBA16_FLOAT / R32_FLOAT / R16_FLOAT outputs");
-        }
+		const EPixelFormat Format = PickReadbackFormat(Texture->getDesc().format);
+		if (Format == EPixelFormat::Unknown)
+		{
+			return FStatus::Error(
+				EErrorCode::Unsupported,
+				"the reference image path supports RGBA32_FLOAT / RGBA16_FLOAT / R32_FLOAT / R16_FLOAT outputs");
+		}
 
-        const Result<gpu::TextureData> data = gpu::ReadTexture(device, texture, format);
-        if (!data.IsOk())
-            return data.GetStatus();
+		const TResult<Gpu::FTextureData> Data = Gpu::ReadTexture(Device, Texture, Format);
+		if (!Data.IsOk())
+			return Data.GetStatus();
 
-        const gpu::TextureData& textureData = data.Value();
+		const Gpu::FTextureData& TextureData = Data.GetValue();
 
-        FloatImage image;
-        image.size = textureData.size;
-        image.channels = 4;
-        image.pixels.resize(size_t(image.size.width) * image.size.height * image.channels);
+		FFloatImage Image;
+		Image.Size = TextureData.Size;
+		Image.Channels = 4;
+		Image.Pixels.resize(size_t(Image.Size.Width) * Image.Size.Height * Image.Channels);
 
-        for (uint32_t y = 0; y < image.size.height; ++y)
-        {
-            for (uint32_t x = 0; x < image.size.width; ++x)
-            {
-                const dm::float4 color = textureData.ColorAt(x, y);
-                float* pixel = image.pixels.data() + (size_t(y) * image.size.width + x) * image.channels;
-                pixel[0] = color.x;
-                pixel[1] = color.y;
-                pixel[2] = color.z;
-                pixel[3] = color.w;
-            }
-        }
+		for (uint32_t Y = 0; Y < Image.Size.Height; ++Y)
+		{
+			for (uint32_t X = 0; X < Image.Size.Width; ++X)
+			{
+				const dm::float4 Color = TextureData.ColorAt(X, Y);
+				float* Pixel = Image.Pixels.data() + (size_t(Y) * Image.Size.Width + X) * Image.Channels;
+				Pixel[0] = Color.x;
+				Pixel[1] = Color.y;
+				Pixel[2] = Color.z;
+				Pixel[3] = Color.w;
+			}
+		}
 
-        return image;
-    }
+		return Image;
+	}
 
-    bool SaveFloatImage(const std::filesystem::path& path, const FloatImage& image)
-    {
-        if (!image.IsValid())
-        {
-            donut::log::error("Prism: refusing to save an invalid reference image.");
-            return false;
-        }
+	bool SaveFloatImage(const std::filesystem::path& Path, const FFloatImage& Image)
+	{
+		if (!Image.IsValid())
+		{
+			donut::log::error("Prism: refusing to save an invalid reference image.");
+			return false;
+		}
 
-        FILE* file = nullptr;
-        if (_wfopen_s(&file, path.c_str(), L"wb") != 0 || !file)
-        {
-            donut::log::error("Prism: cannot write the reference image to %s", path.string().c_str());
-            return false;
-        }
+		FILE* File = nullptr;
+		if (_wfopen_s(&File, Path.c_str(), L"wb") != 0 || !File)
+		{
+			donut::log::error("Prism: cannot write the reference image to %s", Path.string().c_str());
+			return false;
+		}
 
-        fprintf(file, "PRISM1\n%u %u %u\n", image.size.width, image.size.height, image.channels);
-        const size_t written = fwrite(image.pixels.data(), sizeof(float), image.pixels.size(), file);
-        fclose(file);
+		fprintf(File, "PRISM1\n%u %u %u\n", Image.Size.Width, Image.Size.Height, Image.Channels);
+		const size_t Written = fwrite(Image.Pixels.data(), sizeof(float), Image.Pixels.size(), File);
+		fclose(File);
 
-        if (written != image.pixels.size())
-        {
-            donut::log::error("Prism: short write for %s", path.string().c_str());
-            return false;
-        }
+		if (Written != Image.Pixels.size())
+		{
+			donut::log::error("Prism: short write for %s", Path.string().c_str());
+			return false;
+		}
 
-        donut::log::info("Prism: reference image written to %s (%u x %u, %u channels).",
-            path.string().c_str(), image.size.width, image.size.height, image.channels);
-        return true;
-    }
+		donut::log::info("Prism: reference image written to %s (%u x %u, %u channels).", Path.string().c_str(),
+						 Image.Size.Width, Image.Size.Height, Image.Channels);
+		return true;
+	}
 
-    Result<FloatImage> LoadFloatImage(const std::filesystem::path& path)
-    {
-        FILE* file = nullptr;
-        if (_wfopen_s(&file, path.c_str(), L"rb") != 0 || !file)
-            return Status::Error(ErrorCode::ResourceMissing, "cannot open the reference image: " + path.string());
+	TResult<FFloatImage> LoadFloatImage(const std::filesystem::path& Path)
+	{
+		FILE* File = nullptr;
+		if (_wfopen_s(&File, Path.c_str(), L"rb") != 0 || !File)
+			return FStatus::Error(EErrorCode::ResourceMissing, "cannot open the reference image: " + Path.string());
 
-        char magic[16] = {};
-        if (fscanf_s(file, "%15s", magic, unsigned(_countof(magic))) != 1 || strcmp(magic, "PRISM1") != 0)
-        {
-            fclose(file);
-            return Status::Error(ErrorCode::FormatMismatch,
-                "not a Prism reference image (expected the PRISM1 header): " + path.string());
-        }
+		char Magic[16] = {};
+		if (fscanf_s(File, "%15s", Magic, unsigned(_countof(Magic))) != 1 || strcmp(Magic, "PRISM1") != 0)
+		{
+			fclose(File);
+			return FStatus::Error(EErrorCode::FormatMismatch,
+								  "not a Prism reference image (expected the PRISM1 header): " + Path.string());
+		}
 
-        uint32_t width = 0;
-        uint32_t height = 0;
-        uint32_t channels = 0;
-        if (fscanf_s(file, "%u %u %u", &width, &height, &channels) != 3)
-        {
-            fclose(file);
-            return Status::Error(ErrorCode::FormatMismatch, "malformed reference image header: " + path.string());
-        }
+		uint32_t Width = 0;
+		uint32_t Height = 0;
+		uint32_t Channels = 0;
+		if (fscanf_s(File, "%u %u %u", &Width, &Height, &Channels) != 3)
+		{
+			fclose(File);
+			return FStatus::Error(EErrorCode::FormatMismatch, "malformed reference image header: " + Path.string());
+		}
 
-        // 必须吃掉表头最后的换行：否则二进制负载会从下一个字节开始，整体错位。
-        if (fgetc(file) != '\n')
-        {
-            fclose(file);
-            return Status::Error(ErrorCode::FormatMismatch, "malformed reference image header: " + path.string());
-        }
+		// 必须吃掉表头最后的换行：否则二进制负载会从下一个字节开始，整体错位。
+		if (fgetc(File) != '\n')
+		{
+			fclose(File);
+			return FStatus::Error(EErrorCode::FormatMismatch, "malformed reference image header: " + Path.string());
+		}
 
-        FloatImage image;
-        image.size = Extent2D{ width, height };
-        image.channels = channels;
-        image.pixels.resize(size_t(width) * size_t(height) * size_t(channels));
+		FFloatImage Image;
+		Image.Size = FExtent2D{Width, Height};
+		Image.Channels = Channels;
+		Image.Pixels.resize(size_t(Width) * size_t(Height) * size_t(Channels));
 
-        const size_t read = fread(image.pixels.data(), sizeof(float), image.pixels.size(), file);
-        fclose(file);
+		const size_t Read = fread(Image.Pixels.data(), sizeof(float), Image.Pixels.size(), File);
+		fclose(File);
 
-        if (read != image.pixels.size())
-            return Status::Error(ErrorCode::FormatMismatch, "truncated reference image: " + path.string());
+		if (Read != Image.Pixels.size())
+			return FStatus::Error(EErrorCode::FormatMismatch, "truncated reference image: " + Path.string());
 
-        return image;
-    }
+		return Image;
+	}
 
-    ImageComparison CompareImages(const FloatImage& reference, const FloatImage& current, float tolerance)
-    {
-        ImageComparison comparison;
+	FImageComparison CompareImages(const FFloatImage& Reference, const FFloatImage& Current, float Tolerance)
+	{
+		FImageComparison Comparison;
 
-        if (!reference.IsValid() || !current.IsValid())
-        {
-            comparison.message = "one of the images is invalid";
-            return comparison;
-        }
+		if (!Reference.IsValid() || !Current.IsValid())
+		{
+			Comparison.Message = "one of the images is invalid";
+			return Comparison;
+		}
 
-        if (reference.size != current.size || reference.channels != current.channels)
-        {
-            char message[160] = {};
-            snprintf(message, sizeof(message),
-                "size mismatch: reference %ux%u x%u, current %ux%u x%u",
-                reference.size.width, reference.size.height, reference.channels,
-                current.size.width, current.size.height, current.channels);
-            comparison.message = message;
-            return comparison;
-        }
+		if (Reference.Size != Current.Size || Reference.Channels != Current.Channels)
+		{
+			char Message[160] = {};
+			snprintf(Message, sizeof(Message), "size mismatch: reference %ux%u x%u, current %ux%u x%u",
+					 Reference.Size.Width, Reference.Size.Height, Reference.Channels, Current.Size.Width,
+					 Current.Size.Height, Current.Channels);
+			Comparison.Message = Message;
+			return Comparison;
+		}
 
-        comparison.valid = true;
+		Comparison.bValid = true;
 
-        double sum = 0.0;
-        uint64_t samples = 0;
+		double Sum = 0.0;
+		uint64_t Samples = 0;
 
-        for (uint32_t y = 0; y < reference.size.height; ++y)
-        {
-            for (uint32_t x = 0; x < reference.size.width; ++x)
-            {
-                bool pixelDiffers = false;
-                bool pixelNonFinite = false;
+		for (uint32_t Y = 0; Y < Reference.Size.Height; ++Y)
+		{
+			for (uint32_t X = 0; X < Reference.Size.Width; ++X)
+			{
+				bool bPixelDiffers = false;
+				bool bPixelNonFinite = false;
 
-                for (uint32_t channel = 0; channel < reference.channels; ++channel)
-                {
-                    const float referenceValue = reference.At(x, y, channel);
-                    const float currentValue = current.At(x, y, channel);
+				for (uint32_t Channel = 0; Channel < Reference.Channels; ++Channel)
+				{
+					const float ReferenceValue = Reference.At(X, Y, Channel);
+					const float CurrentValue = Current.At(X, Y, Channel);
 
-                    if (!std::isfinite(referenceValue) || !std::isfinite(currentValue))
-                    {
-                        pixelNonFinite = true;
-                        continue;
-                    }
+					if (!std::isfinite(ReferenceValue) || !std::isfinite(CurrentValue))
+					{
+						bPixelNonFinite = true;
+						continue;
+					}
 
-                    const float difference = std::fabs(referenceValue - currentValue);
-                    sum += difference;
-                    ++samples;
+					const float Difference = std::fabs(ReferenceValue - CurrentValue);
+					Sum += Difference;
+					++Samples;
 
-                    if (difference > tolerance)
-                        pixelDiffers = true;
+					if (Difference > Tolerance)
+						bPixelDiffers = true;
 
-                    comparison.maxAbsolute = std::max(comparison.maxAbsolute, difference);
-                }
+					Comparison.MaxAbsolute = std::max(Comparison.MaxAbsolute, Difference);
+				}
 
-                if (pixelNonFinite)
-                {
-                    ++comparison.nonFinitePixels;
-                    ++comparison.differingPixels;   // 非有限值同样算"不同"
-                    continue;
-                }
+				if (bPixelNonFinite)
+				{
+					++Comparison.NonFinitePixels;
+					++Comparison.DifferingPixels; // 非有限值同样算"不同"
+					continue;
+				}
 
-                if (pixelDiffers)
-                    ++comparison.differingPixels;
-            }
-        }
+				if (bPixelDiffers)
+					++Comparison.DifferingPixels;
+			}
+		}
 
-        if (samples > 0)
-            comparison.meanAbsolute = float(sum / double(samples));
+		if (Samples > 0)
+			Comparison.MeanAbsolute = float(Sum / double(Samples));
 
-        return comparison;
-    }
-}
+		return Comparison;
+	}
+} // namespace Prism::Host

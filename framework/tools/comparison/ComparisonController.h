@@ -3,29 +3,53 @@
 #include <string>
 #include <vector>
 
-namespace prism::host
+namespace Prism::Host
 {
-    class ComparisonController
-    {
-    public:
-        struct Source { std::string id; gpu::ComparisonImage image; };
-        gpu::ComparisonSettings settings;
-        std::string sourceA = "Output", sourceB = "Output";
-        bool useFrozenB = false;
-        Status Initialize(nvrhi::IDevice* device, gpu::ShaderLibrary& shaders, donut::engine::CommonRenderPasses& common)
-        { return m_Pass.Initialize(device, shaders, common); }
-        void BeginFrame() { m_Sources.clear(); }
-        void Publish(std::string id, gpu::ComparisonImage image);
-        void RequestFreeze() { m_Freeze = true; }
-        void ClearFrozen() { m_Pass.ClearFrozen(); useFrozenB = false; }
-        gpu::ComparisonImage Record(nvrhi::ICommandList* commands, gpu::ComparisonImage fallback);
-        const std::vector<Source>& Sources() const { return m_Sources; }
-        const std::string& Message() const { return m_Message; }
-    private:
-        gpu::ComparisonImage Find(const std::string& id) const;
-        gpu::ComparisonPass m_Pass;
-        std::vector<Source> m_Sources;
-        bool m_Freeze = false;
-        std::string m_Message;
-    };
-}
+	class FComparisonController
+	{
+	  public:
+		struct FSource
+		{
+			std::string Id;
+			Gpu::FComparisonImage Image;
+		};
+		Gpu::FComparisonSettings Settings;
+		std::string SourceA = "Output", SourceB = "Output";
+		bool bUseFrozenB = false;
+		FStatus Initialize(nvrhi::IDevice* Device, Gpu::FShaderLibrary& Shaders,
+						   donut::engine::CommonRenderPasses& CommonPasses)
+		{
+			return Pass.Initialize(Device, Shaders, CommonPasses);
+		}
+		void BeginFrame()
+		{
+			PublishedSources.clear();
+		}
+		void Publish(std::string Id, Gpu::FComparisonImage Image);
+		void RequestFreeze()
+		{
+			bFreezeRequested = true;
+		}
+		void ClearFrozen()
+		{
+			Pass.ClearFrozen();
+			bUseFrozenB = false;
+		}
+		Gpu::FComparisonImage Record(nvrhi::ICommandList* Commands, Gpu::FComparisonImage Fallback);
+		const std::vector<FSource>& GetSources() const
+		{
+			return PublishedSources;
+		}
+		const std::string& GetMessage() const
+		{
+			return StatusMessage;
+		}
+
+	  private:
+		Gpu::FComparisonImage Find(const std::string& Id) const;
+		Gpu::FComparisonPass Pass;
+		std::vector<FSource> PublishedSources;
+		bool bFreezeRequested = false;
+		std::string StatusMessage;
+	};
+} // namespace Prism::Host

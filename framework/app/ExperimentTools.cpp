@@ -1,21 +1,23 @@
 #include "ExperimentTools.h"
 
-namespace prism::host
+namespace Prism::Host
 {
-    Status ExperimentTools::Initialize(nvrhi::IDevice* device, gpu::ShaderLibrary& shaders,
-        donut::engine::CommonRenderPasses& common, const std::filesystem::path& executable)
-    {
-        reload.Initialize(device, shaders, executable);
-        return comparison.Initialize(device, shaders, common);
-    }
-    bool ExperimentTools::PrepareFrame(float elapsed, adapter::CameraController& camera, Extent2D size)
-    {
-        const bool reloaded = reload.Poll();
-        const auto& frame = replay.BeginFrame(elapsed);
-        if (const auto* sample = replay.PlaybackSample()) camera.ApplyPose(sample->camera);
-        const bool animate = replay.GetMode() != ReplayController::Mode::Playback && frame.delta > 0.f;
-        camera.Update(frame.delta, size, animate);
-        comparison.BeginFrame();
-        return replay.ConsumeReset() || reloaded;
-    }
-}
+	FStatus FExperimentTools::Initialize(nvrhi::IDevice* Device, Gpu::FShaderLibrary& Shaders,
+										 donut::engine::CommonRenderPasses& Common,
+										 const std::filesystem::path& Executable)
+	{
+		Reload.Initialize(Device, Shaders, Executable);
+		return Comparison.Initialize(Device, Shaders, Common);
+	}
+	bool FExperimentTools::PrepareFrame(float Elapsed, Adapter::FCameraController& Camera, FExtent2D Size)
+	{
+		const bool bReloaded = Reload.Poll();
+		const FReplayController::FFrame& Frame = Replay.BeginFrame(Elapsed);
+		if (const FReplaySample* Sample = Replay.PlaybackSample())
+			Camera.ApplyPose(Sample->Camera);
+		const bool bAnimate = Replay.GetMode() != FReplayController::EMode::Playback && Frame.Delta > 0.f;
+		Camera.Update(Frame.Delta, Size, bAnimate);
+		Comparison.BeginFrame();
+		return Replay.ConsumeReset() || bReloaded;
+	}
+} // namespace Prism::Host

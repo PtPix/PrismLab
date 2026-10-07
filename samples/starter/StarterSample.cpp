@@ -1,44 +1,76 @@
 #include <framework/app/Experiment.h>
 #include <framework/render/passes/FullscreenPass.h>
-namespace prism::samples
+namespace Prism::Samples
 {
-    class StarterSample final : public host::Experiment
-    {
-        gpu::FullscreenPass m_Pass;
-        gpu::PassConstants m_Constants;
-        gpu::TextureRequest m_Output;
-        nvrhi::BindingLayoutHandle m_Layout;
-        struct Constants { dm::float2 size; float time, padding; };
-    public:
-        const char* GetName() const override { return "StarterSample"; }
-        const char* GetDescription() const override { return "A scene-free fullscreen pass. Edit Gradient.hlsl and press F6."; }
-        Status Initialize(host::ExperimentContext& context) override
-        {
-            m_Output.name = "Starter.Output";
-            m_Output.format = PixelFormat::RGBA16_FLOAT;
-            context.output.colorSpace = ColorSpace::DisplayEncoded;
-            if (!m_Constants.Initialize(context.gpu.device, sizeof(Constants), "Starter.Constants"))
-                return Status::Error(ErrorCode::DeviceError, "constant allocation failed");
-            nvrhi::BindingLayoutDesc layout; layout.visibility = nvrhi::ShaderType::Pixel;
-            layout.bindings = {nvrhi::BindingLayoutItem::VolatileConstantBuffer(0)};
-            m_Layout = context.gpu.device->createBindingLayout(layout);
-            return m_Pass.Initialize(context.gpu.device, *context.gpu.shaders, *context.gpu.commonPasses,
-                {"prism/PrismStarter/Gradient.hlsl", "main_ps", nvrhi::ShaderType::Pixel, {}}, {m_Layout});
-        }
-        nvrhi::ITexture* Render(host::ExperimentContext& context, const host::ExperimentFrame& frame) override
-        {
-            auto* output = context.gpu.targets->GetOrCreate(m_Output);
-            if (!output) return nullptr;
-            m_Constants.Write(frame.commands, Constants{dm::float2(float(frame.renderSize.width), float(frame.renderSize.height)), frame.frame.timeSeconds, 0});
-            nvrhi::BindingSetDesc bindings;
-            bindings.bindings = {nvrhi::BindingSetItem::ConstantBuffer(0, m_Constants.Get())};
-            auto status = m_Pass.Record(frame.commands, context.gpu.targets->GetFramebuffer(output), {m_Pass.Bindings(bindings, m_Layout)});
-            return status ? output : nullptr;
-        }
-        void OnResize(host::ExperimentContext&, const Extent2D&, const Extent2D&) override { m_Pass.ClearBindings(); }
-    };
-}
-namespace prism::host
+	class FStarterSample final : public Host::IExperiment
+	{
+	  public:
+		const char* GetName() const override
+		{
+			return "StarterSample";
+		}
+		const char* GetDescription() const override
+		{
+			return "A scene-free fullscreen pass. Edit Gradient.hlsl and press F6.";
+		}
+		FStatus Initialize(Host::FExperimentContext& Context) override
+		{
+			OutputRequest.Name = "Starter.Output";
+			OutputRequest.Format = EPixelFormat::RgbA16Float;
+			Context.Output.ColorSpace = EColorSpace::DisplayEncoded;
+			if (!ConstantBuffer.Initialize(Context.Gpu.Device, sizeof(FShaderConstants), "Starter.Constants"))
+				return FStatus::Error(EErrorCode::DeviceError, "constant allocation failed");
+
+			nvrhi::BindingLayoutDesc LayoutDescription;
+			LayoutDescription.visibility = nvrhi::ShaderType::Pixel;
+			LayoutDescription.bindings = {nvrhi::BindingLayoutItem::VolatileConstantBuffer(0)};
+			BindingLayout = Context.Gpu.Device->createBindingLayout(LayoutDescription);
+			return Pass.Initialize(Context.Gpu.Device, *Context.Gpu.Shaders, *Context.Gpu.CommonPasses,
+								   {"prism/PrismStarter/Gradient.hlsl", "main_ps", nvrhi::ShaderType::Pixel, {}},
+								   {BindingLayout});
+		}
+
+		nvrhi::ITexture* Render(Host::FExperimentContext& Context, const Host::FExperimentFrame& Frame) override
+		{
+			nvrhi::ITexture* OutputTexture = Context.Gpu.Targets->GetOrCreate(OutputRequest);
+			if (!OutputTexture)
+				return nullptr;
+
+			const FShaderConstants ShaderConstants{
+				dm::float2(float(Frame.RenderSize.Width), float(Frame.RenderSize.Height)), Frame.Frame.TimeSeconds,
+				0.f};
+			ConstantBuffer.Write(Frame.Commands, ShaderConstants);
+
+			nvrhi::BindingSetDesc Bindings;
+			Bindings.bindings = {nvrhi::BindingSetItem::ConstantBuffer(0, ConstantBuffer.Get())};
+			const FStatus Status = Pass.Record(Frame.Commands, Context.Gpu.Targets->GetFramebuffer(OutputTexture),
+											   {Pass.GetOrCreateBindingSet(Bindings, BindingLayout)});
+			return Status ? OutputTexture : nullptr;
+		}
+
+		void OnResize(Host::FExperimentContext&, const FExtent2D&, const FExtent2D&) override
+		{
+			Pass.ClearBindings();
+		}
+
+	  private:
+		struct FShaderConstants
+		{
+			dm::float2 Size;
+			float Time;
+			float Padding;
+		};
+
+		Gpu::FFullscreenPass Pass;
+		Gpu::FPassConstants ConstantBuffer;
+		Gpu::FTextureRequest OutputRequest;
+		nvrhi::BindingLayoutHandle BindingLayout;
+	};
+} // namespace Prism::Samples
+namespace Prism::Host
 {
-    std::unique_ptr<Experiment> CreateExperiment() { return std::make_unique<samples::StarterSample>(); }
-}
+	std::unique_ptr<IExperiment> CreateExperiment()
+	{
+		return std::make_unique<Samples::FStarterSample>();
+	}
+} // namespace Prism::Host

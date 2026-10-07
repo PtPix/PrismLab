@@ -6,7 +6,7 @@
 #include "Prism/Common/Platform.hlsli"
 #include "DebugView_cb.h"
 
-ConstantBuffer<DebugViewConstants> g_Debug : register(b0);
+ConstantBuffer<FDebugViewConstants> g_Debug : register(b0);
 
 Texture2D<float4> g_Source : register(t0);
 SamplerState g_PointClamp : register(s0);
@@ -31,12 +31,12 @@ float3 FalseColor(float t)
 
 float4 main_ps(float4 position : SV_Position) : SV_Target0
 {
-    const float2 uv = position.xy * g_Debug.inverseSize;
+    const float2 uv = position.xy * g_Debug.InverseSize;
     const float4 value = g_Source.SampleLevel(g_PointClamp, uv, 0);
 
     float3 result = value.rgb;
 
-    switch (g_Debug.mode)
+    switch (g_Debug.Mode)
     {
     case 1: result = value.rrr; break;
     case 2: result = value.ggg; break;
@@ -48,6 +48,6 @@ float4 main_ps(float4 position : SV_Position) : SV_Target0
     default: break;
     }
 
-    result = saturate(result * g_Debug.scale + g_Debug.bias);
+    result = saturate(result * g_Debug.Scale + g_Debug.Bias);
     return float4(result, 1.f);
 }

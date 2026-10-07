@@ -8,111 +8,157 @@
 #include <string>
 #include <utility>
 
-namespace prism
+namespace Prism
 {
-    enum class ErrorCode
-    {
-        Ok = 0,
-        InvalidArgument,
-        NotInitialized,
-        ResourceMissing,
-        FormatMismatch,
-        ExtentMismatch,
-        Unsupported,
-        ShaderCompileFailed,
-        PipelineCreationFailed,
-        DeviceError,
-        Internal,
-    };
+	enum class EErrorCode
+	{
+		Ok = 0,
+		InvalidArgument,
+		NotInitialized,
+		ResourceMissing,
+		FormatMismatch,
+		ExtentMismatch,
+		Unsupported,
+		ShaderCompileFailed,
+		PipelineCreationFailed,
+		DeviceError,
+		Internal,
+	};
 
-    inline const char* ToString(ErrorCode code)
-    {
-        switch (code)
-        {
-        case ErrorCode::Ok:                    return "ok";
-        case ErrorCode::InvalidArgument:       return "invalid argument";
-        case ErrorCode::NotInitialized:        return "not initialized";
-        case ErrorCode::ResourceMissing:       return "resource missing";
-        case ErrorCode::FormatMismatch:        return "format mismatch";
-        case ErrorCode::ExtentMismatch:        return "extent mismatch";
-        case ErrorCode::Unsupported:           return "unsupported";
-        case ErrorCode::ShaderCompileFailed:   return "shader compile failed";
-        case ErrorCode::PipelineCreationFailed:return "pipeline creation failed";
-        case ErrorCode::DeviceError:           return "device error";
-        case ErrorCode::Internal:              return "internal error";
-        default:                               return "unknown";
-        }
-    }
+	inline const char* ToString(EErrorCode Code)
+	{
+		switch (Code)
+		{
+			case EErrorCode::Ok:
+				return "ok";
+			case EErrorCode::InvalidArgument:
+				return "invalid argument";
+			case EErrorCode::NotInitialized:
+				return "not initialized";
+			case EErrorCode::ResourceMissing:
+				return "resource missing";
+			case EErrorCode::FormatMismatch:
+				return "format mismatch";
+			case EErrorCode::ExtentMismatch:
+				return "extent mismatch";
+			case EErrorCode::Unsupported:
+				return "unsupported";
+			case EErrorCode::ShaderCompileFailed:
+				return "shader compile failed";
+			case EErrorCode::PipelineCreationFailed:
+				return "pipeline creation failed";
+			case EErrorCode::DeviceError:
+				return "device error";
+			case EErrorCode::Internal:
+				return "internal error";
+			default:
+				return "unknown";
+		}
+	}
 
-    // [[nodiscard]]: an ignored failure would silently continue with a broken pipeline or resource.
-    class [[nodiscard]] Status
-    {
-    public:
-        Status() = default;
+	// [[nodiscard]]: an ignored failure would silently continue with a broken pipeline or resource.
+	class [[nodiscard]] FStatus
+	{
+	  public:
+		FStatus() = default;
 
-        static Status Ok() { return Status(); }
+		static FStatus Ok()
+		{
+			return FStatus();
+		}
 
-        static Status Error(ErrorCode code, std::string message)
-        {
-            Status status;
-            status.m_Code = code;
-            status.m_Message = std::move(message);
-            return status;
-        }
+		static FStatus Error(EErrorCode Code, std::string Message)
+		{
+			FStatus Status;
+			Status.Code = Code;
+			Status.Message = std::move(Message);
+			return Status;
+		}
 
-        [[nodiscard]] bool IsOk() const { return m_Code == ErrorCode::Ok; }
-        [[nodiscard]] bool IsError() const { return m_Code != ErrorCode::Ok; }
-        [[nodiscard]] ErrorCode GetCode() const { return m_Code; }
-        [[nodiscard]] const std::string& GetMessage() const { return m_Message; }
+		[[nodiscard]] bool IsOk() const
+		{
+			return Code == EErrorCode::Ok;
+		}
+		[[nodiscard]] bool IsError() const
+		{
+			return Code != EErrorCode::Ok;
+		}
+		[[nodiscard]] EErrorCode GetCode() const
+		{
+			return Code;
+		}
+		[[nodiscard]] const std::string& GetMessage() const
+		{
+			return Message;
+		}
 
-        // "invalid argument: extent must be positive"
-        [[nodiscard]] std::string ToStringWithCode() const
-        {
-            if (IsOk())
-                return "ok";
+		// "invalid argument: extent must be positive"
+		[[nodiscard]] std::string ToStringWithCode() const
+		{
+			if (IsOk())
+				return "ok";
 
-            return std::string(prism::ToString(m_Code)) + ": " + m_Message;
-        }
+			return std::string(Prism::ToString(Code)) + ": " + Message;
+		}
 
-        explicit operator bool() const { return IsOk(); }
+		explicit operator bool() const
+		{
+			return IsOk();
+		}
 
-    private:
-        ErrorCode m_Code = ErrorCode::Ok;
-        std::string m_Message;
-    };
+	  private:
+		EErrorCode Code = EErrorCode::Ok;
+		std::string Message;
+	};
 
-    template <typename T>
-    class [[nodiscard]] Result
-    {
-    public:
-        Result(T value)
-            : m_Value(std::move(value))
-            , m_Status(Status::Ok())
-        {}
+	template <typename InValueType> class [[nodiscard]] TResult
+	{
+	  public:
+		TResult(InValueType InValue) : StoredValue(std::move(InValue)), ResultStatus(FStatus::Ok())
+		{
+		}
 
-        Result(Status status)
-            : m_Status(std::move(status))
-        {}
+		TResult(FStatus InStatus) : ResultStatus(std::move(InStatus))
+		{
+		}
 
-        [[nodiscard]] bool IsOk() const { return m_Status.IsOk(); }
-        [[nodiscard]] const Status& GetStatus() const { return m_Status; }
-        [[nodiscard]] T& Value() { return m_Value; }
-        [[nodiscard]] const T& Value() const { return m_Value; }
-        T&& TakeValue() { return std::move(m_Value); }
+		[[nodiscard]] bool IsOk() const
+		{
+			return ResultStatus.IsOk();
+		}
+		[[nodiscard]] const FStatus& GetStatus() const
+		{
+			return ResultStatus;
+		}
+		[[nodiscard]] InValueType& GetValue()
+		{
+			return StoredValue;
+		}
+		[[nodiscard]] const InValueType& GetValue() const
+		{
+			return StoredValue;
+		}
+		InValueType&& TakeValue()
+		{
+			return std::move(StoredValue);
+		}
 
-        explicit operator bool() const { return IsOk(); }
+		explicit operator bool() const
+		{
+			return IsOk();
+		}
 
-    private:
-        T m_Value{};
-        Status m_Status;
-    };
+	  private:
+		InValueType StoredValue{};
+		FStatus ResultStatus;
+	};
 
-    // Helper to attach context to an error status of a nested call.
-    inline Status WithContext(const Status& status, const std::string& context)
-    {
-        if (status.IsOk())
-            return status;
+	// Helper to attach context to an error status of a nested call.
+	inline FStatus WithContext(const FStatus& Status, const std::string& Context)
+	{
+		if (Status.IsOk())
+			return Status;
 
-        return Status::Error(status.GetCode(), context + ": " + status.GetMessage());
-    }
-}
+		return FStatus::Error(Status.GetCode(), Context + ": " + Status.GetMessage());
+	}
+} // namespace Prism

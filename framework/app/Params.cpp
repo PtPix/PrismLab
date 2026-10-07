@@ -7,215 +7,230 @@
 
 #include <cstring>
 
-namespace prism::host
+namespace Prism::Host
 {
-    namespace
-    {
-        // 字段字节数：用于 hash 与 JSON 类型检查
-        size_t FieldSize(ParamKind kind)
-        {
-            switch (kind)
-            {
-            case ParamKind::Bool:  return sizeof(bool);
-            case ParamKind::Int:   return sizeof(int);
-            case ParamKind::Float: return sizeof(float);
-            default:               return 0;
-            }
-        }
+	namespace
+	{
+		// 字段字节数：用于 hash 与 JSON 类型检查
+		size_t FieldSize(EParamKind Kind)
+		{
+			switch (Kind)
+			{
+				case EParamKind::Bool:
+					return sizeof(bool);
+				case EParamKind::Int:
+					return sizeof(int);
+				case EParamKind::Float:
+					return sizeof(float);
+				default:
+					return 0;
+			}
+		}
 
-        const char* ToString(ParamKind kind)
-        {
-            switch (kind)
-            {
-            case ParamKind::Bool:  return "bool";
-            case ParamKind::Int:   return "int";
-            case ParamKind::Float: return "float";
-            default:               return "unknown";
-            }
-        }
-    }
+		const char* ToString(EParamKind Kind)
+		{
+			switch (Kind)
+			{
+				case EParamKind::Bool:
+					return "bool";
+				case EParamKind::Int:
+					return "int";
+				case EParamKind::Float:
+					return "float";
+				default:
+					return "unknown";
+			}
+		}
+	} // namespace
 
-    void* ParamTable::FieldAddress(const ParamDesc& descriptor) const
-    {
-        if (!m_Instance)
-            return nullptr;
+	void* FParamTable::FieldAddress(const FParamDesc& Descriptor) const
+	{
+		if (!Instance)
+			return nullptr;
 
-        return static_cast<uint8_t*>(m_Instance) + descriptor.offset;
-    }
+		return static_cast<uint8_t*>(Instance) + Descriptor.Offset;
+	}
 
-    void ParamTable::BuildUI()
-    {
-        if (!m_Instance || m_Descriptors.empty())
-        {
-            ImGui::TextDisabled("(no parameters)");
-            return;
-        }
+	void FParamTable::BuildUI()
+	{
+		if (!Instance || Descriptors.empty())
+		{
+			ImGui::TextDisabled("(no parameters)");
+			return;
+		}
 
-        for (const ParamDesc& descriptor : m_Descriptors)
-        {
-            void* field = FieldAddress(descriptor);
-            if (!field)
-                continue;
+		for (const FParamDesc& Descriptor : Descriptors)
+		{
+			void* Field = FieldAddress(Descriptor);
+			if (!Field)
+				continue;
 
-            const bool historyInvalidating = HasAny(descriptor.flags, ParamFlags::HistoryInvalidating);
-            const bool readOnly = HasAny(descriptor.flags, ParamFlags::ReadOnly);
+			const bool bHistoryInvalidating = HasAny(Descriptor.Flags, EParamFlags::HistoryInvalidating);
+			const bool bReadOnly = HasAny(Descriptor.Flags, EParamFlags::ReadOnly);
 
-            ImGui::PushID(descriptor.name);
-            if (readOnly)
-                ImGui::BeginDisabled();
+			ImGui::PushID(Descriptor.Name);
+			if (bReadOnly)
+				ImGui::BeginDisabled();
 
-            bool changed = false;
+			bool bChanged = false;
 
-            switch (descriptor.kind)
-            {
-            case ParamKind::Bool:
-                changed = ImGui::Checkbox(descriptor.label, reinterpret_cast<bool*>(field));
-                break;
+			switch (Descriptor.Kind)
+			{
+				case EParamKind::Bool:
+					bChanged = ImGui::Checkbox(Descriptor.Label, reinterpret_cast<bool*>(Field));
+					break;
 
-            case ParamKind::Int:
-                changed = ImGui::SliderInt(descriptor.label, reinterpret_cast<int*>(field),
-                    int(descriptor.minValue), int(descriptor.maxValue));
-                break;
+				case EParamKind::Int:
+					bChanged = ImGui::SliderInt(Descriptor.Label, reinterpret_cast<int*>(Field),
+												int(Descriptor.MinValue), int(Descriptor.MaxValue));
+					break;
 
-            case ParamKind::Float:
-                changed = ImGui::SliderFloat(descriptor.label, reinterpret_cast<float*>(field),
-                    descriptor.minValue, descriptor.maxValue, "%.3f");
-                break;
+				case EParamKind::Float:
+					bChanged = ImGui::SliderFloat(Descriptor.Label, reinterpret_cast<float*>(Field),
+												  Descriptor.MinValue, Descriptor.MaxValue, "%.3f");
+					break;
 
-            default:
-                break;
-            }
+				default:
+					break;
+			}
 
-            if (readOnly)
-                ImGui::EndDisabled();
+			if (bReadOnly)
+				ImGui::EndDisabled();
 
-            if (descriptor.help && ImGui::IsItemHovered())
-                ImGui::SetTooltip("%s", descriptor.help);
+			if (Descriptor.Help && ImGui::IsItemHovered())
+				ImGui::SetTooltip("%s", Descriptor.Help);
 
-            if (historyInvalidating)
-            {
-                ImGui::SameLine();
-                ImGui::TextDisabled("(resets history)");
-            }
+			if (bHistoryInvalidating)
+			{
+				ImGui::SameLine();
+				ImGui::TextDisabled("(resets history)");
+			}
 
-            ImGui::PopID();
+			ImGui::PopID();
 
-            if (changed)
-                m_Edited = true;
-        }
-    }
+			if (bChanged)
+				bEdited = true;
+		}
+	}
 
-    void ParamTable::LoadJson(const Json::Value& settings)
-    {
-        if (!m_Instance)
-            return;
+	void FParamTable::LoadJson(const Json::Value& Settings)
+	{
+		if (!Instance)
+			return;
 
-        for (const ParamDesc& descriptor : m_Descriptors)
-        {
-            if (!settings.isMember(descriptor.name))
-                continue;
+		for (const FParamDesc& Descriptor : Descriptors)
+		{
+			if (!Settings.isMember(Descriptor.Name))
+				continue;
 
-            const Json::Value& value = settings[descriptor.name];
-            void* field = FieldAddress(descriptor);
+			const Json::Value& Value = Settings[Descriptor.Name];
+			void* Field = FieldAddress(Descriptor);
 
-            switch (descriptor.kind)
-            {
-            case ParamKind::Bool:
-            {
-                if (!value.isBool())
-                {
-                    donut::log::warning("Prism: parameter '%s' expects %s in the config, ignoring.",
-                        descriptor.name, ToString(descriptor.kind));
-                    break;
-                }
+			switch (Descriptor.Kind)
+			{
+				case EParamKind::Bool:
+				{
+					if (!Value.isBool())
+					{
+						donut::log::warning("Prism: parameter '%s' expects %s in the config, ignoring.",
+											Descriptor.Name, ToString(Descriptor.Kind));
+						break;
+					}
 
-                const bool previous = *reinterpret_cast<bool*>(field);
-                value >> *reinterpret_cast<bool*>(field);
-                m_Edited |= (previous != *reinterpret_cast<bool*>(field));
-                break;
-            }
+					const bool bPrevious = *reinterpret_cast<bool*>(Field);
+					Value >> *reinterpret_cast<bool*>(Field);
+					bEdited |= (bPrevious != *reinterpret_cast<bool*>(Field));
+					break;
+				}
 
-            case ParamKind::Int:
-            {
-                if (!value.isInt())
-                {
-                    donut::log::warning("Prism: parameter '%s' expects %s in the config, ignoring.",
-                        descriptor.name, ToString(descriptor.kind));
-                    break;
-                }
+				case EParamKind::Int:
+				{
+					if (!Value.isInt())
+					{
+						donut::log::warning("Prism: parameter '%s' expects %s in the config, ignoring.",
+											Descriptor.Name, ToString(Descriptor.Kind));
+						break;
+					}
 
-                const int previous = *reinterpret_cast<int*>(field);
-                value >> *reinterpret_cast<int*>(field);
-                m_Edited |= (previous != *reinterpret_cast<int*>(field));
-                break;
-            }
+					const int Previous = *reinterpret_cast<int*>(Field);
+					Value >> *reinterpret_cast<int*>(Field);
+					bEdited |= (Previous != *reinterpret_cast<int*>(Field));
+					break;
+				}
 
-            case ParamKind::Float:
-            {
-                if (!value.isNumeric())
-                {
-                    donut::log::warning("Prism: parameter '%s' expects %s in the config, ignoring.",
-                        descriptor.name, ToString(descriptor.kind));
-                    break;
-                }
+				case EParamKind::Float:
+				{
+					if (!Value.isNumeric())
+					{
+						donut::log::warning("Prism: parameter '%s' expects %s in the config, ignoring.",
+											Descriptor.Name, ToString(Descriptor.Kind));
+						break;
+					}
 
-                const float previous = *reinterpret_cast<float*>(field);
-                value >> *reinterpret_cast<float*>(field);
-                m_Edited |= (previous != *reinterpret_cast<float*>(field));
-                break;
-            }
+					const float Previous = *reinterpret_cast<float*>(Field);
+					Value >> *reinterpret_cast<float*>(Field);
+					bEdited |= (Previous != *reinterpret_cast<float*>(Field));
+					break;
+				}
 
-            default:
-                break;
-            }
-        }
-    }
+				default:
+					break;
+			}
+		}
+	}
 
-    void ParamTable::SaveJson(Json::Value& settings) const
-    {
-        if (!m_Instance)
-            return;
+	void FParamTable::SaveJson(Json::Value& Settings) const
+	{
+		if (!Instance)
+			return;
 
-        for (const ParamDesc& descriptor : m_Descriptors)
-        {
-            void* field = FieldAddress(descriptor);
-            if (!field)
-                continue;
+		for (const FParamDesc& Descriptor : Descriptors)
+		{
+			void* Field = FieldAddress(Descriptor);
+			if (!Field)
+				continue;
 
-            Json::Value& value = settings[descriptor.name];
+			Json::Value& Value = Settings[Descriptor.Name];
 
-            switch (descriptor.kind)
-            {
-            case ParamKind::Bool:  value = *reinterpret_cast<bool*>(field); break;
-            case ParamKind::Int:   value = *reinterpret_cast<int*>(field); break;
-            case ParamKind::Float: value = *reinterpret_cast<float*>(field); break;
-            default: break;
-            }
-        }
-    }
+			switch (Descriptor.Kind)
+			{
+				case EParamKind::Bool:
+					Value = *reinterpret_cast<bool*>(Field);
+					break;
+				case EParamKind::Int:
+					Value = *reinterpret_cast<int*>(Field);
+					break;
+				case EParamKind::Float:
+					Value = *reinterpret_cast<float*>(Field);
+					break;
+				default:
+					break;
+			}
+		}
+	}
 
-    uint64_t ParamTable::ComputeHash() const
-    {
-        // FNV-1a：只覆盖标记为 HistoryInvalidating 的字段；字节级比较，float 的 -0 与 0 视为不同。
-        uint64_t hash = 1469598103934665603ull;
+	uint64_t FParamTable::ComputeHash() const
+	{
+		// FNV-1a：只覆盖标记为 HistoryInvalidating 的字段；字节级比较，float 的 -0 与 0 视为不同。
+		uint64_t Hash = 1469598103934665603ull;
 
-        for (const ParamDesc& descriptor : m_Descriptors)
-        {
-            if (!HasAny(descriptor.flags, ParamFlags::HistoryInvalidating))
-                continue;
+		for (const FParamDesc& Descriptor : Descriptors)
+		{
+			if (!HasAny(Descriptor.Flags, EParamFlags::HistoryInvalidating))
+				continue;
 
-            const uint8_t* bytes = static_cast<const uint8_t*>(FieldAddress(descriptor));
-            if (!bytes)
-                continue;
+			const uint8_t* Bytes = static_cast<const uint8_t*>(FieldAddress(Descriptor));
+			if (!Bytes)
+				continue;
 
-            const size_t size = FieldSize(descriptor.kind);
-            for (size_t index = 0; index < size; ++index)
-            {
-                hash ^= bytes[index];
-                hash *= 1099511628211ull;
-            }
-        }
+			const size_t Size = FieldSize(Descriptor.Kind);
+			for (size_t Index = 0; Index < Size; ++Index)
+			{
+				Hash ^= Bytes[Index];
+				Hash *= 1099511628211ull;
+			}
+		}
 
-        return hash;
-    }
-}
+		return Hash;
+	}
+} // namespace Prism::Host

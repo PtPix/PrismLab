@@ -1,21 +1,23 @@
 #include "ForwardScene.h"
 #include <donut/core/vfs/VFS.h>
-namespace prism::adapter
+namespace Prism::Adapter
 {
-    Status ForwardScene::Initialize(gpu::RenderServices& gpu, const ScenePreset& scene, const LightingPreset& lighting)
-    {
-        auto factory = gpu.shaders->GetFactory();
-        if (!m_Pipeline.Initialize(gpu.device, factory))
-            return Status::Error(ErrorCode::PipelineCreationFailed, "legacy forward pipeline failed");
-        m_AmbientTop = dm::float3(lighting.ambientIntensity);
-        m_AmbientBottom = m_AmbientTop * 0.6f;
-        return m_Scene.Load(gpu.device, factory, std::make_shared<donut::vfs::NativeFileSystem>(), scene, lighting);
-    }
-    void ForwardScene::Record(nvrhi::ICommandList* commands, uint64_t submission,
-        const donut::engine::IView& view, const donut::engine::IView& previous, nvrhi::IFramebuffer* target)
-    {
-        m_Scene.Update(commands, uint32_t(submission));
-        if (m_Scene.GetData().graph)
-            m_Pipeline.RenderScene(commands, *m_Scene.GetData().graph, view, previous, target, m_AmbientTop, m_AmbientBottom);
-    }
-}
+	FStatus FForwardScene::Initialize(Gpu::FRenderServices& Gpu, const FScenePreset& ScenePreset,
+									  const FLightingPreset& LightingPreset)
+	{
+		auto Factory = Gpu.Shaders->GetFactory();
+		if (!Pipeline.Initialize(Gpu.Device, Factory))
+			return FStatus::Error(EErrorCode::PipelineCreationFailed, "legacy forward pipeline failed");
+		AmbientTop = dm::float3(LightingPreset.AmbientIntensity);
+		AmbientBottom = AmbientTop * 0.6f;
+		return Scene.Load(Gpu.Device, Factory, std::make_shared<donut::vfs::NativeFileSystem>(), ScenePreset,
+						  LightingPreset);
+	}
+	void FForwardScene::Record(nvrhi::ICommandList* Commands, uint64_t Submission, const donut::engine::IView& View,
+							   const donut::engine::IView& Previous, nvrhi::IFramebuffer* Target)
+	{
+		Scene.Update(Commands, uint32_t(Submission));
+		if (Scene.GetData().Graph)
+			Pipeline.RenderScene(Commands, *Scene.GetData().Graph, View, Previous, Target, AmbientTop, AmbientBottom);
+	}
+} // namespace Prism::Adapter

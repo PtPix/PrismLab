@@ -9,94 +9,115 @@
 
 #include <string>
 
-namespace prism
+namespace Prism
 {
-    enum class HistoryResetReason : uint32_t
-    {
-        None = 0,
-        FirstFrame,         // 第一帧，没有历史
-        CameraCut,          // 相机不连续（切换视角、瞬移、场景加载完成）
-        ResolutionChange,   // 渲染分辨率或输出分辨率改变
-        SettingsChange,     // 影响算法的参数改变
-        SceneChange,        // 场景内容改变
-        ResourceRecreated,  // 历史资源被重建（例如设备丢失、显存紧张）
-        Manual,             // 实验代码主动请求
-        Count
-    };
+	enum class EHistoryResetReason : uint32_t
+	{
+		None = 0,
+		FirstFrame,		   // 第一帧，没有历史
+		CameraCut,		   // 相机不连续（切换视角、瞬移、场景加载完成）
+		ResolutionChange,  // 渲染分辨率或输出分辨率改变
+		SettingsChange,	   // 影响算法的参数改变
+		SceneChange,	   // 场景内容改变
+		ResourceRecreated, // 历史资源被重建（例如设备丢失、显存紧张）
+		Manual,			   // 实验代码主动请求
+		Count
+	};
 
-    inline const char* ToString(HistoryResetReason reason)
-    {
-        switch (reason)
-        {
-        case HistoryResetReason::None:              return "none";
-        case HistoryResetReason::FirstFrame:        return "first frame";
-        case HistoryResetReason::CameraCut:         return "camera cut";
-        case HistoryResetReason::ResolutionChange:  return "resolution change";
-        case HistoryResetReason::SettingsChange:    return "settings change";
-        case HistoryResetReason::SceneChange:       return "scene change";
-        case HistoryResetReason::ResourceRecreated: return "resource recreated";
-        case HistoryResetReason::Manual:            return "manual";
-        default:                                    return "unknown";
-        }
-    }
+	inline const char* ToString(EHistoryResetReason Reason)
+	{
+		switch (Reason)
+		{
+			case EHistoryResetReason::None:
+				return "none";
+			case EHistoryResetReason::FirstFrame:
+				return "first frame";
+			case EHistoryResetReason::CameraCut:
+				return "camera cut";
+			case EHistoryResetReason::ResolutionChange:
+				return "resolution change";
+			case EHistoryResetReason::SettingsChange:
+				return "settings change";
+			case EHistoryResetReason::SceneChange:
+				return "scene change";
+			case EHistoryResetReason::ResourceRecreated:
+				return "resource recreated";
+			case EHistoryResetReason::Manual:
+				return "manual";
+			default:
+				return "unknown";
+		}
+	}
 
-    // Single bit per reason, shifted past the None entry.
-    constexpr uint32_t HistoryResetBit(HistoryResetReason reason)
-    {
-        return (reason == HistoryResetReason::None || reason == HistoryResetReason::Count)
-            ? 0u
-            : (1u << (uint32_t(reason) - 1u));
-    }
+	// Single bit per reason, shifted past the None entry.
+	constexpr uint32_t HistoryResetBit(EHistoryResetReason Reason)
+	{
+		return (Reason == EHistoryResetReason::None || Reason == EHistoryResetReason::Count)
+				   ? 0u
+				   : (1u << (uint32_t(Reason) - 1u));
+	}
 
-    struct FrameInfo
-    {
-        uint64_t frameIndex = 0;
-        uint64_t submissionIndex = 0;
-        uint32_t randomSeed = 1;
-        float deltaTimeSeconds = 0.f;
-        float timeSeconds = 0.f;
+	struct FFrameInfo
+	{
+		uint64_t FrameIndex = 0;
+		uint64_t SubmissionIndex = 0;
+		uint32_t RandomSeed = 1;
+		float DeltaTimeSeconds = 0.f;
+		float TimeSeconds = 0.f;
 
-        ViewId viewId = kPrimaryViewId;
+		FViewId ViewId = KPrimaryViewId;
 
-        // 场景数据的渲染分辨率；输出（交换链）分辨率可以不同，例如时域上采样。
-        Extent2D renderSize;
-        Extent2D outputSize;
+		// 场景数据的渲染分辨率；输出（交换链）分辨率可以不同，例如时域上采样。
+		FExtent2D RenderSize;
+		FExtent2D OutputSize;
 
-        // 亚像素抖动，单位是渲染目标像素，作用于裁剪空间 xy。
-        dm::float2 jitter = dm::float2(0.f);
-        dm::float2 previousJitter = dm::float2(0.f);
+		// 亚像素抖动，单位是渲染目标像素，作用于裁剪空间 xy。
+		dm::float2 Jitter = dm::float2(0.f);
+		dm::float2 PreviousJitter = dm::float2(0.f);
 
-        uint32_t historyResetFlags = 0;
+		uint32_t HistoryResetFlags = 0;
 
-        [[nodiscard]] bool IsFirstFrame() const { return frameIndex == 0; }
-        [[nodiscard]] bool NeedsHistoryReset() const { return historyResetFlags != 0; }
-        [[nodiscard]] bool NeedsHistoryReset(HistoryResetReason reason) const
-        {
-            return (historyResetFlags & HistoryResetBit(reason)) != 0;
-        }
+		[[nodiscard]] bool IsFirstFrame() const
+		{
+			return FrameIndex == 0;
+		}
+		[[nodiscard]] bool NeedsHistoryReset() const
+		{
+			return HistoryResetFlags != 0;
+		}
+		[[nodiscard]] bool NeedsHistoryReset(EHistoryResetReason Reason) const
+		{
+			return (HistoryResetFlags & HistoryResetBit(Reason)) != 0;
+		}
 
-        void RequestHistoryReset(HistoryResetReason reason) { historyResetFlags |= HistoryResetBit(reason); }
-        void ClearHistoryResetRequest() { historyResetFlags = 0; }
+		void RequestHistoryReset(EHistoryResetReason Reason)
+		{
+			HistoryResetFlags |= HistoryResetBit(Reason);
+		}
+		void ClearHistoryResetRequest()
+		{
+			HistoryResetFlags = 0;
+		}
 
-        [[nodiscard]] std::string DescribeHistoryReset() const
-        {
-            if (!NeedsHistoryReset())
-                return "none";
+		[[nodiscard]] std::string DescribeHistoryReset() const
+		{
+			if (!NeedsHistoryReset())
+				return "none";
 
-            std::string description;
-            for (uint32_t index = 1; index < uint32_t(HistoryResetReason::Count); ++index)
-            {
-                const auto reason = HistoryResetReason(index);
-                if (!NeedsHistoryReset(reason))
-                    continue;
+			std::string Description;
+			for (uint32_t Index = 1; Index < uint32_t(EHistoryResetReason::Count); ++Index)
+			{
+				const auto Reason = EHistoryResetReason(Index);
+				if (!NeedsHistoryReset(Reason))
+					continue;
 
-                if (!description.empty())
-                    description += ", ";
+				if (!Description.empty())
+					Description += ", ";
 
-                description += ToString(reason);
-            }
+				Description += ToString(Reason);
+			}
 
-            return description;
-        }
-    };
-}
+			return Description;
+		}
+	};
+} // namespace Prism

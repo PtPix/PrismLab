@@ -6,15 +6,15 @@
 #ifndef PRISM_CONTRACT_CHECK_CB_H
 #define PRISM_CONTRACT_CHECK_CB_H
 
-struct ContractCheckConstants
+struct FContractCheckConstants
 {
-    float4x4 clipToWorld;
-    float2 inverseSize;
-    uint2 size;
-    float zNear;
-    float zFar;
-    int depthConvention;      // 0 = forward-Z [0, 1], 1 = reversed-Z
-    int pad0;
+	float4x4 ClipToWorld;
+	float2 InverseSize;
+	uint2 Size;
+	float ZNear;
+	float ZFar;
+	int DepthConvention; // 0 = forward-Z [0, 1], 1 = reversed-Z
+	int Pad0;
 };
 
 #endif // PRISM_CONTRACT_CHECK_CB_H

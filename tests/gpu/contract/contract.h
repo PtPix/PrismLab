@@ -24,82 +24,93 @@
 
 #include <string>
 
-namespace prism::experiments
+namespace Prism::Experiments
 {
-    struct ContractVerificationReport
-    {
-        bool ran = false;
-        bool passed = false;
+	struct FContractVerificationReport
+	{
+		bool bRan = false;
+		bool bPassed = false;
 
-        uint32_t sampledPixels = 0;
+		uint32_t SampledPixels = 0;
 
-        float maxUvErrorPixels = 0.f;
-        float maxPositionErrorMeters = 0.f;
-        float maxLinearDepthErrorMeters = 0.f;
-        float maxMatrixRoundTripError = 0.f;
-        float maxDepthRoundTripError = 0.f;
+		float MaxUvErrorPixels = 0.f;
+		float MaxPositionErrorMeters = 0.f;
+		float MaxLinearDepthErrorMeters = 0.f;
+		float MaxMatrixRoundTripError = 0.f;
+		float MaxDepthRoundTripError = 0.f;
 
-        std::string summary = "not run";
-    };
+		std::string Summary = "not run";
+	};
 
-    class ContractExperiment final : public prism::host::Experiment
-    {
-    public:
-        // 参数结构体保持普通 POD：描述符表（kContractParams）负责 UI、JSON 与 hash。
-        struct Settings
-        {
-            int verifyFrame = 3;        // 在第 N 帧执行校验（读第 N-1 帧写下的结果）
-            int sampleStride = 32;      // 采样步长（像素）
-            float toleranceMeters = 0.01f;
-            float tolerancePixels = 0.05f;
-        };
+	class FContractExperiment final : public Prism::Host::IExperiment
+	{
+	  public:
+		// 参数结构体保持普通 POD：描述符表（kContractParams）负责 UI、JSON 与 hash。
+		struct FSettings
+		{
+			int VerifyFrame = 3;   // 在第 N 帧执行校验（读第 N-1 帧写下的结果）
+			int SampleStride = 32; // 采样步长（像素）
+			float ToleranceMeters = 0.01f;
+			float TolerancePixels = 0.05f;
+		};
 
-        [[nodiscard]] const char* GetName() const override { return "ContractExperiment"; }
-        [[nodiscard]] const char* GetDescription() const override;
+		[[nodiscard]] const char* GetName() const override
+		{
+			return "ContractExperiment";
+		}
+		[[nodiscard]] const char* GetDescription() const override;
 
-        Status Initialize(host::ExperimentContext& context) override;
-        void BeginFrame(host::ExperimentContext& context, const host::ExperimentFrame& frame) override;
-        nvrhi::ITexture* Render(host::ExperimentContext& context, const host::ExperimentFrame& frame) override;
-        void BuildUI(host::ExperimentContext& context) override;
-        void OnResize(host::ExperimentContext& context, const Extent2D& renderSize, const Extent2D& outputSize) override;
+		FStatus Initialize(Host::FExperimentContext& Context) override;
+		void BeginFrame(Host::FExperimentContext& Context, const Host::FExperimentFrame& Frame) override;
+		nvrhi::ITexture* Render(Host::FExperimentContext& Context, const Host::FExperimentFrame& Frame) override;
+		void BuildUI(Host::FExperimentContext& Context) override;
+		void OnResize(Host::FExperimentContext& Context, const FExtent2D& RenderSize,
+					  const FExtent2D& OutputSize) override;
 
-        [[nodiscard]] bool PassedVerification() const override { return !m_Report.ran || m_Report.passed; }
+		[[nodiscard]] bool PassedVerification() const override
+		{
+			return !Report.bRan || Report.bPassed;
+		}
 
-    private:
-        adapter::ForwardScene m_Scene;
-        bool EnsureCheckPass(host::ExperimentContext& context, nvrhi::ITexture* depth);
-        void RunVerification(host::ExperimentContext& context);
-        void VerifyCpuMath(const prism::CameraData& camera);
+	  private:
+		Adapter::FForwardScene Scene;
+		bool EnsureCheckPass(Host::FExperimentContext& Context, nvrhi::ITexture* Depth);
+		void RunVerification(Host::FExperimentContext& Context);
+		void VerifyCpuMath(const Prism::FCameraData& Camera);
 
-        Settings m_Settings;
-        host::ParamTable m_Params;
-        ContractVerificationReport m_Report;
+		FSettings Settings;
+		Host::FParamTable Params;
+		FContractVerificationReport Report;
 
-        gpu::TextureRequest m_ColorRequest;
-        gpu::TextureRequest m_DepthRequest;
-        gpu::TextureRequest m_PositionRequest;
-        gpu::TextureRequest m_DepthCopyRequest;
+		Gpu::FTextureRequest ColorRequest;
+		Gpu::FTextureRequest DepthRequest;
+		Gpu::FTextureRequest PositionRequest;
+		Gpu::FTextureRequest DepthCopyRequest;
 
-        nvrhi::BufferHandle m_CheckConstantBuffer;
-        nvrhi::BindingLayoutHandle m_CheckBindingLayout;
-        nvrhi::BindingSetHandle m_CheckBindingSet;
-        gpu::ComputePass m_CheckPass;
-        bool m_CheckReady = false;
+		nvrhi::BufferHandle CheckConstantBuffer;
+		nvrhi::BindingLayoutHandle CheckBindingLayout;
+		nvrhi::BindingSetHandle CheckBindingSet;
+		Gpu::FComputePass CheckPass;
+		bool bCheckReady = false;
 
-        nvrhi::ITexture* m_BoundDepth = nullptr;
-        nvrhi::ITexture* m_BoundPositionTarget = nullptr;
-        nvrhi::ITexture* m_BoundDepthTarget = nullptr;
+		nvrhi::ITexture* BoundDepth = nullptr;
+		nvrhi::ITexture* BoundPositionTarget = nullptr;
+		nvrhi::ITexture* BoundDepthTarget = nullptr;
 
-        prism::CameraData m_VerifiedCamera;
-        bool m_HasVerifiedCamera = false;
-        bool m_VerificationRequested = false;
-    };
+		Prism::FCameraData VerifiedCamera;
+		bool bHasVerifiedCamera = false;
+		bool bVerificationRequested = false;
+	};
 
-    // 参数描述符：字段、JSON 键、UI 标签与范围写在一起，加参数不需要写额外代码。
-    inline const prism::host::ParamDesc kContractParams[] = {
-        PRISM_PARAM_INT(ContractExperiment::Settings, verifyFrame, "Verify frame", 1, 60, prism::host::ParamFlags::None),
-        PRISM_PARAM_INT(ContractExperiment::Settings, sampleStride, "Sample stride", 2, 128, prism::host::ParamFlags::None),
-        PRISM_PARAM_FLOAT(ContractExperiment::Settings, toleranceMeters, "Tolerance (m)", 0.0001f, 0.5f, prism::host::ParamFlags::None),
-        PRISM_PARAM_FLOAT(ContractExperiment::Settings, tolerancePixels, "Tolerance (px)", 0.001f, 2.f, prism::host::ParamFlags::None),
-    };
-}
+	// 参数描述符：字段、JSON 键、UI 标签与范围写在一起，加参数不需要写额外代码。
+	inline const Prism::Host::FParamDesc KContractParams[] = {
+		PRISM_PARAM_INT(FContractExperiment::FSettings, VerifyFrame, "Verify frame", 1, 60,
+						Prism::Host::EParamFlags::None),
+		PRISM_PARAM_INT(FContractExperiment::FSettings, SampleStride, "Sample stride", 2, 128,
+						Prism::Host::EParamFlags::None),
+		PRISM_PARAM_FLOAT(FContractExperiment::FSettings, ToleranceMeters, "Tolerance (m)", 0.0001f, 0.5f,
+						  Prism::Host::EParamFlags::None),
+		PRISM_PARAM_FLOAT(FContractExperiment::FSettings, TolerancePixels, "Tolerance (px)", 0.001f, 2.f,
+						  Prism::Host::EParamFlags::None),
+	};
+} // namespace Prism::Experiments

@@ -14,120 +14,135 @@
 #include <string>
 #include <vector>
 
-namespace prism::gpu
+namespace Prism::Gpu
 {
-    class TextureSlot
-    {
-    public:
-        TextureSlot(
-            const char* name,
-            PixelFormat format,
-            TextureUsage usage,
-            float resolutionScale = 1.f,
-            Extent2D explicitSize = Extent2D{},
-            bool hasClearValue = true,
-            dm::float4 clearColor = dm::float4(0.f),
-            float clearDepth = kDepthClearValue)
-        {
-            m_Request.name = name;
-            m_Request.format = format;
-            m_Request.usage = usage;
-            m_Request.resolutionScale = resolutionScale;
-            m_Request.explicitSize = explicitSize;
-            m_Request.hasClearValue = hasClearValue;
-            m_Request.clearColor = clearColor;
-            m_Request.clearDepth = clearDepth;
-        }
+	class FTextureSlot
+	{
+	  public:
+		FTextureSlot(const char* Name, EPixelFormat Format, ETextureUsage Usage, float ResolutionScale = 1.f,
+					 FExtent2D ExplicitSize = FExtent2D{}, bool bHasClearValue = true,
+					 dm::float4 ClearColor = dm::float4(0.f), float ClearDepth = KDepthClearValue)
+		{
+			Request.Name = Name;
+			Request.Format = Format;
+			Request.Usage = Usage;
+			Request.ResolutionScale = ResolutionScale;
+			Request.ExplicitSize = ExplicitSize;
+			Request.bHasClearValue = bHasClearValue;
+			Request.ClearColor = ClearColor;
+			Request.ClearDepth = ClearDepth;
+		}
 
-        [[nodiscard]] const char* GetName() const { return m_Request.name.c_str(); }
-        [[nodiscard]] const TextureRequest& GetRequest() const { return m_Request; }
+		[[nodiscard]] const char* GetName() const
+		{
+			return Request.Name.c_str();
+		}
+		[[nodiscard]] const FTextureRequest& GetRequest() const
+		{
+			return Request;
+		}
 
-        // Change allocation policy while retaining the resource ID.
-        TextureRequest& MutableRequest() { return m_Request; }
+		// Change allocation policy while retaining the resource ID.
+		FTextureRequest& MutableRequest()
+		{
+			return Request;
+		}
 
-    private:
-        TextureRequest m_Request;
-    };
+	  private:
+		FTextureRequest Request;
+	};
 
-    class BufferSlot
-    {
-    public:
-        BufferSlot(
-            const char* name,
-            uint64_t structStride,
-            BufferUsage usage,
-            uint32_t elementsPerPixel = 0,
-            uint64_t elementCount = 0,
-            uint64_t byteSize = 0,
-            bool cpuWritable = false,
-            uint32_t maxVersions = 16)
-        {
-            m_Request.name = name;
-            m_Request.structStride = structStride;
-            m_Request.usage = usage;
-            m_Request.elementsPerPixel = elementsPerPixel;
-            m_Request.elementCount = elementCount;
-            m_Request.byteSize = byteSize;
-            m_Request.cpuWritable = cpuWritable;
-            m_Request.maxVersions = maxVersions;
-        }
+	class FBufferSlot
+	{
+	  public:
+		FBufferSlot(const char* Name, uint64_t StructStride, EBufferUsage Usage, uint32_t ElementsPerPixel = 0,
+					uint64_t ElementCount = 0, uint64_t ByteSize = 0, bool bCpuWritable = false,
+					uint32_t MaxVersions = 16)
+		{
+			Request.Name = Name;
+			Request.StructStride = StructStride;
+			Request.Usage = Usage;
+			Request.ElementsPerPixel = ElementsPerPixel;
+			Request.ElementCount = ElementCount;
+			Request.ByteSize = ByteSize;
+			Request.bCpuWritable = bCpuWritable;
+			Request.MaxVersions = MaxVersions;
+		}
 
-        [[nodiscard]] const char* GetName() const { return m_Request.name.c_str(); }
-        [[nodiscard]] const BufferRequest& GetRequest() const { return m_Request; }
-        BufferRequest& MutableRequest() { return m_Request; }
+		[[nodiscard]] const char* GetName() const
+		{
+			return Request.Name.c_str();
+		}
+		[[nodiscard]] const FBufferRequest& GetRequest() const
+		{
+			return Request;
+		}
+		FBufferRequest& MutableRequest()
+		{
+			return Request;
+		}
 
-    private:
-        BufferRequest m_Request;
-    };
+	  private:
+		FBufferRequest Request;
+	};
 
-    class ResourceTable
-    {
-    public:
-        ResourceTable(TextureCache& textures, BufferCache& buffers)
-            : m_Textures(textures)
-            , m_Buffers(buffers)
-        {
-        }
+	class FResourceTable
+	{
+	  public:
+		FResourceTable(FTextureCache& InTextureCache, FBufferCache& InBufferCache)
+			: TextureCache(InTextureCache), BufferCache(InBufferCache)
+		{
+		}
 
-        nvrhi::ITexture* Get(const TextureSlot& slot) { return m_Textures.GetOrCreate(slot.GetRequest()); }
-        nvrhi::IBuffer* Get(const BufferSlot& slot) { return m_Buffers.GetOrCreate(slot.GetRequest()); }
+		nvrhi::ITexture* Get(const FTextureSlot& Slot)
+		{
+			return TextureCache.GetOrCreate(Slot.GetRequest());
+		}
+		nvrhi::IBuffer* Get(const FBufferSlot& Slot)
+		{
+			return BufferCache.GetOrCreate(Slot.GetRequest());
+		}
 
-        nvrhi::IFramebuffer* Framebuffer(const TextureSlot& color, const TextureSlot* depth = nullptr)
-        {
-            return m_Textures.GetFramebuffer(
-                Get(color),
-                depth ? Get(*depth) : nullptr);
-        }
+		nvrhi::IFramebuffer* Framebuffer(const FTextureSlot& Color, const FTextureSlot* Depth = nullptr)
+		{
+			return TextureCache.GetFramebuffer(Get(Color), Depth ? Get(*Depth) : nullptr);
+		}
 
-        // 宿主在渲染分辨率或输出分辨率变化时调用（内部会重建按分辨率计算的资源）。
-        void SetRenderSize(const Extent2D& renderSize)
-        {
-            m_Textures.SetRenderSize(renderSize);
-            m_Buffers.SetRenderSize(renderSize);
-        }
+		// 宿主在渲染分辨率或输出分辨率变化时调用（内部会重建按分辨率计算的资源）。
+		void SetRenderSize(const FExtent2D& RenderSize)
+		{
+			TextureCache.SetRenderSize(RenderSize);
+			BufferCache.SetRenderSize(RenderSize);
+		}
 
-        // 释放全部资源；调用前必须保证 GPU 已空闲。
-        void Clear()
-        {
-            m_Textures.Clear();
-            m_Buffers.Clear();
-        }
+		// 释放全部资源；调用前必须保证 GPU 已空闲。
+		void Clear()
+		{
+			TextureCache.Clear();
+			BufferCache.Clear();
+		}
 
-        [[nodiscard]] TextureCache& Textures() { return m_Textures; }
-        [[nodiscard]] BufferCache& Buffers() { return m_Buffers; }
+		[[nodiscard]] FTextureCache& GetTextureCache()
+		{
+			return TextureCache;
+		}
+		[[nodiscard]] FBufferCache& GetBufferCache()
+		{
+			return BufferCache;
+		}
 
-        // 调试/UI 用的清单：纹理与缓冲的名称、格式、尺寸，便于确认"谁申请了多大的资源"。
-        struct EntryInfo
-        {
-            std::string name;
-            std::string kind;     // "texture" / "buffer"
-            std::string detail;   // 尺寸与格式，或字节数
-        };
+		// 调试/UI 用的清单：纹理与缓冲的名称、格式、尺寸，便于确认"谁申请了多大的资源"。
+		struct FEntryInfo
+		{
+			std::string Name;
+			std::string Kind;	// "texture" / "buffer"
+			std::string Detail; // 尺寸与格式，或字节数
+		};
 
-        [[nodiscard]] std::vector<EntryInfo> GetEntries() const;
+		[[nodiscard]] std::vector<FEntryInfo> GetEntries() const;
 
-    private:
-        TextureCache& m_Textures;
-        BufferCache& m_Buffers;
-    };
-}
+	  private:
+		FTextureCache& TextureCache;
+		FBufferCache& BufferCache;
+	};
+} // namespace Prism::Gpu

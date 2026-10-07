@@ -1,14 +1,14 @@
 #pragma once
 #include <framework/core/Types.h>
-namespace prism
+namespace Prism
 {
-    struct CameraPreset
-    {
-        dm::float3 position = dm::float3(0.f, 1.6f, -6.f);
-        dm::float3 target = dm::float3(0.f, 0.8f, 0.f);
-        float fovDegrees = 60.f;
-        float zNear = 0.05f;
-        float zFar = 100.f;
-        float moveSpeed = 2.f;
-    };
-}
+	struct FCameraPreset
+	{
+		dm::float3 Position = dm::float3(0.f, 1.6f, -6.f);
+		dm::float3 Target = dm::float3(0.f, 0.8f, 0.f);
+		float FovDegrees = 60.f;
+		float ZNear = 0.05f;
+		float ZFar = 100.f;
+		float MoveSpeed = 2.f;
+	};
+} // namespace Prism

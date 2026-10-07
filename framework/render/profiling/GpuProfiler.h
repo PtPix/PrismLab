@@ -11,92 +11,97 @@
 #include <string>
 #include <vector>
 
-namespace prism::gpu
+namespace Prism::Gpu
 {
-    class GpuProfiler
-    {
-    public:
-        static constexpr uint32_t kFramesInFlight = 3;
+	class FGpuProfiler
+	{
+	  public:
+		static constexpr uint32_t KFramesInFlight = 3;
 
-        GpuProfiler(nvrhi::IDevice* device, uint32_t maxScopes = 24);
+		FGpuProfiler(nvrhi::IDevice* InDevice, uint32_t InMaxScopes = 24);
 
-        // 在帧开始时调用一次：收集上一批结果，并把当前槽位准备成可写状态。
-        void BeginFrame(nvrhi::ICommandList* commands);
-        void EndFrame();
+		// 在帧开始时调用一次：收集上一批结果，并把当前槽位准备成可写状态。
+		void BeginFrame(nvrhi::ICommandList* Commands);
+		void EndFrame();
 
-        void BeginScope(nvrhi::ICommandList* commands, const char* name);
-        void EndScope(nvrhi::ICommandList* commands);
+		void BeginScope(nvrhi::ICommandList* Commands, const char* Name);
+		void EndScope(nvrhi::ICommandList* Commands);
 
-        struct ScopeTiming
-        {
-            std::string name;
-            float milliseconds = 0.f;           // 上一次可用结果
-            float smoothedMilliseconds = 0.f;   // 指数平滑，便于观察
-            bool valid = false;
-            uint64_t frameIndex = 0;
-        };
+		struct FScopeTiming
+		{
+			std::string Name;
+			float Milliseconds = 0.f;		  // 上一次可用结果
+			float SmoothedMilliseconds = 0.f; // 指数平滑，便于观察
+			bool bValid = false;
+			uint64_t FrameIndex = 0;
+		};
 
-        [[nodiscard]] const std::vector<ScopeTiming>& GetTimings() const { return m_Timings; }
-        [[nodiscard]] float GetTotalMilliseconds() const;
+		[[nodiscard]] const std::vector<FScopeTiming>& GetTimings() const
+		{
+			return Timings;
+		}
+		[[nodiscard]] float GetTotalMilliseconds() const;
 
-        void SetEnabled(bool enabled);
-        [[nodiscard]] bool IsEnabled() const { return m_Enabled; }
+		void SetEnabled(bool bInEnabled);
+		[[nodiscard]] bool IsEnabled() const
+		{
+			return bEnabled;
+		}
 
-        void Reset();
+		void Reset();
 
-    private:
-        struct Scope
-        {
-            std::string name;
-            std::vector<nvrhi::TimerQueryHandle> queries;
-            bool active = false;
-            bool pending[kFramesInFlight]{};
-            uint64_t frames[kFramesInFlight]{};
-            uint64_t lastRecordedFrame = ~uint64_t(0);
-        };
+	  private:
+		struct FScope
+		{
+			std::string Name;
+			std::vector<nvrhi::TimerQueryHandle> Queries;
+			bool bActive = false;
+			bool bPending[KFramesInFlight]{};
+			uint64_t Frames[KFramesInFlight]{};
+			uint64_t LastRecordedFrame = ~uint64_t(0);
+		};
 
-        Scope* FindOrCreateScope(const char* name);
+		FScope* FindOrCreateScope(const char* Name);
 
-        nvrhi::IDevice* m_Device = nullptr;
-        uint32_t m_MaxScopes = 0;
-        uint32_t m_FrameSlot = 0;
-        uint64_t m_FrameCount = 0;
-        bool m_Enabled = true;
-        bool m_FrameOpen = false;
+		nvrhi::IDevice* Device = nullptr;
+		uint32_t MaxScopes = 0;
+		uint32_t FrameSlot = 0;
+		uint64_t FrameCount = 0;
+		bool bEnabled = true;
+		bool bFrameOpen = false;
 
-        std::vector<Scope> m_Scopes;
-        std::vector<ScopeTiming> m_Timings;
-        std::vector<int> m_Stack;
-        uint64_t m_MinResultFrame = 0;
-    };
+		std::vector<FScope> Scopes;
+		std::vector<FScopeTiming> Timings;
+		std::vector<int> Stack;
+		uint64_t MinResultFrame = 0;
+	};
 
-    // RAII 版本：记录 GPU 时间，同时写入调试标记（PIX / Nsight 中可见同名区间）。
-    class ScopedGpuScope
-    {
-    public:
-        ScopedGpuScope(GpuProfiler& profiler, nvrhi::ICommandList* commands, const char* name)
-            : m_Profiler(profiler)
-            , m_Commands(commands)
-        {
-            if (commands)
-                commands->beginMarker(name);
+	// RAII 版本：记录 GPU 时间，同时写入调试标记（PIX / Nsight 中可见同名区间）。
+	class FScopedGpuScope
+	{
+	  public:
+		FScopedGpuScope(FGpuProfiler& Profiler, nvrhi::ICommandList* Commands, const char* Name)
+			: Profiler(Profiler), Commands(Commands)
+		{
+			if (Commands)
+				Commands->beginMarker(Name);
 
-            m_Profiler.BeginScope(commands, name);
-        }
+			Profiler.BeginScope(Commands, Name);
+		}
 
-        ~ScopedGpuScope()
-        {
-            m_Profiler.EndScope(m_Commands);
+		~FScopedGpuScope()
+		{
+			Profiler.EndScope(Commands);
 
-            if (m_Commands)
-                m_Commands->endMarker();
-        }
+			if (Commands)
+				Commands->endMarker();
+		}
 
-        ScopedGpuScope(const ScopedGpuScope&) = delete;
-        ScopedGpuScope& operator=(const ScopedGpuScope&) = delete;
+		FScopedGpuScope(const FScopedGpuScope&) = delete;
+		FScopedGpuScope& operator=(const FScopedGpuScope&) = delete;
 
-    private:
-        GpuProfiler& m_Profiler;
-        nvrhi::ICommandList* m_Commands = nullptr;
-    };
-}
+	  private:
+		FGpuProfiler& Profiler;
+		nvrhi::ICommandList* Commands = nullptr;
+	};
+} // namespace Prism::Gpu

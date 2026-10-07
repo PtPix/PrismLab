@@ -4,132 +4,133 @@
 
 #include <algorithm>
 
-namespace prism::adapter
+namespace Prism::Adapter
 {
-    void CameraController::Initialize(const CameraPreset& preset)
-    {
-        m_Preset = preset;
+	void FCameraController::Initialize(const FCameraPreset& InPreset)
+	{
+		CameraPreset = InPreset;
 
-        m_Camera.GetFirstPersonCamera().LookAt(preset.position, preset.target);
-        m_Camera.GetFirstPersonCamera().SetMoveSpeed(preset.moveSpeed);
+		Camera.GetFirstPersonCamera().LookAt(CameraPreset.Position, CameraPreset.Target);
+		Camera.GetFirstPersonCamera().SetMoveSpeed(CameraPreset.MoveSpeed);
 
-        const float orbitDistance = std::max(dm::length(preset.position - preset.target), 0.5f);
-        m_Camera.GetThirdPersonCamera().SetTargetPosition(preset.target);
-        m_Camera.GetThirdPersonCamera().SetDistance(orbitDistance);
+		const float OrbitDistance = std::max(dm::length(CameraPreset.Position - CameraPreset.Target), 0.5f);
+		Camera.GetThirdPersonCamera().SetTargetPosition(CameraPreset.Target);
+		Camera.GetThirdPersonCamera().SetDistance(OrbitDistance);
 
-        m_Camera.SwitchToFirstPerson(false);
+		Camera.SwitchToFirstPerson(false);
 
-        m_TargetPosition = preset.target;
-        m_Discontinuity = true;
-    }
+		TargetPosition = CameraPreset.Target;
+		bDiscontinuity = true;
+	}
 
-    void CameraController::Update(float deltaTimeSeconds, const Extent2D& renderSize, bool animate)
-    {
-        if (animate) m_Camera.Animate(deltaTimeSeconds);
+	void FCameraController::Update(float DeltaTimeSeconds, const FExtent2D& InRenderSize, bool bAnimate)
+	{
+		if (bAnimate)
+		{
+			Camera.Animate(DeltaTimeSeconds);
+		}
 
-        m_RenderSize = dm::uint2(std::max(renderSize.width, 1u), std::max(renderSize.height, 1u));
+		RenderSize = dm::uint2(std::max(InRenderSize.Width, 1u), std::max(InRenderSize.Height, 1u));
 
-        // 上一帧的矩阵先落到 previous，再计算当前帧，供重投影使用。
-        m_CameraData.previous = m_CameraData.current;
-        m_CameraData.hasPrevious = m_UpdatedOnce;
-        m_CameraData.previousJitter = m_CameraData.jitter;
+		// 上一帧的矩阵先落到 previous，再计算当前帧，供重投影使用。
+		CameraData.Previous = CameraData.Current;
+		CameraData.bHasPrevious = bUpdatedOnce;
+		CameraData.PreviousJitter = CameraData.Jitter;
 
-        const float aspectRatio = float(m_RenderSize.x) / float(m_RenderSize.y);
-        m_CameraData.verticalFovRadians = dm::radians(m_Preset.fovDegrees);
-        m_CameraData.aspectRatio = aspectRatio;
-        m_CameraData.zNearMeters = m_Preset.zNear;
-        m_CameraData.zFarMeters = m_Preset.zFar;
+		const float AspectRatio = float(RenderSize.x) / float(RenderSize.y);
+		CameraData.VerticalFovRadians = dm::radians(CameraPreset.FovDegrees);
+		CameraData.AspectRatio = AspectRatio;
+		CameraData.ZNearMeters = CameraPreset.ZNear;
+		CameraData.ZFarMeters = CameraPreset.ZFar;
 
-        const dm::float4x4 projection = dm::perspProjD3DStyle(
-            m_CameraData.verticalFovRadians,
-            aspectRatio,
-            m_CameraData.zNearMeters,
-            m_CameraData.zFarMeters);
+		const dm::float4x4 Projection = dm::perspProjD3DStyle(CameraData.VerticalFovRadians, AspectRatio,
+															  CameraData.ZNearMeters, CameraData.ZFarMeters);
 
-        m_View.SetViewport(nvrhi::Viewport(float(m_RenderSize.x), float(m_RenderSize.y)));
-        m_View.SetMatrices(m_Camera.GetWorldToViewMatrix(), projection);
-        m_View.UpdateCache();
+		View.SetViewport(nvrhi::Viewport(float(RenderSize.x), float(RenderSize.y)));
+		View.SetMatrices(Camera.GetWorldToViewMatrix(), Projection);
+		View.UpdateCache();
 
-        // 环绕相机需要视口与投影矩阵才能把拖拽增量转换成旋转
-        m_Camera.GetThirdPersonCamera().SetView(m_View);
+		// 环绕相机需要视口与投影矩阵才能把拖拽增量转换成旋转
+		Camera.GetThirdPersonCamera().SetView(View);
 
-        m_CameraData.current = prism::ViewMatrices::Build(m_View.GetViewMatrix(), m_View.GetProjectionMatrix(false));
+		CameraData.Current = Prism::FViewMatrices::Build(View.GetViewMatrix(), View.GetProjectionMatrix(false));
 
-        if (const donut::app::BaseCamera* camera = m_Camera.GetActiveUserCamera())
-        {
-            m_CameraData.position = camera->GetPosition();
-            m_CameraData.forward = dm::normalize(camera->GetDir());
-            m_CameraData.up = dm::normalize(camera->GetUp());
-        }
+		if (const donut::app::BaseCamera* ActiveCamera = Camera.GetActiveUserCamera())
+		{
+			CameraData.Position = ActiveCamera->GetPosition();
+			CameraData.Forward = dm::normalize(ActiveCamera->GetDir());
+			CameraData.Up = dm::normalize(ActiveCamera->GetUp());
+		}
 
-        // Preserve the camera roll when recording and replaying poses.
-        dm::float3 right = dm::cross(m_CameraData.forward, m_CameraData.up);
-        if (dm::length(right) < 1e-4f)
-            right = dm::float3(1.f, 0.f, 0.f);
-        else
-            right = dm::normalize(right);
+		// Preserve the camera roll when recording and replaying poses.
+		dm::float3 Right = dm::cross(CameraData.Forward, CameraData.Up);
+		if (dm::length(Right) < 1e-4f)
+			Right = dm::float3(1.f, 0.f, 0.f);
+		else
+			Right = dm::normalize(Right);
 
-        m_CameraData.right = right;
-        m_CameraData.up = dm::cross(right, m_CameraData.forward);
+		CameraData.Right = Right;
+		CameraData.Up = dm::cross(Right, CameraData.Forward);
 
-        if (m_Camera.IsThirdPersonActive())
-            m_TargetPosition = m_Camera.GetThirdPersonCamera().GetTargetPosition();
+		if (Camera.IsThirdPersonActive())
+			TargetPosition = Camera.GetThirdPersonCamera().GetTargetPosition();
 
-        m_UpdatedOnce = true;
-    }
+		bUpdatedOnce = true;
+	}
 
-    bool CameraController::KeyboardUpdate(int key, int scancode, int action, int mods)
-    {
-        return m_Camera.KeyboardUpdate(key, scancode, action, mods);
-    }
+	bool FCameraController::KeyboardUpdate(int Key, int Scancode, int Action, int Mods)
+	{
+		return Camera.KeyboardUpdate(Key, Scancode, Action, Mods);
+	}
 
-    bool CameraController::MousePosUpdate(double xpos, double ypos)
-    {
-        return m_Camera.MousePosUpdate(xpos, ypos);
-    }
+	bool FCameraController::MousePosUpdate(double Xpos, double Ypos)
+	{
+		return Camera.MousePosUpdate(Xpos, Ypos);
+	}
 
-    bool CameraController::MouseButtonUpdate(int button, int action, int mods)
-    {
-        return m_Camera.MouseButtonUpdate(button, action, mods);
-    }
+	bool FCameraController::MouseButtonUpdate(int Button, int Action, int Mods)
+	{
+		return Camera.MouseButtonUpdate(Button, Action, Mods);
+	}
 
-    bool CameraController::MouseScrollUpdate(double xoffset, double yoffset)
-    {
-        return m_Camera.MouseScrollUpdate(xoffset, yoffset);
-    }
+	bool FCameraController::MouseScrollUpdate(double Xoffset, double Yoffset)
+	{
+		return Camera.MouseScrollUpdate(Xoffset, Yoffset);
+	}
 
-    void CameraController::SwitchToFirstPerson(bool animate)
-    {
-        m_Camera.SwitchToFirstPerson(animate);
-        m_Camera.GetFirstPersonCamera().SetMoveSpeed(m_Preset.moveSpeed);
-        m_Discontinuity = true;
-    }
+	void FCameraController::SwitchToFirstPerson(bool bAnimate)
+	{
+		Camera.SwitchToFirstPerson(bAnimate);
+		Camera.GetFirstPersonCamera().SetMoveSpeed(CameraPreset.MoveSpeed);
+		bDiscontinuity = true;
+	}
 
-    void CameraController::SwitchToThirdPerson(bool animate)
-    {
-        m_Camera.SwitchToThirdPerson(animate);
-        m_Discontinuity = true;
-    }
+	void FCameraController::SwitchToThirdPerson(bool bAnimate)
+	{
+		Camera.SwitchToThirdPerson(bAnimate);
+		bDiscontinuity = true;
+	}
 
-    bool CameraController::ConsumeDiscontinuity()
-    {
-        const bool discontinuity = m_Discontinuity;
-        m_Discontinuity = false;
-        return discontinuity;
-    }
+	bool FCameraController::ConsumeDiscontinuity()
+	{
+		const bool bWasDiscontinuous = bDiscontinuity;
+		bDiscontinuity = false;
+		return bWasDiscontinuous;
+	}
 
-    void CameraController::SetJitter(const dm::float2& jitterInPixels)
-    {
-        m_CameraData.jitter = jitterInPixels;
-        m_View.SetPixelOffset(jitterInPixels);
-        m_View.UpdateCache();
-    }
+	void FCameraController::SetJitter(const dm::float2& JitterInPixels)
+	{
+		CameraData.Jitter = JitterInPixels;
+		View.SetPixelOffset(JitterInPixels);
+		View.UpdateCache();
+	}
 
-    void CameraController::ApplyPose(const CameraPose& pose)
-    {
-        m_Camera.SwitchToFirstPerson(false);
-        m_Camera.GetFirstPersonCamera().LookAt(pose.position, pose.position + pose.direction, pose.up);
-        m_Preset.fovDegrees = dm::degrees(pose.fovRadians);
-        m_Preset.zNear = pose.nearPlane; m_Preset.zFar = pose.farPlane;
-    }
-}
+	void FCameraController::ApplyPose(const FCameraPose& Pose)
+	{
+		Camera.SwitchToFirstPerson(false);
+		Camera.GetFirstPersonCamera().LookAt(Pose.Position, Pose.Position + Pose.Direction, Pose.Up);
+		CameraPreset.FovDegrees = dm::degrees(Pose.FovRadians);
+		CameraPreset.ZNear = Pose.NearPlane;
+		CameraPreset.ZFar = Pose.FarPlane;
+	}
+} // namespace Prism::Adapter

@@ -3,63 +3,48 @@
 #include <donut/core/log.h>
 #include <donut/render/GeometryPasses.h>
 
-namespace prism::pipeline
+namespace Prism::Pipeline
 {
-    bool SceneForwardPipeline::Initialize(
-        nvrhi::IDevice* device,
-        const std::shared_ptr<donut::engine::ShaderFactory>& shaderFactory)
-    {
-        if (!device || !shaderFactory)
-        {
-            donut::log::error("SceneForwardPipeline: device and shader factory are required.");
-            return false;
-        }
+	bool FSceneForwardPipeline::Initialize(nvrhi::IDevice* Device,
+										   const std::shared_ptr<donut::engine::ShaderFactory>& ShaderFactory)
+	{
+		if (!Device || !ShaderFactory)
+		{
+			donut::log::error("SceneForwardPipeline: device and shader factory are required.");
+			return false;
+		}
 
-        auto commonPasses = std::make_shared<donut::engine::CommonRenderPasses>(device, shaderFactory);
+		auto CommonPasses = std::make_shared<donut::engine::CommonRenderPasses>(Device, ShaderFactory);
 
-        m_ForwardPass = std::make_shared<donut::render::ForwardShadingPass>(device, commonPasses);
-        m_ForwardPass->Init(*shaderFactory, donut::render::ForwardShadingPass::CreateParameters());
+		ForwardPass = std::make_shared<donut::render::ForwardShadingPass>(Device, CommonPasses);
+		ForwardPass->Init(*ShaderFactory, donut::render::ForwardShadingPass::CreateParameters());
 
-        return true;
-    }
+		return true;
+	}
 
-    void SceneForwardPipeline::PrepareLights(
-        donut::render::ForwardShadingPass::Context& context,
-        nvrhi::ICommandList* commands,
-        const donut::engine::SceneGraph& graph,
-        const dm::float3& ambientTop,
-        const dm::float3& ambientBottom)
-    {
-        if (!m_ForwardPass)
-            return;
+	void FSceneForwardPipeline::PrepareLights(donut::render::ForwardShadingPass::Context& Context,
+											  nvrhi::ICommandList* Commands, const donut::engine::SceneGraph& Graph,
+											  const dm::float3& AmbientTop, const dm::float3& AmbientBottom)
+	{
+		if (!ForwardPass)
+			return;
 
-        m_ForwardPass->PrepareLights(context, commands, graph.GetLights(), ambientTop, ambientBottom, {});
-    }
+		ForwardPass->PrepareLights(Context, Commands, Graph.GetLights(), AmbientTop, AmbientBottom, {});
+	}
 
-    void SceneForwardPipeline::RenderScene(
-        nvrhi::ICommandList* commands,
-        const donut::engine::SceneGraph& graph,
-        const donut::engine::IView& view,
-        const donut::engine::IView& previousView,
-        nvrhi::IFramebuffer* framebuffer,
-        const dm::float3& ambientTop,
-        const dm::float3& ambientBottom)
-    {
-        if (!m_ForwardPass || !framebuffer)
-            return;
+	void FSceneForwardPipeline::RenderScene(nvrhi::ICommandList* Commands, const donut::engine::SceneGraph& Graph,
+											const donut::engine::IView& View, const donut::engine::IView& PreviousView,
+											nvrhi::IFramebuffer* Framebuffer, const dm::float3& AmbientTop,
+											const dm::float3& AmbientBottom)
+	{
+		if (!ForwardPass || !Framebuffer)
+			return;
 
-        donut::render::ForwardShadingPass::Context context;
-        PrepareLights(context, commands, graph, ambientTop, ambientBottom);
+		donut::render::ForwardShadingPass::Context Context;
+		PrepareLights(Context, Commands, Graph, AmbientTop, AmbientBottom);
 
-        m_DrawStrategy.PrepareForView(graph.GetRootNode(), view);
+		DrawStrategy.PrepareForView(Graph.GetRootNode(), View);
 
-        donut::render::RenderView(
-            commands,
-            &view,
-            &previousView,
-            framebuffer,
-            m_DrawStrategy,
-            *m_ForwardPass,
-            context);
-    }
-}
+		donut::render::RenderView(Commands, &View, &PreviousView, Framebuffer, DrawStrategy, *ForwardPass, Context);
+	}
+} // namespace Prism::Pipeline

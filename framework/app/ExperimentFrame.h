@@ -2,21 +2,24 @@
 #include <framework/render/data/FrameInfo.h>
 #include <framework/render/data/CameraData.h>
 #include <nvrhi/nvrhi.h>
-namespace donut::engine { class IView; }
-namespace prism::host
+namespace donut::engine
 {
-    struct ExperimentFrame
-    {
-        nvrhi::ICommandList* commands = nullptr;
-
-        prism::FrameInfo frame;
-        prism::CameraData camera;
-
-        donut::engine::IView* view = nullptr;
-        donut::engine::IView* previousView = nullptr;
-
-        Extent2D renderSize;
-        Extent2D outputSize;
-    };
-
+	class IView;
 }
+namespace Prism::Host
+{
+	struct FExperimentFrame
+	{
+		nvrhi::ICommandList* Commands = nullptr;
+
+		Prism::FFrameInfo Frame;
+		Prism::FCameraData Camera;
+
+		donut::engine::IView* View = nullptr;
+		donut::engine::IView* PreviousView = nullptr;
+
+		FExtent2D RenderSize;
+		FExtent2D OutputSize;
+	};
+
+} // namespace Prism::Host

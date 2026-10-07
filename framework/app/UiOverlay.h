@@ -13,29 +13,29 @@
 
 #include <memory>
 
-namespace prism::host
+namespace Prism::Host
 {
-    class UiOverlay final : public donut::app::ImGui_Renderer
-    {
-    public:
-        UiOverlay(donut::app::DeviceManager* deviceManager, HostStats& stats, ExperimentRenderPass& host);
+	class FUiOverlay final : public donut::app::ImGui_Renderer
+	{
+	  public:
+		FUiOverlay(donut::app::DeviceManager* DeviceManager, FHostStats& Stats, FExperimentRenderPass& Host);
 
-        bool Initialize(const std::shared_ptr<donut::engine::ShaderFactory>& shaderFactory);
+		bool Initialize(const std::shared_ptr<donut::engine::ShaderFactory>& ShaderFactory);
 
-    protected:
-        void buildUI() override;
+	  protected:
+		void buildUI() override;
 
-    private:
-        void BuildHeaderSection();
-        void BuildCameraSection();
-        void BuildSceneSection();
-        void BuildTimingSection();
-        void BuildDebugViewSection();
-        void BuildMetricsSection();
+	  private:
+		void BuildHeaderSection();
+		void BuildCameraSection();
+		void BuildSceneSection();
+		void BuildTimingSection();
+		void BuildDebugViewSection();
+		void BuildMetricsSection();
 
-        HostStats& m_Stats;
-        ExperimentRenderPass& m_Host;
-        std::unique_ptr<donut::app::ImGui_Console> m_Console;
-        bool m_TimingEnabled = true;
-    };
-}
+		FHostStats& Stats;
+		FExperimentRenderPass& Host;
+		std::unique_ptr<donut::app::ImGui_Console> Console;
+		bool bTimingEnabled = true;
+	};
+} // namespace Prism::Host
