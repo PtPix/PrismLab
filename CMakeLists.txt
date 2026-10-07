@@ -1,12 +1,17 @@
 cmake_minimum_required(VERSION 3.24)
 project(Prism LANGUAGES C CXX)
+
+# Only Windows is supported at the moment, as Prism is built on top of D3D12.
 if(NOT WIN32)
     message(FATAL_ERROR "Prism currently targets Windows and D3D12.")
 endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
 set(PRISM_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 set(PRISM_RUNTIME_DIR "${CMAKE_BINARY_DIR}/bin/$<CONFIG>")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PRISM_RUNTIME_DIR}")
@@ -15,6 +20,8 @@ set(DONUT_DIR "${PRISM_ROOT}/external/Donut-Samples/donut")
 if(NOT EXISTS "${DONUT_DIR}/nvrhi/CMakeLists.txt")
     message(FATAL_ERROR "Dependencies missing. See README.md.")
 endif()
+
+# Donut configuration
 set(DONUT_WITH_DX11 OFF CACHE BOOL "" FORCE)
 set(DONUT_WITH_DX12 ON CACHE BOOL "" FORCE)
 set(DONUT_WITH_VULKAN OFF CACHE BOOL "" FORCE)
@@ -25,20 +32,27 @@ add_subdirectory("${DONUT_DIR}" "${CMAKE_BINARY_DIR}/donut" EXCLUDE_FROM_ALL)
 include("${DONUT_DIR}/compileshaders.cmake")
 include(cmake/ShaderPackages.cmake)
 include(cmake/PrismTargets.cmake)
+
 add_subdirectory(framework)
+
 add_subdirectory(algorithms/shadows)
+
 add_subdirectory(samples/starter)
 add_subdirectory(samples/forward)
+
 # Contract remains an interactive verification executable and a GPU test.
 add_subdirectory(tests/gpu/contract)
+
 option(PRISM_BUILD_TESTS "Build CPU and GPU regression tests" OFF)
 if(PRISM_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
+
 option(PRISM_BUILD_EXAMPLES "Build the raw Donut triangle reference" OFF)
 if(PRISM_BUILD_EXAMPLES)
     add_subdirectory(examples/donut_triangle)
 endif()
+
 include(cmake/DonutExamples.cmake)
 set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT PrismStarter)
