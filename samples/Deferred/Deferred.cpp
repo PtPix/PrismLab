@@ -15,20 +15,31 @@ namespace Prism::Samples
     FStatus FDeferredExperiment::Initialize(Host::FExperimentContext& Context)
     {
         if (!Context.Gpu.Device || !Context.Gpu.Shaders || !Context.Gpu.Targets || !Context.Gpu.CommonPasses)
+        {
             return FStatus::Error(EErrorCode::NotInitialized, "deferred sample needs GPU services");
+        }
 
+        // Get scene settings from host config, or use defaults if not provided.
         const Host::FHostConfig Defaults;
         const auto& Config = Context.Config ? *Context.Config : Defaults;
         if (Config.Scene.Source != "procedural" || !Config.Scene.Asset.empty())
+        {
             return FStatus::Error(EErrorCode::Unsupported, "the depth sample currently supports procedural geometry only");
-
+        }
+            
+        // Load the scene
         const auto SceneStatus = Scene.Load(Context.Gpu.Device, Context.Gpu.Shaders->GetFactory(),
                                             std::make_shared<donut::vfs::NativeFileSystem>(),
                                             Config.Scene, Config.Lighting);
         if (!SceneStatus)
+        {
             return SceneStatus;
+        }
         if (!Scene.GetData().Geometry.IsValid())
+        {
             return FStatus::Error(EErrorCode::ResourceMissing, "the scene contains no drawable geometry");
+        }
+        
         Context.Scene.Stats = Scene.GetData().Stats;
         Context.Scene.Description = Scene.GetData().Description;
 
@@ -36,13 +47,18 @@ namespace Prism::Samples
         {
             Json::Value Settings;
             if (Host::LoadExperimentSettings(*Context.Config, GetName(), Settings) && Settings["debugMode"].isInt())
+            {
                 DebugMode = Settings["debugMode"].asInt() == 1 ? 1 : 0;
+            }
         }
 
+        // Set depth texture request parameters
         DepthRequest.Name = "Deferred.Depth";
         DepthRequest.Format = EPixelFormat::D32Float;
         DepthRequest.Usage = Gpu::ETextureUsage::DepthStencil | Gpu::ETextureUsage::ShaderResource;
         DepthRequest.ClearDepth = GetDepthClearValue(Config.Camera.DepthConvention);
+
+        // Set output color space to display-encoded for depth preview
         Context.Output.ColorSpace = EColorSpace::DisplayEncoded;
 
         auto Status = DepthRenderer.Initialize(Context.Gpu.Device, *Context.Gpu.Shaders);
@@ -51,19 +67,27 @@ namespace Prism::Samples
 
     nvrhi::ITexture* FDeferredExperiment::Render(Host::FExperimentContext& Context, const Host::FExperimentFrame& Frame)
     {
-        auto& Targets = *Context.Gpu.Targets;
+        // update depth clear value.
         const float ClearDepth = GetDepthClearValue(Frame.Camera.DepthConvention);
         if (DepthRequest.ClearDepth != ClearDepth)
         {
             DepthRequest.ClearDepth = ClearDepth;
             Preview.OnResize();
         }
+
+        // Get or create the depth texture and framebuffer for this frame.
+        auto& Targets = *Context.Gpu.Targets;
         nvrhi::ITexture* Depth = Targets.GetOrCreate(DepthRequest);
         nvrhi::IFramebuffer* DepthTarget = Depth ? Targets.GetFramebuffer(nullptr, Depth) : nullptr;
         if (!DepthTarget)
+        {
             return nullptr;
+        }
 
+        // Scene uodate
         Scene.Update(Frame.Commands, uint32_t(Frame.Frame.SubmissionIndex));
+
+        // Record the depth pass
         const auto& Geometry = Scene.GetData().Geometry;
         DepthBatch.BufferGroups.clear();
         DepthBatch.Draws.clear();

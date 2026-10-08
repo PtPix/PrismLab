@@ -1,6 +1,5 @@
 prism_add_target(PrismSurface
     SOURCES
-        DepthProjection.h
         DepthRenderer.h
         DepthRenderer.cpp
         shaders/SurfaceDepthCb.h

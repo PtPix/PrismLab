@@ -12,14 +12,19 @@ namespace Prism::Surface
     FStatus FDepthRenderer::Initialize(nvrhi::IDevice* Device, Gpu::FShaderLibrary& Shaders)
     {
         if (!Device)
+        {
             return FStatus::Error(EErrorCode::InvalidArgument, "depth renderer device is null");
-
-        const Gpu::FShaderEntry VertexShader = {
-            "prism/PrismSurface/SurfaceDepth.hlsl", "main_vs", nvrhi::ShaderType::Vertex, {}};
+        }
+            
+        // Load vertex shaders, path is prism/<CMake Target>/<Shader File>.hlsl
+        const Gpu::FShaderEntry VertexShader = {"prism/PrismSurface/SurfaceDepth.hlsl", "main_vs", nvrhi::ShaderType::Vertex, {}};
         auto Shader = VertexShader.Load(Shaders);
         if (!Shader)
+        {
             return FStatus::Error(EErrorCode::ShaderCompileFailed, Shaders.GetLastError());
+        }
 
+        // Create input layout.
         const nvrhi::VertexAttributeDesc Attribute = nvrhi::VertexAttributeDesc()
             .setName("POSITION")
             .setFormat(nvrhi::Format::RGB32_FLOAT)
@@ -27,23 +32,37 @@ namespace Prism::Surface
             .setOffset(0)
             .setElementStride(sizeof(dm::float3));
         InputLayout = Device->createInputLayout(&Attribute, 1, Shader);
+        if (!InputLayout)
+        {
+            return FStatus::Error(EErrorCode::PipelineCreationFailed, "depth input layout failed");
+        }
+            
+        // Create binding layout for push constants.
         nvrhi::BindingLayoutDesc Layout;
         Layout.visibility = nvrhi::ShaderType::Vertex;
         Layout.bindings = {nvrhi::BindingLayoutItem::PushConstants(0, sizeof(FSurfaceDepthConstants))};
         BindingLayout = Device->createBindingLayout(Layout);
-        if (!InputLayout || !BindingLayout)
-            return FStatus::Error(EErrorCode::PipelineCreationFailed, "depth input or binding layout failed");
+        if (!BindingLayout)
+        {
+            return FStatus::Error(EErrorCode::PipelineCreationFailed, "binding layout failed");
+        }
 
+        // Create graphics pipelines for forward and reverse depth.
         nvrhi::GraphicsPipelineDesc Pipeline;
         Pipeline.inputLayout = InputLayout;
         Pipeline.bindingLayouts = {BindingLayout};
         Pipeline.primType = nvrhi::PrimitiveType::TriangleList;
         Pipeline.renderState.rasterState.setCullMode(nvrhi::RasterCullMode::None);
-        Pipeline.renderState.depthStencilState.setDepthTestEnable(true).setDepthWriteEnable(true)
+        Pipeline.renderState.depthStencilState
+            .setDepthTestEnable(true)
+            .setDepthWriteEnable(true)
             .setDepthFunc(Gpu::GetDepthCompare(EDepthConvention::ForwardZ0To1));
         auto Status = ForwardPass.Initialize(Device, Shaders, Pipeline, {VertexShader});
         if (!Status)
+        {
             return Status;
+        }
+        
         Pipeline.renderState.depthStencilState.setDepthFunc(Gpu::GetDepthCompare(EDepthConvention::ReversedZ0To1));
         return ReversePass.Initialize(Device, Shaders, Pipeline, {VertexShader});
     }
@@ -52,6 +71,7 @@ namespace Prism::Surface
                                     const dm::float4x4& WorldToClip, EDepthConvention Convention,
                                     nvrhi::ITexture* Depth, nvrhi::IFramebuffer* Target)
     {
+        // Check validity of inputs first.
         if (!Commands || !Depth || !Target || !BindingLayout || Geometry.Draws.empty() ||
             Target->getDesc().depthAttachment.texture != Depth || !Target->getDesc().colorAttachments.empty() ||
             Target->getDesc().depthAttachment.subresources.baseMipLevel != 0 ||
@@ -60,12 +80,18 @@ namespace Prism::Surface
             Target->getDesc().depthAttachment.subresources.numArraySlices != 1 ||
             Depth->getDesc().dimension != nvrhi::TextureDimension::Texture2D ||
             Depth->getDesc().sampleCount != 1 || Depth->getDesc().format != nvrhi::Format::D32)
-            return FStatus::Error(EErrorCode::InvalidArgument, "depth pass needs a D32 single-sample depth-only target at mip 0, slice 0");
+            {
+                return FStatus::Error(EErrorCode::InvalidArgument, "depth pass needs a D32 single-sample depth-only target at mip 0, slice 0");
+            } 
 
+        // Per draw check validity.
         for (const auto& Draw : Geometry.Draws)
         {
             if (Draw.BufferGroupIndex >= Geometry.BufferGroups.size() || !Draw.IndexCount)
+            {
                 return FStatus::Error(EErrorCode::InvalidArgument, "depth draw range is invalid");
+            }
+            
             const auto& Buffers = Geometry.BufferGroups[Draw.BufferGroupIndex];
             const uint32_t IndexStride = Buffers.IndexFormat == nvrhi::Format::R16_UINT ? 2u : 4u;
             if (!Buffers.Positions || !Buffers.Indices ||
@@ -76,21 +102,32 @@ namespace Prism::Surface
                 Buffers.PositionRange.byteOffset > Buffers.Positions->getDesc().byteSize ||
                 Buffers.PositionRange.byteSize > Buffers.Positions->getDesc().byteSize - Buffers.PositionRange.byteOffset ||
                 uint64_t(Draw.FirstIndex) + Draw.IndexCount > Buffers.Indices->getDesc().byteSize / IndexStride)
-                return FStatus::Error(EErrorCode::InvalidArgument, "depth geometry buffers are invalid");
+                {
+                    return FStatus::Error(EErrorCode::InvalidArgument, "depth geometry buffers are invalid");
+                }  
         }
 
+        // Choose PSO
         Gpu::FRasterPass& Pass = Convention == EDepthConvention::ReversedZ0To1 ? ReversePass : ForwardPass;
+
+        // Create binding set for push constants.
         nvrhi::BindingSetDesc Bindings;
         Bindings.bindings = {nvrhi::BindingSetItem::PushConstants(0, sizeof(FSurfaceDepthConstants))};
         const auto BindingSet = Pass.GetOrCreateBindingSet(Bindings, BindingLayout);
         if (!BindingSet)
+        {
             return FStatus::Error(EErrorCode::PipelineCreationFailed, "depth binding set failed");
-
+        }
+            
+        // Depth clear
         Commands->clearDepthStencilTexture(Depth, nvrhi::TextureSubresourceSet(0, 1, 0, 1), true,
                                             GetDepthClearValue(Convention), false, 0);
+
+        // Draw all geometry
         for (const auto& Draw : Geometry.Draws)
         {
             const auto& Buffers = Geometry.BufferGroups[Draw.BufferGroupIndex];
+
             nvrhi::GraphicsState State;
             State.framebuffer = Target;
             State.bindings = {BindingSet};
@@ -98,7 +135,9 @@ namespace Prism::Surface
             State.indexBuffer = {Buffers.Indices, Buffers.IndexFormat, 0};
             const auto Status = Pass.Bind(Commands, State);
             if (!Status)
+            {
                 return Status;
+            }
 
             FSurfaceDepthConstants Constants{};
             Constants.ObjectToClip = ToShaderMatrix(dm::affineToHomogeneous(Draw.ObjectToWorld) * WorldToClip);
@@ -106,6 +145,7 @@ namespace Prism::Surface
             Commands->drawIndexed(nvrhi::DrawArguments().setVertexCount(Draw.IndexCount)
                                       .setStartIndexLocation(Draw.FirstIndex).setStartVertexLocation(Draw.BaseVertex));
         }
+        
         return FStatus::Ok();
     }
 } // namespace Prism::Surface
