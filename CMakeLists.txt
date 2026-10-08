@@ -35,10 +35,12 @@ include(cmake/PrismTargets.cmake)
 
 add_subdirectory(framework)
 
+add_subdirectory(algorithms/Surface)
 add_subdirectory(algorithms/shadows)
 
 add_subdirectory(samples/starter)
 add_subdirectory(samples/forward)
+add_subdirectory(samples/Deferred)
 
 # Contract remains an interactive verification executable and a GPU test.
 add_subdirectory(tests/gpu/contract)

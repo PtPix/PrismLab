@@ -5,6 +5,8 @@
 #include <donut/core/log.h>
 #include <donut/core/vfs/VFS.h>
 
+#include <stdexcept>
+
 namespace
 {
 	// Search upwards from the executable directory: binaries land in build/<preset>/bin while the
@@ -83,6 +85,18 @@ namespace Prism::Host
 			Camera["zNear"] >> Config.Camera.ZNear;
 			Camera["zFar"] >> Config.Camera.ZFar;
 			Camera["moveSpeed"] >> Config.Camera.MoveSpeed;
+			if (Camera.isMember("depthConvention"))
+			{
+				if (!Camera["depthConvention"].isString())
+					throw std::invalid_argument("camera.depthConvention must be 'forward' or 'reverse'");
+				const std::string Mode = Camera["depthConvention"].asString();
+				if (Mode == "forward")
+					Config.Camera.DepthConvention = EDepthConvention::ForwardZ0To1;
+				else if (Mode == "reverse")
+					Config.Camera.DepthConvention = EDepthConvention::ReversedZ0To1;
+				else
+					throw std::invalid_argument("invalid camera.depthConvention: " + Mode + " (expected forward or reverse)");
+			}
 		}
 
 		if (Root.isMember("window"))

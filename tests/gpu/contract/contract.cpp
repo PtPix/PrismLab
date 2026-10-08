@@ -23,7 +23,6 @@ namespace Prism::Experiments
 {
 	namespace
 	{
-		constexpr uint32_t KDepthConventionForwardZ = 0;
 		constexpr uint32_t KThreadGroupSize = 8;
 	} // namespace
 
@@ -67,7 +66,7 @@ namespace Prism::Experiments
 		DepthRequest.Name = "SceneDepth";
 		DepthRequest.Format = EPixelFormat::D32Float;
 		DepthRequest.Usage = Gpu::ETextureUsage::ShaderResource | Gpu::ETextureUsage::DepthStencil;
-		DepthRequest.ClearDepth = KDepthClearValue;
+		DepthRequest.ClearDepth = GetDepthClearValue(Config.Camera.DepthConvention);
 
 		PositionRequest.Name = "ContractPosition";
 		PositionRequest.Format = EPixelFormat::RgbA32Float;
@@ -158,6 +157,13 @@ namespace Prism::Experiments
 	nvrhi::ITexture* FContractExperiment::Render(Host::FExperimentContext& Context, const Host::FExperimentFrame& Frame)
 	{
 		Gpu::FTextureCache& Targets = *Context.Gpu.Targets;
+		if (DepthRequest.ClearDepth != GetDepthClearValue(Frame.Camera.DepthConvention))
+		{
+			DepthRequest.ClearDepth = GetDepthClearValue(Frame.Camera.DepthConvention);
+			CheckBindingSet = nullptr;
+			BoundDepth = nullptr;
+			Report = FContractVerificationReport{};
+		}
 
 		nvrhi::ITexture* Color = Targets.GetOrCreate(ColorRequest);
 		nvrhi::ITexture* Depth = Targets.GetOrCreate(DepthRequest);
@@ -171,7 +177,7 @@ namespace Prism::Experiments
 		Commands->clearTextureFloat(Color, Subresources,
 									nvrhi::Color(ColorRequest.ClearColor.x, ColorRequest.ClearColor.y,
 												 ColorRequest.ClearColor.z, ColorRequest.ClearColor.w));
-		Commands->clearDepthStencilTexture(Depth, Subresources, true, KDepthClearValue, false, 0);
+		Commands->clearDepthStencilTexture(Depth, Subresources, true, DepthRequest.ClearDepth, false, 0);
 
 		if (Scene.GetData().Graph)
 		{
@@ -188,8 +194,10 @@ namespace Prism::Experiments
 		if (Context.Tools.DebugViews)
 		{
 			Context.Tools.DebugViews->Publish(GetName(), "Scene color", Color);
-			Context.Tools.DebugViews->Publish(GetName(), "Scene depth (1 - device Z)", Depth,
-											  {Gpu::EDebugViewMode::OneMinusR, 20.f, 0.f});
+			const bool bReverseZ = Frame.Camera.DepthConvention == EDepthConvention::ReversedZ0To1;
+			Context.Tools.DebugViews->Publish(GetName(), "Scene depth (near bright)", Depth,
+											  {bReverseZ ? Gpu::EDebugViewMode::R : Gpu::EDebugViewMode::OneMinusR,
+											   20.f, 0.f});
 			Context.Tools.DebugViews->Publish(GetName(), "Reconstructed world position",
 											  Context.Gpu.Targets->Find(PositionRequest.Id));
 			Context.Tools.DebugViews->Publish(GetName(), "Linear depth (meters)",
@@ -200,12 +208,12 @@ namespace Prism::Experiments
 		}
 
 		FContractCheckConstants Constants = {};
-		Constants.ClipToWorld = Frame.Camera.Current.ClipToWorld;
+		Constants.ClipToWorld = Frame.Camera.Raster.ClipToWorld;
 		Constants.InverseSize = dm::float2(1.f / float(Frame.RenderSize.Width), 1.f / float(Frame.RenderSize.Height));
 		Constants.Size = dm::uint2(Frame.RenderSize.Width, Frame.RenderSize.Height);
 		Constants.ZNear = Frame.Camera.ZNearMeters;
 		Constants.ZFar = Frame.Camera.ZFarMeters;
-		Constants.DepthConvention = KDepthConventionForwardZ;
+		Constants.DepthConvention = int(Frame.Camera.DepthConvention);
 
 		Commands->writeBuffer(CheckConstantBuffer, &Constants, sizeof(Constants));
 
@@ -224,6 +232,9 @@ namespace Prism::Experiments
 		{
 			donut::log::error("ContractExperiment: the check dispatch failed: %s",
 							  CheckStatus.ToStringWithCode().c_str());
+			Report = FContractVerificationReport{};
+			Report.bRan = true;
+			Report.Summary = "contract dispatch failed";
 			return Color;
 		}
 
@@ -281,6 +292,7 @@ namespace Prism::Experiments
 
 		if (!PositionTarget || !DepthTarget)
 		{
+			Report.bRan = true;
 			Report.Summary = "the contract targets are missing";
 			donut::log::error("ContractExperiment: %s", Report.Summary.c_str());
 			return;
@@ -293,6 +305,7 @@ namespace Prism::Experiments
 
 		if (!Positions.IsOk() || !Depths.IsOk())
 		{
+			Report.bRan = true;
 			Report.Summary = "texture readback failed";
 			donut::log::error("ContractExperiment: %s", Report.Summary.c_str());
 			return;
@@ -311,7 +324,7 @@ namespace Prism::Experiments
 				const float DeviceDepth = DepthData.FloatAt(X, Y);
 
 				// 背景像素（清空值）不参与比较
-				if (DeviceDepth >= KDepthClearValue)
+				if (IsBackgroundDepth(DeviceDepth, Camera.DepthConvention))
 					continue;
 
 				const dm::float4 GpuSample = PositionData.ColorAt(X, Y);
@@ -321,8 +334,8 @@ namespace Prism::Experiments
 				const dm::float2 Uv =
 					dm::float2((float(X) + 0.5f) / float(Size.Width), (float(Y) + 0.5f) / float(Size.Height));
 
-				// 1) 矩阵约定：把 GPU 重建的世界位置投影回屏幕，应当落回同一个像素
-				const dm::float2 ProjectedUv = Camera.WorldToUnjitteredUv(GpuWorld);
+				// 1) 用实际光栅矩阵回投 GPU 世界位置，应当落回同一个像素
+				const dm::float2 ProjectedUv = Camera.WorldToRasterUv(GpuWorld);
 				const dm::float2 UvError =
 					dm::float2((ProjectedUv.x - Uv.x) * float(Size.Width), (ProjectedUv.y - Uv.y) * float(Size.Height));
 				Report.MaxUvErrorPixels = std::max(Report.MaxUvErrorPixels, dm::length(UvError));
@@ -333,7 +346,7 @@ namespace Prism::Experiments
 					std::max(Report.MaxLinearDepthErrorMeters, std::fabs(CpuLinearDepth - GpuLinearDepth));
 
 				// 3) 重建一致性：CPU 与 GPU 从同一个设备深度重建的世界位置应当一致
-				const dm::float3 CpuWorld = Camera.ReconstructWorldPosition(Uv, DeviceDepth);
+				const dm::float3 CpuWorld = Camera.ReconstructRasterWorldPosition(Uv, DeviceDepth);
 				Report.MaxPositionErrorMeters =
 					std::max(Report.MaxPositionErrorMeters, dm::length(CpuWorld - GpuWorld));
 

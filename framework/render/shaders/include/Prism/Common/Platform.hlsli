@@ -10,8 +10,9 @@
 //    （ContractExperiment 的自检覆盖了这一点）。
 #pragma pack_matrix(row_major)
 
-// 2) 深度：forward-Z，近平面 0、远平面 1，清空值 1.0，比较函数 Less。
+// 2) 深度由视图约定决定；forward-Z 近 0/远 1，reverse-Z 近 1/远 0。
 #define PRISM_DEPTH_CONVENTION_FORWARD_Z 0
+#define PRISM_DEPTH_CONVENTION_REVERSED_Z 1
 
 // 3) 颜色：线性 HDR，shader 里不做隐式 gamma；显示变换由专门的 pass 负责。
 

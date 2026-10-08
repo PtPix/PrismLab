@@ -15,11 +15,10 @@ SamplerState g_PointClamp : register(s0);
 
 float LinearizeDepth(float deviceDepth)
 {
-    if (g_Debug.DepthConvention == 1)
-        deviceDepth = 1.f - deviceDepth;
-
     const float zNear = g_Debug.ZNear;
     const float zFar = g_Debug.ZFar;
+    if (g_Debug.DepthConvention == PRISM_DEPTH_CONVENTION_REVERSED_Z)
+        return zNear * zFar / (zNear + deviceDepth * (zFar - zNear));
     return zNear * zFar / (zFar - deviceDepth * (zFar - zNear));
 }
 

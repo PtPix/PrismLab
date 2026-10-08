@@ -13,7 +13,7 @@ param(
     # -Target is empty.
     [string]$SourceFile = '',
 
-    [ValidateSet('', 'PrismForward', 'PrismContract', 'PrismStarter', 'All')]
+    [ValidateSet('', 'PrismForward', 'PrismContract', 'PrismStarter', 'PrismDeferred', 'All')]
     [string]$Target = '',
 
     [ValidateSet('Debug', 'Release')]
@@ -64,6 +64,7 @@ function Resolve-Target([string]$file) {
 
     switch -Regex ($file -replace '\\', '/') {
         '/samples/forward/'  { return 'PrismForward' }
+        '/samples/Deferred/' { return 'PrismDeferred' }
         '/tests/gpu/contract/' { return 'PrismContract' }
         '/samples/starter/'      { return 'PrismStarter' }
         default                  { return 'PrismForward' }
@@ -96,7 +97,7 @@ if ([string]::IsNullOrEmpty($Target)) {
 }
 
 if (-not $NoBuild) {
-    $targets = if ($Target -eq 'All') { @('PrismForward', 'PrismContract', 'PrismStarter') } else { @($Target) }
+    $targets = if ($Target -eq 'All') { @('PrismForward', 'PrismContract', 'PrismStarter', 'PrismDeferred') } else { @($Target) }
 
     Write-Host ('[prism] building ' + ($targets -join ', ') + ' (' + $Config + ')')
     & $cmake --build $buildDir --config $Config --target $targets --parallel

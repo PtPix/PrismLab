@@ -21,11 +21,10 @@ RWTexture2D<float> g_OutputDepth : register(u1);       // 设备深度原值
 
 float LinearizeDepth(float deviceDepth)
 {
-    if (g_Check.DepthConvention == 1)
-        deviceDepth = 1.f - deviceDepth;
-
     const float zNear = g_Check.ZNear;
     const float zFar = g_Check.ZFar;
+    if (g_Check.DepthConvention == PRISM_DEPTH_CONVENTION_REVERSED_Z)
+        return zNear * zFar / (zNear + deviceDepth * (zFar - zNear));
     return zNear * zFar / (zFar - deviceDepth * (zFar - zNear));
 }
 

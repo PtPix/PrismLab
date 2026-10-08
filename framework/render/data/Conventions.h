@@ -8,8 +8,8 @@
 //
 //   World space   right-handed, Y up, meters
 //   View space    left-handed (camera looks down +Z), D3D style projection, z in [0, 1]
-//   Depth         forward-Z, near -> 0, far -> 1, cleared to 1, comparison Less
-//                 (reversed-Z is allowed but must be requested explicitly and verified)
+//   Depth         forward-Z (default): near -> 0, far -> 1, clear 1, Less
+//                 reversed-Z (explicit): near -> 1, far -> 0, clear 0, Greater
 //   UV            origin top-left, range [0, 1]
 //   Color         linear HDR RGB before display transform, RGBA16_FLOAT scene color, no implicit gamma
 //   Roughness     perceptual roughness r; GGX alpha = r * r, squared exactly once inside the BRDF
@@ -49,15 +49,23 @@ namespace Prism
 		}
 	}
 
-	// Device depth -> linear distance in front of the camera (meters).
-	// Only valid for the default forward-Z convention; callers must pass the convention they use.
+	constexpr float GetDepthClearValue(EDepthConvention Convention)
+	{
+		return Convention == EDepthConvention::ReversedZ0To1 ? 0.f : KDepthClearValue;
+	}
+
+	constexpr bool IsBackgroundDepth(float DeviceDepth, EDepthConvention Convention)
+	{
+		return Convention == EDepthConvention::ReversedZ0To1 ? DeviceDepth <= 0.f : DeviceDepth >= 1.f;
+	}
+
+	// Finite near/far planes; z is view-space axial distance in meters.
 	inline float LinearizeDepth(float DeviceDepth, float ZNearMeters, float ZFarMeters,
 								EDepthConvention Convention = EDepthConvention::ForwardZ0To1)
 	{
-		if (Convention == EDepthConvention::ReversedZ0To1)
-			DeviceDepth = 1.f - DeviceDepth;
-
-		const float Denominator = ZFarMeters - DeviceDepth * (ZFarMeters - ZNearMeters);
+		const float Denominator = Convention == EDepthConvention::ReversedZ0To1
+			? ZNearMeters + DeviceDepth * (ZFarMeters - ZNearMeters)
+			: ZFarMeters - DeviceDepth * (ZFarMeters - ZNearMeters);
 		if (std::fabs(Denominator) < 1e-8f)
 			return ZFarMeters;
 
@@ -69,12 +77,10 @@ namespace Prism
 									   EDepthConvention Convention = EDepthConvention::ForwardZ0To1)
 	{
 		const float Distance = (std::fabs(LinearDepthMeters) < 1e-8f) ? ZNearMeters : LinearDepthMeters;
-		const float DeviceDepth = ZFarMeters * (Distance - ZNearMeters) / (Distance * (ZFarMeters - ZNearMeters));
-
 		if (Convention == EDepthConvention::ReversedZ0To1)
-			return 1.f - DeviceDepth;
+			return ZNearMeters * (ZFarMeters - Distance) / (Distance * (ZFarMeters - ZNearMeters));
 
-		return DeviceDepth;
+		return ZFarMeters * (Distance - ZNearMeters) / (Distance * (ZFarMeters - ZNearMeters));
 	}
 
 	// --- matrices ---

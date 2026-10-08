@@ -1,4 +1,5 @@
 #include "ExperimentTools.h"
+#include <donut/core/log.h>
 
 namespace Prism::Host
 {
@@ -7,7 +8,11 @@ namespace Prism::Host
 										 const std::filesystem::path& Executable)
 	{
 		Reload.Initialize(Device, Shaders, Executable);
-		return Comparison.Initialize(Device, Shaders, Common);
+		const FStatus ComparisonStatus = Comparison.Initialize(Device, Shaders, Common);
+		if (!ComparisonStatus)
+			donut::log::warning("Prism: %s; comparison controls are disabled.",
+							Comparison.GetMessage().c_str());
+		return FStatus::Ok();
 	}
 	bool FExperimentTools::PrepareFrame(float Elapsed, Adapter::FCameraController& Camera, FExtent2D Size)
 	{

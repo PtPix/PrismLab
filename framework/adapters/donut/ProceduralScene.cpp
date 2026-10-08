@@ -160,7 +160,7 @@ namespace Prism::Adapter
 			dm::double3 Scaling = dm::double3(1.0);
 		};
 
-		uint32_t CreateMaterial(nvrhi::IDevice* Device, nvrhi::ICommandList* CommandList,
+		uint32_t CreateMaterial(nvrhi::IDevice* Device,
 								std::vector<std::shared_ptr<donut::engine::Material>>& Materials,
 								const std::string& Name, const dm::float3& BaseColor, float Roughness, float Metalness,
 								const dm::float3& EmissiveColor = dm::float3(0.f), float EmissiveIntensity = 1.f)
@@ -189,10 +189,6 @@ namespace Prism::Adapter
 			const nvrhi::BufferDesc ConstantBufferDesc =
 				nvrhi::utils::CreateVolatileConstantBufferDesc(sizeof(MaterialConstants), Name.c_str(), 16);
 			Material->materialConstants = Device->createBuffer(ConstantBufferDesc);
-
-			MaterialConstants Constants = {};
-			Material->FillConstantBuffer(Constants);
-			CommandList->writeBuffer(Material->materialConstants, &Constants, sizeof(Constants));
 
 			Materials.push_back(Material);
 			return uint32_t(Materials.size()) - 1;
@@ -224,6 +220,9 @@ namespace Prism::Adapter
 			FPartDescription& Part = Parts[PartIndex];
 			Part.IndexCount = uint32_t(Source.Indices.size()) - Part.IndexOffset;
 			Part.VertexCount = uint32_t(Source.Positions.size()) - Part.VertexOffset;
+			// Donut and indexed NVRHI draws add the mesh's vertex offset to each index.
+			for (size_t I = Part.IndexOffset; I < Source.Indices.size(); ++I)
+				Source.Indices[I] -= Part.VertexOffset;
 
 			dm::float3 Minimum(std::numeric_limits<float>::max());
 			dm::float3 Maximum(-std::numeric_limits<float>::max());
@@ -237,7 +236,7 @@ namespace Prism::Adapter
 
 		// --- geometry and materials: each part is a separate mesh and may have several instances ---
 		{
-			const uint32_t Material = CreateMaterial(Device, CommandList, Scene.Materials, "GroundMaterial",
+			const uint32_t Material = CreateMaterial(Device, Scene.Materials, "GroundMaterial",
 													 dm::float3(0.30f, 0.31f, 0.33f), 0.95f, 0.f);
 			const uint32_t Part = BeginPart("Ground", Material);
 			AddBox(Source, dm::float3(0.f, -0.05f, 0.f), dm::float3(10.f, 0.05f, 10.f));
@@ -246,7 +245,7 @@ namespace Prism::Adapter
 		}
 
 		{
-			const uint32_t Material = CreateMaterial(Device, CommandList, Scene.Materials, "MetalSphereMaterial",
+			const uint32_t Material = CreateMaterial(Device, Scene.Materials, "MetalSphereMaterial",
 													 dm::float3(0.95f, 0.86f, 0.70f), 0.20f, 1.f);
 			const uint32_t Part = BeginPart("MetalSphere", Material);
 			AddSphere(Source, dm::float3(0.f), 0.8f, 48, 32);
@@ -256,7 +255,7 @@ namespace Prism::Adapter
 
 		// Four instances of the same mesh, to exercise instance indices and per-instance transforms.
 		{
-			const uint32_t Material = CreateMaterial(Device, CommandList, Scene.Materials, "CubeMaterial",
+			const uint32_t Material = CreateMaterial(Device, Scene.Materials, "CubeMaterial",
 													 dm::float3(0.72f, 0.25f, 0.20f), 0.35f, 0.f);
 			const uint32_t Part = BeginPart("Cube", Material);
 			AddBox(Source, dm::float3(0.f), dm::float3(0.35f));
@@ -269,7 +268,7 @@ namespace Prism::Adapter
 		}
 
 		{
-			const uint32_t Material = CreateMaterial(Device, CommandList, Scene.Materials, "BackWallMaterial",
+			const uint32_t Material = CreateMaterial(Device, Scene.Materials, "BackWallMaterial",
 													 dm::float3(0.45f, 0.48f, 0.52f), 0.80f, 0.f);
 			const uint32_t Part = BeginPart("BackWall", Material);
 			AddBox(Source, dm::float3(0.f), dm::float3(6.f, 1.6f, 0.1f));
@@ -278,7 +277,7 @@ namespace Prism::Adapter
 		}
 
 		{
-			const uint32_t Material = CreateMaterial(Device, CommandList, Scene.Materials, "EmissiveCubeMaterial",
+			const uint32_t Material = CreateMaterial(Device, Scene.Materials, "EmissiveCubeMaterial",
 													 dm::float3(0.f), 0.5f, 0.f, dm::float3(1.f, 0.55f, 0.15f), 6.f);
 			const uint32_t Part = BeginPart("EmissiveCube", Material);
 			AddBox(Source, dm::float3(0.f), dm::float3(0.25f));
@@ -328,7 +327,8 @@ namespace Prism::Adapter
 			CommandList->writeBuffer(Buffers->vertexBuffer, Source.Texcoords.data(), TexcoordSize, TexcoordOffset);
 			CommandList->writeBuffer(Buffers->vertexBuffer, PackedNormals.data(), NormalSize, NormalOffset);
 			CommandList->writeBuffer(Buffers->vertexBuffer, PackedTangents.data(), TangentSize, TangentOffset);
-			CommandList->setPermanentBufferState(Buffers->vertexBuffer, nvrhi::ResourceStates::ShaderResource);
+			CommandList->setPermanentBufferState(Buffers->vertexBuffer,
+				nvrhi::ResourceStates::ShaderResource | nvrhi::ResourceStates::VertexBuffer);
 		}
 
 		{
@@ -439,6 +439,12 @@ namespace Prism::Adapter
 		// Instance and geometry-instance indices are only assigned by Refresh, so instance data
 		// must be written afterwards.
 		Graph->Refresh(0);
+		for (const auto& Material : Scene.Materials)
+		{
+			MaterialConstants Constants = {};
+			Material->FillConstantBuffer(Constants);
+			CommandList->writeBuffer(Material->materialConstants, &Constants, sizeof(Constants));
+		}
 
 		std::vector<InstanceData> InstanceDataArray(InstanceCount);
 		for (uint32_t I = 0; I < InstanceCount; ++I)
@@ -453,7 +459,7 @@ namespace Prism::Adapter
 			InstanceData& Data = InstanceDataArray[uint32_t(Index)];
 			Data.flags = 0;
 			Data.firstGeometryInstanceIndex = Instances[I]->GetGeometryInstanceIndex();
-			Data.firstGeometryIndex = 0;
+			Data.firstGeometryIndex = uint32_t(Meshes[Placements[I].PartIndex]->geometries[0]->globalGeometryIndex);
 			Data.numGeometries = uint32_t(Meshes[Placements[I].PartIndex]->geometries.size());
 
 			const dm::affine3 Transform = InstanceNodes[I]->GetLocalToWorldTransformFloat();

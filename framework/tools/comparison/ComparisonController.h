@@ -1,5 +1,6 @@
 #pragma once
 #include <framework/tools/comparison/ComparisonPass.h>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -19,7 +20,17 @@ namespace Prism::Host
 		FStatus Initialize(nvrhi::IDevice* Device, Gpu::FShaderLibrary& Shaders,
 						   donut::engine::CommonRenderPasses& CommonPasses)
 		{
-			return Pass.Initialize(Device, Shaders, CommonPasses);
+			Pass = std::make_unique<Gpu::FComparisonPass>();
+			const FStatus Status = Pass->Initialize(Device, Shaders, CommonPasses);
+			bAvailable = Status.IsOk();
+			StatusMessage = bAvailable ? std::string() : "Comparison unavailable: " + Status.ToStringWithCode();
+			if (!bAvailable)
+				Pass.reset();
+			return Status;
+		}
+		[[nodiscard]] bool IsAvailable() const
+		{
+			return bAvailable;
 		}
 		void BeginFrame()
 		{
@@ -28,11 +39,12 @@ namespace Prism::Host
 		void Publish(std::string Id, Gpu::FComparisonImage Image);
 		void RequestFreeze()
 		{
-			bFreezeRequested = true;
+			bFreezeRequested = bAvailable;
 		}
 		void ClearFrozen()
 		{
-			Pass.ClearFrozen();
+			if (Pass)
+				Pass->ClearFrozen();
 			bUseFrozenB = false;
 		}
 		Gpu::FComparisonImage Record(nvrhi::ICommandList* Commands, Gpu::FComparisonImage Fallback);
@@ -47,8 +59,9 @@ namespace Prism::Host
 
 	  private:
 		Gpu::FComparisonImage Find(const std::string& Id) const;
-		Gpu::FComparisonPass Pass;
+		std::unique_ptr<Gpu::FComparisonPass> Pass;
 		std::vector<FSource> PublishedSources;
+		bool bAvailable = false;
 		bool bFreezeRequested = false;
 		std::string StatusMessage;
 	};

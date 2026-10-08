@@ -9,6 +9,7 @@ namespace Prism::Adapter
 	void FCameraController::Initialize(const FCameraPreset& InPreset)
 	{
 		CameraPreset = InPreset;
+		bUpdatedOnce = false;
 
 		Camera.GetFirstPersonCamera().LookAt(CameraPreset.Position, CameraPreset.Target);
 		Camera.GetFirstPersonCamera().SetMoveSpeed(CameraPreset.MoveSpeed);
@@ -23,6 +24,16 @@ namespace Prism::Adapter
 		bDiscontinuity = true;
 	}
 
+	void FCameraController::SetDepthConvention(EDepthConvention Convention)
+	{
+		if (CameraPreset.DepthConvention == Convention)
+			return;
+
+		CameraPreset.DepthConvention = Convention;
+		bUpdatedOnce = false;
+		bDiscontinuity = true;
+	}
+
 	void FCameraController::Update(float DeltaTimeSeconds, const FExtent2D& InRenderSize, bool bAnimate)
 	{
 		if (bAnimate)
@@ -34,6 +45,7 @@ namespace Prism::Adapter
 
 		// 上一帧的矩阵先落到 previous，再计算当前帧，供重投影使用。
 		CameraData.Previous = CameraData.Current;
+		CameraData.PreviousRaster = CameraData.Raster;
 		CameraData.bHasPrevious = bUpdatedOnce;
 		CameraData.PreviousJitter = CameraData.Jitter;
 
@@ -42,18 +54,27 @@ namespace Prism::Adapter
 		CameraData.AspectRatio = AspectRatio;
 		CameraData.ZNearMeters = CameraPreset.ZNear;
 		CameraData.ZFarMeters = CameraPreset.ZFar;
+		CameraData.DepthConvention = CameraPreset.DepthConvention;
 
-		const dm::float4x4 Projection = dm::perspProjD3DStyle(CameraData.VerticalFovRadians, AspectRatio,
-															  CameraData.ZNearMeters, CameraData.ZFarMeters);
+		const dm::float4x4 Projection = MakePerspectiveProjection(CameraData.VerticalFovRadians, AspectRatio,
+													 CameraData.ZNearMeters, CameraData.ZFarMeters,
+													 CameraData.DepthConvention);
 
 		View.SetViewport(nvrhi::Viewport(float(RenderSize.x), float(RenderSize.y)));
 		View.SetMatrices(Camera.GetWorldToViewMatrix(), Projection);
+		View.SetPixelOffset(dm::float2(0.f));
 		View.UpdateCache();
 
 		// 环绕相机需要视口与投影矩阵才能把拖拽增量转换成旋转
 		Camera.GetThirdPersonCamera().SetView(View);
 
 		CameraData.Current = Prism::FViewMatrices::Build(View.GetViewMatrix(), View.GetProjectionMatrix(false));
+		CameraData.Raster = CameraData.Current;
+		if (!CameraData.bHasPrevious)
+		{
+			CameraData.Previous = CameraData.Current;
+			CameraData.PreviousRaster = CameraData.Raster;
+		}
 
 		if (const donut::app::BaseCamera* ActiveCamera = Camera.GetActiveUserCamera())
 		{
@@ -123,6 +144,9 @@ namespace Prism::Adapter
 		CameraData.Jitter = JitterInPixels;
 		View.SetPixelOffset(JitterInPixels);
 		View.UpdateCache();
+		CameraData.Raster = FViewMatrices::Build(View.GetViewMatrix(), View.GetProjectionMatrix(true));
+		if (!CameraData.bHasPrevious)
+			CameraData.PreviousRaster = CameraData.Raster;
 	}
 
 	void FCameraController::ApplyPose(const FCameraPose& Pose)

@@ -40,7 +40,8 @@
       "targets": [
         "PrismForward",
         "PrismContract",
-        "PrismStarter"
+        "PrismStarter",
+        "PrismDeferred"
       ]
     },
     {
@@ -51,7 +52,8 @@
       "targets": [
         "PrismForward",
         "PrismContract",
-        "PrismStarter"
+        "PrismStarter",
+        "PrismDeferred"
       ]
     },
     {

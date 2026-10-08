@@ -66,6 +66,13 @@ namespace Prism::Pipeline
 			return Channels[size_t(C)];
 		}
 
+		FStatus Validate(const FSurfaceRequirements& Requirements, const FCameraData& Camera) const
+		{
+			if (Requirements.Requires(ESurfaceChannel::Depth) && DepthConvention != Camera.DepthConvention)
+				return FStatus::Error(EErrorCode::InvalidArgument, "surface depth convention differs from camera");
+			return Validate(Requirements);
+		}
+
 		FStatus Validate(const FSurfaceRequirements& Requirements) const
 		{
 			if (!Size.IsValid())

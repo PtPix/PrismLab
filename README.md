@@ -53,6 +53,7 @@ Debug / Release 的 EXE、Shader、重载脚本和日志分别位于 `bin/<配�
 
 - `PrismStarter`：统一宿主下的无场景全屏 Pass，新实验起点。
 - `PrismForward`：显式选择旧前向适配器，展示深度等调试输出。
+- `PrismDeferred`：Sample 选择程序场景，调用 `algorithms/Surface` 的可复用深度 Pass，并展示设备/线性深度；尚未实现完整延迟光照或资产场景。
 - `PrismContract`：位于 `tests/gpu/contract`，验证矩阵/深度的 CPU-GPU 一致性。
 - `PrismDonutTriangle`：原始 Donut 三角形参考，需 `-DPRISM_BUILD_EXAMPLES=ON`。
 
@@ -82,7 +83,7 @@ prism_add_target(MySample KIND EXECUTABLE
 
 ## 实验与测试
 
-Comparison 支持 A/B、并排、Wipe、差分和冻结。Replay 支持固定步长、镜头/参数录制、暂停、单步和 JSON 持久化。显示变换通过你实现的 DisplayChain 接入。
+Comparison 可用时支持 A/B、并排、Wipe、差分和冻结；初始化失败时会禁用比较而不阻止实验启动。Replay 支持固定步长、镜头/参数录制、暂停、单步和 JSON 持久化。显示变换通过你实现的 DisplayChain 接入。
 
 ```powershell
 cmake --preset my-project -DPRISM_BUILD_TESTS=ON

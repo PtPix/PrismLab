@@ -20,6 +20,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <memory>
+#include <stdexcept>
 #include <string>
 
 namespace Prism::Host
@@ -101,7 +102,16 @@ namespace Prism::Host
 		const std::filesystem::path ExecutablePath =
 			(Argc > 0 && Argv) ? std::filesystem::path(Argv[0]) : std::filesystem::path();
 
-		Host::FHostConfig Config = Host::LoadHostConfig(CommandLine.ConfigPath, ExecutablePath);
+		Host::FHostConfig Config;
+		try
+		{
+			Config = Host::LoadHostConfig(CommandLine.ConfigPath, ExecutablePath);
+		}
+		catch (const std::invalid_argument& Error)
+		{
+			donut::log::error("Prism: %s", Error.what());
+			return 1;
+		}
 
 		if (!CommandLine.SceneSource.empty())
 			Config.Scene.Source = CommandLine.SceneSource;

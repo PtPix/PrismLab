@@ -23,8 +23,6 @@ namespace Prism::Experiments
 {
 	namespace
 	{
-		constexpr uint32_t KDepthConventionForwardZ = 0;
-
 		const char* const KDebugModeNames[] = {
 			"Off", "Device depth", "Linear depth", "World position", "Normal from depth",
 		};
@@ -68,7 +66,7 @@ namespace Prism::Experiments
 		DepthRequest.Name = "SceneDepth";
 		DepthRequest.Format = EPixelFormat::D32Float;
 		DepthRequest.Usage = Gpu::ETextureUsage::ShaderResource | Gpu::ETextureUsage::DepthStencil;
-		DepthRequest.ClearDepth = KDepthClearValue;
+		DepthRequest.ClearDepth = GetDepthClearValue(Config.Camera.DepthConvention);
 
 		DebugRequest.Name = "DebugColor";
 		DebugRequest.Format = EPixelFormat::RgbA16Float;
@@ -133,6 +131,13 @@ namespace Prism::Experiments
 	nvrhi::ITexture* FForwardExperiment::Render(Host::FExperimentContext& Context, const Host::FExperimentFrame& Frame)
 	{
 		Gpu::FTextureCache& Targets = *Context.Gpu.Targets;
+		if (DepthRequest.ClearDepth != GetDepthClearValue(Frame.Camera.DepthConvention))
+		{
+			DepthRequest.ClearDepth = GetDepthClearValue(Frame.Camera.DepthConvention);
+			DebugPass.ClearBindings();
+			DebugBindingSet = nullptr;
+			DebugFramebuffer = nullptr;
+		}
 
 		nvrhi::ITexture* Color = Targets.GetOrCreate(ColorRequest);
 		nvrhi::ITexture* Depth = Targets.GetOrCreate(DepthRequest);
@@ -146,7 +151,7 @@ namespace Prism::Experiments
 		Commands->clearTextureFloat(Color, Subresources,
 									nvrhi::Color(ColorRequest.ClearColor.x, ColorRequest.ClearColor.y,
 												 ColorRequest.ClearColor.z, ColorRequest.ClearColor.w));
-		Commands->clearDepthStencilTexture(Depth, Subresources, true, KDepthClearValue, false, 0);
+		Commands->clearDepthStencilTexture(Depth, Subresources, true, DepthRequest.ClearDepth, false, 0);
 
 		if (!Scene.GetData().Graph)
 			return Color;
@@ -162,12 +167,14 @@ namespace Prism::Experiments
 		if (Context.Tools.DebugViews)
 		{
 			Context.Tools.DebugViews->Publish(GetName(), "Scene color", Color);
-			// 设备深度是 forward-Z：远平面接近 1，用 1 - R 才有对比度
-			Context.Tools.DebugViews->Publish(GetName(), "Scene depth (1 - device Z)", Depth,
-											  {Gpu::EDebugViewMode::OneMinusR, 20.f, 0.f});
+			const bool bReverseZ = Frame.Camera.DepthConvention == EDepthConvention::ReversedZ0To1;
+			Context.Tools.DebugViews->Publish(GetName(), "Scene depth (near bright)", Depth,
+											  {bReverseZ ? Gpu::EDebugViewMode::R : Gpu::EDebugViewMode::OneMinusR,
+											   20.f, 0.f});
 		}
 
-		Context.Tools.Comparison->Publish("Scene color", {Color, EColorSpace::SceneLinear});
+		if (Context.Tools.Comparison)
+			Context.Tools.Comparison->Publish("Scene color", {Color, EColorSpace::SceneLinear});
 		if (Settings.DebugMode <= 0)
 			return Color;
 
@@ -183,12 +190,12 @@ namespace Prism::Experiments
 			return Color;
 
 		FDebugViewConstants Constants = {};
-		Constants.ClipToWorld = Frame.Camera.Current.ClipToWorld;
+		Constants.ClipToWorld = Frame.Camera.Raster.ClipToWorld;
 		Constants.InverseSize = dm::float2(1.f / float(Frame.RenderSize.Width), 1.f / float(Frame.RenderSize.Height));
 		Constants.ZNear = Frame.Camera.ZNearMeters;
 		Constants.ZFar = Frame.Camera.ZFarMeters;
 		Constants.Mode = Settings.DebugMode - 1;
-		Constants.DepthConvention = KDepthConventionForwardZ;
+		Constants.DepthConvention = int(Frame.Camera.DepthConvention);
 		Constants.DepthScale = Settings.DepthScale;
 
 		Commands->writeBuffer(DebugConstantBuffer, &Constants, sizeof(Constants));

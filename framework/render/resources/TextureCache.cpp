@@ -73,8 +73,10 @@ namespace Prism::Gpu
 			const bool bUsageChanged = Entry->Request.Usage != Request.Usage;
 			const bool bLayoutChanged =
 				Entry->Request.ArraySize != Request.ArraySize || Entry->Request.MipLevels != Request.MipLevels;
+			const bool bClearValueChanged = Entry->Request.bHasClearValue != Request.bHasClearValue ||
+				(IsDepthFormat(Request.Format) && Entry->Request.ClearDepth != Request.ClearDepth);
 
-			if (bSizeChanged || bFormatChanged || bUsageChanged || bLayoutChanged)
+			if (bSizeChanged || bFormatChanged || bUsageChanged || bLayoutChanged || bClearValueChanged)
 			{
 				Entry->Texture = nullptr;
 				Entry->Size = Size;

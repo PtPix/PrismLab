@@ -20,6 +20,11 @@ namespace Prism::Adapter
 	{
 	  public:
 		void Initialize(const FCameraPreset& InPreset);
+		void SetDepthConvention(EDepthConvention Convention);
+		[[nodiscard]] EDepthConvention GetDepthConvention() const
+		{
+			return CameraPreset.DepthConvention;
+		}
 
 		// 每帧调用一次：更新相机动画、投影矩阵、视图缓存，并把结果写入 CameraData。
 		void Update(float DeltaTimeSeconds, const FExtent2D& InRenderSize, bool bAnimate = true);

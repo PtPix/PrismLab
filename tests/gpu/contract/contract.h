@@ -69,7 +69,7 @@ namespace Prism::Experiments
 
 		[[nodiscard]] bool PassedVerification() const override
 		{
-			return !Report.bRan || Report.bPassed;
+			return Report.bRan && Report.bPassed;
 		}
 
 	  private:

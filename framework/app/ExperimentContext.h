@@ -1,7 +1,6 @@
 #pragma once
 #include <framework/render/RenderServices.h>
 #include <framework/scene/SceneStats.h>
-#include <framework/scene/SceneSurfacePipeline.h>
 #include <framework/render/presentation/DisplayChain.h>
 #include <framework/render/temporal/TemporalServices.h>
 #include "HostConfig.h"
@@ -18,6 +17,7 @@ namespace Prism::Host
 	{
 
 		std::function<void(Prism::EHistoryResetReason)> RequestHistoryReset;
+		std::function<void(Prism::EDepthConvention)> SetPrimaryDepthConvention;
 
 		std::function<bool(nvrhi::ITexture*, const std::filesystem::path&, nvrhi::ResourceStates)> SaveTexture;
 
@@ -29,11 +29,6 @@ namespace Prism::Host
 
 		struct FSceneServices
 		{
-			// Optional external producers; the host does not populate these resources.
-			const Prism::FSceneFrameData* FrameData = nullptr;
-			const Gpu::FSceneGpuData* GpuData = nullptr;
-			Pipeline::ISceneSurfacePipeline* SurfacePipeline = nullptr;
-
 			FSceneStats Stats;
 			std::string Description = "(none)";
 		};

@@ -1,5 +1,5 @@
 #pragma once
-#include <framework/core/Types.h>
+#include <framework/render/data/Conventions.h>
 namespace Prism
 {
 	struct FCameraPreset
@@ -10,5 +10,6 @@ namespace Prism
 		float ZNear = 0.05f;
 		float ZFar = 100.f;
 		float MoveSpeed = 2.f;
+		EDepthConvention DepthConvention = EDepthConvention::ForwardZ0To1;
 	};
 } // namespace Prism

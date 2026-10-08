@@ -57,10 +57,13 @@ namespace Prism::Host
 		if (!Experiment)
 			return FStatus::Error(EErrorCode::InvalidArgument, "no experiment was created");
 
-		if (!Services.Device || !Services.Shaders || !Services.Targets || !Services.Profiler)
+		if (!Services.Device || !Services.Shaders || !Services.CommonPasses || !Services.Targets ||
+			!Services.Profiler)
 			return FStatus::Error(EErrorCode::NotInitialized, "the host services are incomplete");
 
 		CommandList = Services.Device->createCommandList();
+		if (!CommandList)
+			return FStatus::Error(EErrorCode::DeviceError, "failed to create the host command list");
 
 		Context.Gpu.Device = Services.Device;
 		Context.Gpu.ShaderFactory = Services.ShaderFactory.get();
@@ -76,6 +79,16 @@ namespace Prism::Host
 		Context.Callbacks.RequestHistoryReset = [this](Prism::EHistoryResetReason Reason)
 		{
 			RequestHistoryReset(Reason);
+		};
+		Context.Callbacks.SetPrimaryDepthConvention = [this](Prism::EDepthConvention Convention)
+		{
+			if (Convention != EDepthConvention::ForwardZ0To1 && Convention != EDepthConvention::ReversedZ0To1)
+				return;
+			if (Camera.GetDepthConvention() != Convention)
+			{
+				Camera.SetDepthConvention(Convention);
+				RequestHistoryReset(EHistoryResetReason::SettingsChange);
+			}
 		};
 
 		Context.Callbacks.SaveTexture =
@@ -95,12 +108,12 @@ namespace Prism::Host
 
 		Context.Tools.DebugViews = &DebugViews;
 		Context.Tools.Metrics = &Metrics;
-		Context.Tools.Comparison = &Tools.Comparison;
 		Context.Tools.Replay = &Tools.Replay;
 		const auto ToolsStatus =
 			Tools.Initialize(Services.Device, *Services.Shaders, *Services.CommonPasses, Services.ExecutablePath);
 		if (!ToolsStatus)
 			return ToolsStatus;
+		Context.Tools.Comparison = Tools.Comparison.IsAvailable() ? &Tools.Comparison : nullptr;
 
 		// 公共调试视图的显示 Pass（框架自带 shader；不存在时只是没有该功能，不影响实验）
 		if (!DebugViewPass.Initialize(Services.Device, *Services.Shaders))
@@ -287,7 +300,8 @@ namespace Prism::Host
 
 		Frame.View = &Camera.GetView();
 		PreviousView.SetViewport(nvrhi::Viewport(float(RenderSize.Width), float(RenderSize.Height)));
-		PreviousView.SetMatrices(Frame.Camera.Previous.WorldToView, Frame.Camera.Previous.ViewToClip);
+		PreviousView.SetMatrices(Frame.Camera.PreviousRaster.WorldToView, Frame.Camera.PreviousRaster.ViewToClip);
+		PreviousView.SetPixelOffset(dm::float2(0.f));
 		PreviousView.UpdateCache();
 		Frame.PreviousView = &PreviousView;
 
@@ -318,7 +332,7 @@ namespace Prism::Host
 		}
 
 		EColorSpace OutputSpace = Context.Output.ColorSpace;
-		if (OutputTexture)
+		if (OutputTexture && Tools.Comparison.IsAvailable())
 		{
 			const auto Compared = Tools.Comparison.Record(CommandList, {OutputTexture, OutputSpace});
 			OutputTexture = Compared.Texture;

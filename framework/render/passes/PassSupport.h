@@ -4,12 +4,19 @@
 #include <framework/render/shaders/ShaderReloadClient.h>
 #include <framework/core/Status.h>
 #include <framework/core/Types.h>
+#include <framework/render/data/Conventions.h>
 #include <donut/engine/BindingCache.h>
 #include <nvrhi/utils.h>
 #include <type_traits>
 
 namespace Prism::Gpu
 {
+	constexpr nvrhi::ComparisonFunc GetDepthCompare(EDepthConvention Convention)
+	{
+		return Convention == EDepthConvention::ReversedZ0To1
+			? nvrhi::ComparisonFunc::Greater : nvrhi::ComparisonFunc::Less;
+	}
+
 	struct FShaderEntry
 	{
 		std::string Path;

@@ -15,6 +15,7 @@ namespace Prism::Host
 		}
 		if (ImGui::CollapsingHeader("Comparison"))
 		{
+			ImGui::BeginDisabled(!Comparison.IsAvailable());
 			const char* Modes[] = {"Off", "A", "B", "Side by side", "Wipe", "Absolute difference"};
 			int Mode = int(Comparison.Settings.Mode);
 			if (ImGui::Combo("Mode", &Mode, Modes, 6))
@@ -39,6 +40,7 @@ namespace Prism::Host
 			if (ImGui::Button("Release frozen B"))
 				Comparison.ClearFrozen();
 			ImGui::Checkbox("Use frozen B", &Comparison.bUseFrozenB);
+			ImGui::EndDisabled();
 			ImGui::TextWrapped("%s", Comparison.GetMessage().c_str());
 		}
 		if (ImGui::CollapsingHeader("Replay"))

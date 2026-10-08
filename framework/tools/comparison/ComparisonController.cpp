@@ -4,6 +4,8 @@ namespace Prism::Host
 {
 	void FComparisonController::Publish(std::string Id, Gpu::FComparisonImage Image)
 	{
+		if (!bAvailable)
+			return;
 		for (FSource& Source : PublishedSources)
 			if (Source.Id == Id)
 			{
@@ -21,13 +23,15 @@ namespace Prism::Host
 	}
 	Gpu::FComparisonImage FComparisonController::Record(nvrhi::ICommandList* Commands, Gpu::FComparisonImage Fallback)
 	{
+		if (!bAvailable)
+			return Fallback;
 		Publish("Output", Fallback);
 		StatusMessage.clear();
 		auto ImageA = Find(SourceA), ImageB = Find(SourceB);
 		if (bFreezeRequested)
 		{
 			bFreezeRequested = false;
-			auto Status = Pass.Freeze(Commands, ImageB);
+			auto Status = Pass->Freeze(Commands, ImageB);
 			if (!Status)
 				StatusMessage = Status.ToStringWithCode();
 			else
@@ -36,14 +40,14 @@ namespace Prism::Host
 		if (Settings.Mode == Gpu::EComparisonMode::Off)
 			return Fallback;
 		if (bUseFrozenB)
-			ImageB = Pass.GetFrozenImage();
-		auto Status = Pass.Record(Commands, ImageA, ImageB, Settings);
+			ImageB = Pass->GetFrozenImage();
+		auto Status = Pass->Record(Commands, ImageA, ImageB, Settings);
 		if (!Status)
 		{
 			StatusMessage = Status.ToStringWithCode();
 			return Fallback;
 		}
-		return {Pass.GetOutputTexture(),
+		return {Pass->GetOutputTexture(),
 				Settings.Mode == Gpu::EComparisonMode::Difference ? EColorSpace::DisplayEncoded : ImageA.ColorSpace};
 	}
 } // namespace Prism::Host

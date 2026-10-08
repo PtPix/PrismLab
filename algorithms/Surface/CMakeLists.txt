@@ -1,0 +1,11 @@
+prism_add_target(PrismSurface
+    SOURCES
+        DepthProjection.h
+        DepthRenderer.h
+        DepthRenderer.cpp
+        shaders/SurfaceDepthCb.h
+    SHADERS
+        shaders/SurfaceDepth.hlsl:vs
+    INCLUDES
+        "${CMAKE_CURRENT_SOURCE_DIR}/shaders"
+)

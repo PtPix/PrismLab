@@ -60,16 +60,23 @@ and modules. `framework/CMakeLists.txt` lists framework targets and their source
 ## Public contracts
 
 `Experiment.h` contains the sample lifecycle. `ExperimentContext.h` groups borrowed
-GPU, scene, tool, temporal and presentation services. `ExperimentFrame.h` supplies
-per-frame values. Reusable render algorithms accept typed inputs and
-`gpu::RenderServices`, not the application context.
+GPU, tool, temporal and presentation services; its `Scene` field contains only host
+UI statistics and a description. `ExperimentFrame.h` supplies per-frame values.
+Reusable render algorithms accept typed inputs and `Gpu::FRenderServices`, not the
+application context.
 
+The CPU/GPU scene views and surface producer interface remain independent optional
+contracts in `framework/scene/`; applications include them explicitly when needed.
 Scene buffers and surface output textures are application-supplied. The surface
 interface does not perform material evaluation, visibility or lighting. Temporal and
 display interfaces similarly contain no effect implementation or UI methods.
 
 Resource requests have stable IDs. Copying shares identity; separate default requests
 remain separate even with identical names. Names are labels, not lookup keys.
+`FResourceTable` and its `FTextureSlot` / `FBufferSlot` stay in `framework/render` as
+general GPU resource facilities used by the host and experiments. `FGeometryBatch`
+stays a drawable geometry view produced by `framework/adapters/donut` scene adapters;
+neither implies that the host supplies a default scene or surface pipeline.
 Caches own resources; scene input views borrow them. Handle synchronization explicitly
 when replacing externally owned buffers. Pass registration requires ShaderLibrary to
 outlive its passes; the application destruction order enforces this for sample members.

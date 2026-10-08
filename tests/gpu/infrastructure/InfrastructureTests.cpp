@@ -4,6 +4,7 @@
 #include <framework/render/passes/ComputePass.h>
 #include <framework/render/passes/RasterPass.h>
 #include <framework/tools/comparison/ComparisonPass.h>
+#include <framework/tools/comparison/ComparisonController.h>
 #include <donut/core/vfs/VFS.h>
 #include <donut/core/log.h>
 #include <cmath>
@@ -105,6 +106,22 @@ namespace Prism::Host
 			Check(Resources.Get(First) != Resources.Get(Second), "same labels have independent identities");
 			const auto Shared = First;
 			Check(Resources.Get(Shared) == Resources.Get(First), "copied resource identity");
+			const Gpu::FComparisonImage Fallback{Resources.Get(First), EColorSpace::DisplayEncoded};
+			{
+				auto EmptyFiles = std::make_shared<donut::vfs::RootFileSystem>();
+				auto EmptyFactory = std::make_shared<donut::engine::ShaderFactory>(Context.Gpu.Device, EmptyFiles,
+					"/shaders");
+				Gpu::FShaderLibrary MissingShaders(Context.Gpu.Device, EmptyFactory);
+				FComparisonController UnavailableComparison;
+				const auto Failure = UnavailableComparison.Initialize(Context.Gpu.Device, MissingShaders,
+					*Context.Gpu.CommonPasses);
+				UnavailableComparison.Publish("source", Fallback);
+				UnavailableComparison.RequestFreeze();
+				const auto Unchanged = UnavailableComparison.Record(nullptr, Fallback);
+				Check(!Failure && !UnavailableComparison.IsAvailable() && UnavailableComparison.GetSources().empty() &&
+					  Unchanged.Texture == Fallback.Texture && Unchanged.ColorSpace == Fallback.ColorSpace,
+					  "comparison shader failure leaves experiment output unchanged");
+			}
 			Gpu::FBufferSlot Pixels("Repeated", 16, Gpu::EBufferUsage::ShaderResource, 1);
 			const auto Size = Resources.GetBufferCache().GetRenderSize();
 			Resources.SetRenderSize({17, 13});

@@ -147,15 +147,19 @@ beginning for repeatable comparisons. Replay does not promise cross-device bit i
 
 ## Scene interfaces
 
-`context.scene.frameData`, `gpuData` and `surfacePipeline` start as null. Assign your
-own producers and storage. The host neither fills nor automatically invokes them.
-`SceneFrameData` carries stable IDs, current/previous transforms, bounds and revisions.
-`SceneGpuData` exposes buffer offset/count/stride/generation, an optional texture table
-and a producer-defined `layoutId`. There is no implicit vertex/material packing.
+`FExperimentContext::Scene` exposes only `Stats` and `Description` for the host UI.
+The host supplies no CPU/GPU scene views or surface producer. Applications that need
+them include `framework/scene/SceneFrameData.h`, `SceneGpuData.h` and
+`SceneSurfacePipeline.h` explicitly, and own their producers and storage. These
+optional contracts are not fields of `FExperimentContext` and are not invoked by the
+host. `FSceneFrameData` carries stable IDs, current/previous transforms, bounds and
+revisions. `Gpu::FSceneGpuData` exposes buffer offset/count/stride/generation, an
+optional texture table and a producer-defined `LayoutId`. There is no implicit
+vertex/material packing.
 
-Allocate surface textures yourself, fill `SceneSurfaceData`, set its schema/depth and
+Allocate surface textures yourself, fill `FSceneSurfaceData`, set its schema/depth and
 motion conventions, validate required channels, and call your `ISceneSurfacePipeline`
-implementation with `SurfaceFrame`. Channels are depth, normal/roughness,
+implementation with `FSurfaceFrame`. Channels are depth, normal/roughness,
 base-color/metalness, emissive, motion, instance ID and material ID. Motion is previous
 minus current in the declared UV/pixel units, with an explicit jitter flag.
 
