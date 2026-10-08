@@ -1107,4 +1107,5 @@ M1 到 M5 是核心课程，建议按顺序完成。M6 以后根据兴趣选择�
 - [当前架构](architecture.md)
 - [实验框架使用说明](framework-experiments.md)
 - [编码风格](coding-style.md)
+- [Surface 深度 Prepass 评审](surface-depth-review-2026-10-09.md)
 - [历史架构评审](architecture-review-2026-09-22.md)
