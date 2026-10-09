@@ -19,8 +19,6 @@
 // PCSS 的半影需要"遮挡物距离（米）"与"光源尺寸"，首版没有提供米制换算的桥接函数，
 // 因此这里不给出半成品实现：M2 补齐 PRISM_ShadowDepthInMeters(...) 之后再添加。
 
-#include "framework/render/shaders/include/Prism/Common/Platform.hlsli"
-
 float HardShadowVisibility(float3 worldPosition, int2 texelCoord, float depthBiasNdc)
 {
     const float shadowDepth = PRISM_LoadShadowDepth(texelCoord);

@@ -4,6 +4,9 @@
 Shader，而是从基础渲染管线出发，逐步建立可以验证、比较、组合和优化的实时渲染算法库，并用这些
 实现理解 Unreal Engine 的渲染架构、工程约束和特定优化。
 
+当前项目只构建 `PrismDeferred`；具体程序场景由 Sample 描述并交给 framework 管理，算法 C++
+只依赖 NVRHI/标准库。本文的测试、其他 Sample 和后续算法是长期目标，并非现有构建目标。
+
 本文对照 Unreal Engine 5.8 和当前公开的 Direct3D 12 文档，最后核对日期为 2026-10-07。
 UE 的具体实现会继续演进，因此 Prism 的模块边界以稳定的图形学输入输出为准，UE 类型、文件和
 Pass 名称只作为源码阅读入口，不成为 Prism 算法接口的一部分。
@@ -30,20 +33,20 @@ PrismLab 同时服务四个目标：
 - 窗口、D3D12 设备和 NVRHI 命令录制；
 - Compute、Raster、Fullscreen Pass 封装；
 - Shader 编译、反射、热重载和事务回滚；
-- 稳定资源 ID、Texture/Buffer Cache 和资源表；
+- 稳定资源 ID、Texture/Buffer Cache；
 - GPU 计时；
 - Comparison、Replay、Capture、Metrics 和 Debug View；
-- CPU/GPU 场景借用接口；
-- Surface、Temporal、Display 的公共契约；
-- 程序场景、glTF 场景和 Donut Forward 参考路径。
+- 场景宿主、Donut 场景适配与借用式几何批次；
+- 相机、深度、时域和显示基础约定；Surface/GBuffer 数据契约待真实生产者接入时建立；
+- 样例自定义的程序场景与 framework 托管的 Donut 资产场景；不再构建 Forward 参考样例。
 
 当前主要缺口是算法层：
 
 - `algorithms/shadows` 只有设置和 PCF 核心，没有完整阴影渲染调度；
-- 没有 Prism 自己生成的 Depth、GBuffer 和 Motion Vector；
+- 已有独立于 framework/Donut 的 NVRHI Depth Pass；尚无 GBuffer 和 Motion Vector；
 - 没有 Prism 自己的材质求值、直接光、IBL、曝光和 Tone Mapping；
 - 没有 Hi-Z、时域历史消费者、光追参考或 GPU Driven 路径；
-- `PrismForward` 仍主要用于观察旧 Donut Forward 结果。
+- 旧 `PrismForward` 参考示例已移除；`PrismDeferred` 目前只展示自有 Depth 结果。
 
 因此近期工作重点应是填充 Algorithm 和 Sample，不继续扩大通用框架。只有当至少两个真实算法出现
 相同的资源或调度问题时，才把解决方案下沉到 `framework/`。
@@ -98,8 +101,9 @@ Path tracer ---------------------> reference for lighting and visibility
 - Debug 数据；
 - 数值测试和 GPU Contract 测试。
 
-Algorithm 可以使用 NVRHI 和 `Prism::Gpu::FRenderServices`，但不能包含 `ExperimentContext`、ImGui、
-窗口、命令行或演示场景。
+Algorithm 的 C++ 依赖限制为 NVRHI 和标准库：Sample/宿主侧完成场景与相机的数据转换、
+Shader 加载和实验参数装配。Algorithm 不包含 `ExperimentContext`、`FRenderServices`、Donut、
+ImGui、窗口、命令行或演示场景。
 
 建议的最小布局为：
 
@@ -120,34 +124,9 @@ algorithms/shadows/
     PCSS.hlsli
 ```
 
-公开接口保持强类型，不通过字符串查找算法资源：
-
-```cpp
-namespace Prism::Shadows
-{
-	struct FShadowInputs
-	{
-		const FFrameInfo& Frame;
-		const FCameraData& Camera;
-		const FSceneFrameData& Scene;
-		const Gpu::FSceneGpuData& GpuScene;
-	};
-
-	struct FShadowOutputs
-	{
-		nvrhi::ITexture* Visibility = nullptr;
-		nvrhi::ITexture* Atlas = nullptr;
-	};
-
-	class FShadowRenderer
-	{
-	  public:
-		FStatus Initialize(Gpu::FRenderServices& Services);
-		FStatus Record(nvrhi::ICommandList* Commands, const FShadowInputs& Inputs,
-					   const FShadowSettings& Settings, FShadowOutputs& Outputs);
-	};
-}
-```
+公开接口保持强类型，不通过字符串查找算法资源。Sample 转换相机、场景与材质数据，
+并将加载后的 NVRHI Shader/资源交给 Algorithm；例如当前 `FDepthRenderer` 接收
+`nvrhi::IShader*` 和逐 Draw 的行主序矩阵，而不接收 `FRenderServices` 或 Donut 场景。
 
 ### 4.3 Sample
 
@@ -1104,8 +1083,5 @@ M1 到 M5 是核心课程，建议按顺序完成。M6 以后根据兴趣选择�
 
 ### PrismLab 内部文档
 
-- [当前架构](architecture.md)
-- [实验框架使用说明](framework-experiments.md)
+- [项目现状与运行方式](../README.md)
 - [编码风格](coding-style.md)
-- [Surface 深度 Prepass 评审](surface-depth-review-2026-10-09.md)
-- [历史架构评审](architecture-review-2026-09-22.md)

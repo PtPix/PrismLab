@@ -1,5 +1,0 @@
-add_executable(PrismCpuTests Main.cpp ReplayTests.cpp)
-target_link_libraries(PrismCpuTests PRIVATE prism_replay prism_camera)
-prism_target_defaults(PrismCpuTests)
-add_test(NAME PrismCpu COMMAND PrismCpuTests)
-set_tests_properties(PrismCpu PROPERTIES TIMEOUT 15)

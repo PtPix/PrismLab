@@ -27,9 +27,10 @@ third-party APIs and configuration/shader binding names.
 
 ## HLSL
 
-- Include `Prism/Common/Platform.hlsli` before shader declarations; write
-  multi-line blocks with Allman braces. Preserve existing entry-point, resource,
-  semantic, and binding names. No general HLSL identifier naming rule is set.
+- Declare row-major matrices before shader declarations, either with a local
+  `#pragma pack_matrix(row_major)` or the shared platform header where needed.
+  Use Allman braces for multi-line blocks; preserve entry-point and binding names.
+  No general HLSL identifier naming rule is set.
 
 ## CMake
 

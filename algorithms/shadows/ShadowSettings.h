@@ -2,10 +2,8 @@
 
 // Shadow-family settings and light projection conventions.
 
-#include <framework/render/data/Conventions.h>
-#include <framework/scene/LightData.h>
-#include <framework/core/Types.h>
-
+#include <array>
+#include <cmath>
 #include <cstdint>
 
 namespace Prism
@@ -65,11 +63,13 @@ namespace Prism
 
 	struct FShadowView
 	{
-		dm::float4x4 WorldToLightClip = dm::float4x4::identity();
-		dm::float4x4 LightClipToWorld = dm::float4x4::identity();
+		// Row-major 4x4 matrices; the caller converts its math types at the boundary.
+		std::array<float, 16> WorldToLightClip = {1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f,
+												  0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f};
+		std::array<float, 16> LightClipToWorld = WorldToLightClip;
 
 		ELightProjection Projection = ELightProjection::Orthographic;
-		EDepthConvention DepthConvention = EDepthConvention::ForwardZ0To1;
+		bool bReverseZ = false;
 
 		float NearPlaneMeters = 0.1f;
 		float FarPlaneMeters = 100.f;
@@ -84,7 +84,10 @@ namespace Prism
 
 		[[nodiscard]] float LinearizeDepth(float DeviceDepth) const
 		{
-			return Prism::LinearizeDepth(DeviceDepth, NearPlaneMeters, FarPlaneMeters, DepthConvention);
+			const float Range = FarPlaneMeters - NearPlaneMeters;
+			const float Denominator =
+				bReverseZ ? NearPlaneMeters + DeviceDepth * Range : FarPlaneMeters - DeviceDepth * Range;
+			return std::fabs(Denominator) < 1e-8f ? FarPlaneMeters : NearPlaneMeters * FarPlaneMeters / Denominator;
 		}
 	};
 

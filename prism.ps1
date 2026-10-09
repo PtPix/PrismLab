@@ -3,17 +3,15 @@
 # ASCII-only on purpose: Windows PowerShell 5.1 reads a BOM-less script as ANSI and would corrupt
 # non-ASCII literals.
 #
-#   powershell -NoProfile -File prism.ps1                                    # ForwardExperiment, Debug
-#   powershell -NoProfile -File prism.ps1 -Target All -Config Release -NoRun
-#   powershell -NoProfile -File prism.ps1 -Target PrismContract -AppArgs --smoke-test=30 -TailLog
-#   powershell -NoProfile -File prism.ps1 -Target PrismForward -AppArgs --bench=120 --metrics forward_bench.csv
+#   powershell -NoProfile -File prism.ps1                                    # PrismDeferred, Debug
+#   powershell -NoProfile -File prism.ps1 -Config Release -NoRun
+#   powershell -NoProfile -File prism.ps1 -AppArgs --bench=120 --metrics deferred_bench.csv
 
 param(
-    # Source file that triggered the run (Code Runner passes $fullFileName); picks a target when
-    # -Target is empty.
+    # Kept for the Code Runner invocation; the only target is PrismDeferred.
     [string]$SourceFile = '',
 
-    [ValidateSet('', 'PrismForward', 'PrismContract', 'PrismStarter', 'PrismDeferred', 'All')]
+    [ValidateSet('', 'PrismDeferred')]
     [string]$Target = '',
 
     [ValidateSet('Debug', 'Release')]
@@ -26,7 +24,7 @@ param(
     [switch]$NoRun,
     [switch]$TailLog,
 
-    # Passed to the executable verbatim: --smoke-test=30 / --bench=120 / --capture out.png ...
+    # Passed to the executable verbatim: --bench=120 / --capture out.png ...
     [string[]]$AppArgs = @()
 )
 
@@ -57,20 +55,6 @@ function Find-CMake {
     throw 'cmake not found. Install CMake or the VS C++ workload, or run from a Developer PowerShell.'
 }
 
-function Resolve-Target([string]$file) {
-    if ([string]::IsNullOrEmpty($file)) {
-        return 'PrismForward'
-    }
-
-    switch -Regex ($file -replace '\\', '/') {
-        '/samples/forward/'  { return 'PrismForward' }
-        '/samples/Deferred/' { return 'PrismDeferred' }
-        '/tests/gpu/contract/' { return 'PrismContract' }
-        '/samples/starter/'      { return 'PrismStarter' }
-        default                  { return 'PrismForward' }
-    }
-}
-
 $cmake = Find-CMake
 Write-Host ('[prism] cmake : ' + $cmake)
 
@@ -93,14 +77,12 @@ if ($ConfigureOnly) {
 }
 
 if ([string]::IsNullOrEmpty($Target)) {
-    $Target = Resolve-Target $SourceFile
+    $Target = 'PrismDeferred'
 }
 
 if (-not $NoBuild) {
-    $targets = if ($Target -eq 'All') { @('PrismForward', 'PrismContract', 'PrismStarter', 'PrismDeferred') } else { @($Target) }
-
-    Write-Host ('[prism] building ' + ($targets -join ', ') + ' (' + $Config + ')')
-    & $cmake --build $buildDir --config $Config --target $targets --parallel
+    Write-Host ('[prism] building ' + $Target + ' (' + $Config + ')')
+    & $cmake --build $buildDir --config $Config --target $Target --parallel
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }
@@ -110,8 +92,7 @@ if ($NoRun) {
     exit 0
 }
 
-$runTarget = if ($Target -eq 'All') { 'PrismForward' } else { $Target }
-$executable = Join-Path $binDir ($runTarget + '.exe')
+$executable = Join-Path $binDir ($Target + '.exe')
 if (-not (Test-Path $executable)) {
     Write-Error ('executable not found: ' + $executable)
     exit 1
@@ -120,13 +101,13 @@ if (-not (Test-Path $executable)) {
 # Headless flags make the process exit on its own; an interactive run starts in the background.
 $headless = $false
 foreach ($argument in $AppArgs) {
-    if ($argument -match '^--(smoke-test|bench|capture|reference|write-reference)') {
+    if ($argument -match '^--(bench|capture|reference|write-reference)') {
         $headless = $true
         break
     }
 }
 
-Write-Host ('[prism] running ' + $runTarget + '.exe ' + ($AppArgs -join ' '))
+Write-Host ('[prism] running ' + $Target + '.exe ' + ($AppArgs -join ' '))
 
 $startParameters = @{ FilePath = $executable; WorkingDirectory = $binDir; PassThru = $true }
 if ($AppArgs.Count -gt 0) {

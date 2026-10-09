@@ -1,4 +1,4 @@
-#include "Prism/Common/Platform.hlsli"
+#pragma pack_matrix(row_major)
 #include "SurfaceDepthCb.h"
 
 ConstantBuffer<FSurfaceDepthConstants> g_Depth : register(b0);

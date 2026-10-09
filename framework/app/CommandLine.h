@@ -5,7 +5,6 @@
 //   --config <path>      使用指定配置文件
 //   --scene <source>     覆盖配置中的场景来源（procedural | gltf）
 //   --asset <path>       覆盖场景资产路径
-//   --smoke-test[=N]     渲染 N 帧（默认 3）后退出，用于验证构建与初始化
 //   --width/--height <n> 覆盖窗口尺寸
 //   --capture <path>     截图并退出（默认在 --capture-frame 指定的帧）
 //   --capture-frame <n>  截图帧序号，默认 2
@@ -14,7 +13,7 @@
 //   --tolerance <v>      参考图比较容差，默认 0.01
 //   --bench[=N]          预热后测量 N 帧（默认 120），写出指标 CSV 并退出
 //   --bench-warmup[=N]   --bench 的预热帧数，默认 30
-//   --metrics <path>     指标 CSV 路径（配合 --bench / --smoke-test，退出时写出）
+//   --metrics <path>     指标 CSV 路径（配合 --bench，退出时写出）
 //   --no-vsync           关闭垂直同步
 //   --no-timing          关闭 GPU 计时
 //   --help               打印用法
@@ -31,9 +30,6 @@ namespace Prism::Host
 		std::filesystem::path ConfigPath;
 		std::string SceneSource;
 		std::string SceneAsset;
-
-		uint32_t SmokeTestFrames = 0;
-		bool bSmokeTest = false;
 
 		std::filesystem::path CapturePath;
 		uint32_t CaptureFrame = 2;
@@ -62,7 +58,7 @@ namespace Prism::Host
 		// 捕获/参考比较/性能测量的帧数上限（0 表示不做）
 		[[nodiscard]] bool WantsHeadlessRun() const
 		{
-			return bSmokeTest || BenchFrames > 0 || !CapturePath.empty() || !ReferencePath.empty() ||
+			return BenchFrames > 0 || !CapturePath.empty() || !ReferencePath.empty() ||
 				   !WriteReferencePath.empty();
 		}
 

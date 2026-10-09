@@ -6,8 +6,7 @@
 
 // 1) 矩阵打包为行主序，与 Donut 的 shader 以及 CPU 侧的 dm::float4x4 内存布局一致。
 //    有了这一行，HLSL 的 mul(v, M) 与 CPU 的 v * M 完全等价。
-//    漏掉它的症状非常有迷惑性：深度相关的计算全部正确、依赖矩阵的位置计算全错
-//    （ContractExperiment 的自检覆盖了这一点）。
+//    漏掉它会使依赖矩阵的位置计算错误，即使深度值看起来正常。
 #pragma pack_matrix(row_major)
 
 // 2) 深度由视图约定决定；forward-Z 近 0/远 1，reverse-Z 近 1/远 0。

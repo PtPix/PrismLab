@@ -5,7 +5,6 @@ target_link_libraries(prism_core INTERFACE donut_core)
 add_library(prism_render STATIC
     render/resources/BufferCache.cpp
     render/resources/TextureCache.cpp
-    render/resources/ResourceTable.cpp
     render/resources/Formats.cpp
     render/profiling/GpuProfiler.cpp
     render/shaders/ShaderLibrary.cpp
@@ -22,17 +21,12 @@ get_filename_component(dxc_root "${dxc_bin}/../.." ABSOLUTE)
 target_include_directories(prism_render PRIVATE "${dxc_root}/inc")
 target_compile_definitions(prism_render PRIVATE PRISM_DXCOMPILER_PATH="${dxc_bin}/dxcompiler.dll")
 
-add_library(prism_scene INTERFACE)
-target_link_libraries(prism_scene INTERFACE prism_render)
 add_library(prism_camera STATIC adapters/donut/CameraController.cpp)
 target_link_libraries(prism_camera PUBLIC prism_core donut_app)
 add_library(prism_donut_scene STATIC
     adapters/donut/SceneHost.cpp
-    adapters/donut/ProceduralScene.cpp
-    adapters/donut/LightAdapter.cpp
-    adapters/donut/SceneForwardPipeline.cpp
-    adapters/donut/ForwardScene.cpp)
-target_link_libraries(prism_donut_scene PUBLIC prism_scene donut_render)
+    adapters/donut/LightAdapter.cpp)
+target_link_libraries(prism_donut_scene PUBLIC prism_render donut_render)
 
 add_library(prism_replay STATIC
     tools/replay/ReplayTrack.cpp

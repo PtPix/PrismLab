@@ -1,7 +1,6 @@
 #include "SceneHost.h"
 
 #include "LightAdapter.h"
-#include "ProceduralScene.h"
 
 #include <donut/core/log.h>
 
@@ -24,7 +23,8 @@ namespace Prism::Adapter
 	FStatus FSceneHost::Load(nvrhi::IDevice* InDevice,
 							 const std::shared_ptr<donut::engine::ShaderFactory>& InShaderFactory,
 							 const std::shared_ptr<donut::vfs::IFileSystem>& InFileSystem,
-							 const FScenePreset& InScenePreset, const FLightingPreset& InLightingPreset)
+							 const FScenePreset& InScenePreset, const FLightingPreset& InLightingPreset,
+							 FSceneFactory ProceduralFactory)
 	{
 		Reset();
 
@@ -82,13 +82,19 @@ namespace Prism::Adapter
 			return FStatus::Ok();
 		}
 
+		if (Source != "procedural" || !ProceduralFactory)
+		{
+			return FStatus::Error(EErrorCode::InvalidArgument, "a procedural scene factory is required");
+		}
+
 		nvrhi::CommandListHandle Commands = Device->createCommandList();
 		Commands->open();
-		Scene = CreateProceduralScene(Device, Commands, InLightingPreset);
+		Scene = ProceduralFactory(Device, Commands, InLightingPreset);
 		Commands->close();
 		Device->executeCommandList(Commands);
 
-		return FStatus::Ok();
+		return Scene.IsLoaded() ? FStatus::Ok()
+			: FStatus::Error(EErrorCode::ResourceMissing, "procedural scene is empty");
 	}
 
 	void FSceneHost::Reset()

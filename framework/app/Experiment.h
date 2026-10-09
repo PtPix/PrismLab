@@ -54,12 +54,6 @@ namespace Prism::Host
 			(void)OutputSize;
 		}
 
-		// 自检结果：冒烟测试/CI 用它决定进程退出码（例如契约自检失败时返回 false）。
-		virtual bool PassedVerification() const
-		{
-			return true;
-		}
-
 		// Called once after any Initialize attempt, including partial failure, while the device is alive.
 		virtual void Shutdown(FExperimentContext& Context)
 		{

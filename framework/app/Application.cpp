@@ -193,7 +193,6 @@ namespace Prism::Host
 		Gpu::FShaderLibrary ShaderLibrary(Device, ShaderFactory);
 		Gpu::FTextureCache RenderTargets(Device);
 		Gpu::FBufferCache Buffers(Device);
-		Gpu::FResourceTable Resources(RenderTargets, Buffers);
 		Gpu::FGpuProfiler Profiler(Device);
 		Profiler.SetEnabled(Config.Render.bEnableGpuTiming);
 
@@ -211,7 +210,6 @@ namespace Prism::Host
 		Services.Shaders = &ShaderLibrary;
 		Services.Targets = &RenderTargets;
 		Services.Buffers = &Buffers;
-		Services.Resources = &Resources;
 		Services.Profiler = &Profiler;
 		Services.Config = &Config;
 		Services.AssetsDirectory = FindAssetsDirectory();
@@ -254,8 +252,6 @@ namespace Prism::Host
 		ExperimentPass->WriteMetricsIfRequested();
 
 		const bool bExperimentFailed = ExperimentPass->HasFailed();
-		const bool bVerificationFailed =
-			ExperimentPass->GetExperiment() && !ExperimentPass->GetExperiment()->PassedVerification();
 		const bool bAnalysisFailed = ExperimentPass->HasAnalysisFailure();
 
 		// Passes and the shader factory own NVRHI objects, so they must be gone before the device dies.
@@ -273,7 +269,7 @@ namespace Prism::Host
 		// DeviceManager only releases the swap chain framebuffers inside Shutdown(); destroying it
 		// without that call tears the framebuffers down after the device resources are already gone.
 
-		const bool bFailed = bExperimentFailed || bVerificationFailed || bAnalysisFailed;
+		const bool bFailed = bExperimentFailed || bAnalysisFailed;
 		donut::log::info("Prism: exited %s.", bFailed ? "with errors" : "cleanly");
 		return bFailed ? 1 : 0;
 	}

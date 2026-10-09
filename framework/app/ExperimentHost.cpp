@@ -71,7 +71,6 @@ namespace Prism::Host
 		Context.Gpu.Shaders = Services.Shaders;
 		Context.Gpu.Targets = Services.Targets;
 		Context.Gpu.Buffers = Services.Buffers;
-		Context.Gpu.Resources = Services.Resources;
 		Context.Gpu.Profiler = Services.Profiler;
 		Context.Config = Services.Config;
 		Context.AssetsDirectory = Services.AssetsDirectory;
@@ -141,10 +140,11 @@ namespace Prism::Host
 			RenderSize = OutputSize;
 		}
 
-		if (Services.Resources)
-			Services.Resources->SetRenderSize(RenderSize);
-		else if (Services.Targets)
-			Services.Targets->SetRenderSize(RenderSize);
+		Services.Targets->SetRenderSize(RenderSize);
+		if (Services.Buffers)
+		{
+			Services.Buffers->SetRenderSize(RenderSize);
+		}
 
 		// 命令行指定了调试视图：条目在实验第一次 Publish 之后才存在，索引会保留到这里生效。
 		DebugViews.SetSelectedIndex(CommandLine.DebugView);
@@ -221,10 +221,11 @@ namespace Prism::Host
 			RenderSize = NewRenderSize;
 			bResolutionChanged = true;
 
-			if (Services.Resources)
-				Services.Resources->SetRenderSize(RenderSize);
-			else
-				Services.Targets->SetRenderSize(RenderSize);
+			Services.Targets->SetRenderSize(RenderSize);
+			if (Services.Buffers)
+			{
+				Services.Buffers->SetRenderSize(RenderSize);
+			}
 		}
 	}
 
@@ -493,13 +494,7 @@ namespace Prism::Host
 			}
 		}
 
-		if (CommandLine.bSmokeTest && FrameCounter >= CommandLine.SmokeTestFrames)
-		{
-			donut::log::info("Prism: smoke test finished %llu frames, shutting down.",
-							 (unsigned long long)FrameCounter);
-			RequestQuit();
-			return true;
-		}
+
 
 		return false;
 	}
@@ -567,10 +562,11 @@ namespace Prism::Host
 		// 等待 GPU：命令列表返回不代表 GPU 已经用完这些资源。
 		GetDevice()->waitForIdle();
 
-		if (Services.Resources)
-			Services.Resources->Clear();
-		else if (Services.Targets)
-			Services.Targets->Clear();
+		Services.Targets->Clear();
+		if (Services.Buffers)
+		{
+			Services.Buffers->Clear();
+		}
 
 		Presentation.Reset();
 		OutputTexture = nullptr;

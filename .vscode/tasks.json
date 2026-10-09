@@ -20,13 +20,13 @@
         },
         {
             "label": "Prism: build (Debug)",
-            "detail": "构建 ForwardExperiment / ContractExperiment / Starter（Debug）",
+            "detail": "构建 PrismDeferred（Debug）",
             "type": "shell",
             "command": "powershell",
             "args": [
                 "-NoProfile", "-ExecutionPolicy", "Bypass",
                 "-File", "${workspaceFolder}/prism.ps1",
-                "-Target", "All", "-NoRun"
+                "-Target", "PrismDeferred", "-NoRun"
             ],
             "options": { "cwd": "${workspaceFolder}" },
             "group": { "kind": "build", "isDefault": true },
@@ -35,13 +35,13 @@
         },
         {
             "label": "Prism: build (Release)",
-            "detail": "构建 ForwardExperiment / ContractExperiment / Starter（Release）",
+            "detail": "构建 PrismDeferred（Release）",
             "type": "shell",
             "command": "powershell",
             "args": [
                 "-NoProfile", "-ExecutionPolicy", "Bypass",
                 "-File", "${workspaceFolder}/prism.ps1",
-                "-Target", "All", "-Config", "Release", "-NoRun"
+                "-Target", "PrismDeferred", "-Config", "Release", "-NoRun"
             ],
             "options": { "cwd": "${workspaceFolder}" },
             "group": "build",
@@ -49,59 +49,29 @@
             "presentation": { "reveal": "always", "panel": "shared", "clear": true }
         },
         {
-            "label": "Prism: run ForwardExperiment",
-            "detail": "构建并启动共享前向管线实验（交互窗口）",
+            "label": "Prism: run Deferred",
+            "detail": "构建并启动延迟渲染实验",
             "type": "shell",
             "command": "powershell",
             "args": [
                 "-NoProfile", "-ExecutionPolicy", "Bypass",
                 "-File", "${workspaceFolder}/prism.ps1",
-                "-Target", "PrismForward"
+                "-Target", "PrismDeferred"
             ],
             "options": { "cwd": "${workspaceFolder}" },
             "problemMatcher": [],
             "presentation": { "reveal": "always", "panel": "shared", "clear": true }
         },
         {
-            "label": "Prism: run ContractExperiment (self check)",
-            "detail": "契约自检 30 帧后退出，失败返回非零退出码",
+            "label": "Prism: bench Deferred (120 frames)",
+            "detail": "预热 30 帧后测量 120 帧，写出 deferred_bench.csv",
             "type": "shell",
             "command": "powershell",
             "args": [
                 "-NoProfile", "-ExecutionPolicy", "Bypass",
                 "-File", "${workspaceFolder}/prism.ps1",
-                "-Target", "PrismContract",
-                "-AppArgs", "--smoke-test=30",
-                "-TailLog"
-            ],
-            "options": { "cwd": "${workspaceFolder}" },
-            "problemMatcher": [],
-            "presentation": { "reveal": "always", "panel": "shared", "clear": true }
-        },
-        {
-            "label": "Prism: run Starter",
-            "detail": "构建并启动无场景的全屏 Pass 示例",
-            "type": "shell",
-            "command": "powershell",
-            "args": [
-                "-NoProfile", "-ExecutionPolicy", "Bypass",
-                "-File", "${workspaceFolder}/prism.ps1",
-                "-Target", "PrismStarter"
-            ],
-            "options": { "cwd": "${workspaceFolder}" },
-            "problemMatcher": [],
-            "presentation": { "reveal": "always", "panel": "shared", "clear": true }
-        },
-        {
-            "label": "Prism: bench ForwardExperiment (120 frames)",
-            "detail": "预热 30 帧后测量 120 帧，写出 forward_bench.csv",
-            "type": "shell",
-            "command": "powershell",
-            "args": [
-                "-NoProfile", "-ExecutionPolicy", "Bypass",
-                "-File", "${workspaceFolder}/prism.ps1",
-                "-Target", "PrismForward",
-                "-AppArgs", "--bench=120", "--metrics", "forward_bench.csv",
+                "-Target", "PrismDeferred",
+                "-AppArgs", "--bench=120", "--metrics", "deferred_bench.csv",
                 "-TailLog"
             ],
             "options": { "cwd": "${workspaceFolder}" },

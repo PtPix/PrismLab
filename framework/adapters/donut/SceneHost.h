@@ -3,7 +3,7 @@
 // Donut facilities: owns the active scene and keeps it up to date.
 //
 // Two sources are supported:
-//   * procedural  —— built in code, no assets (default for algorithm work)
+//   * procedural  —— built by the caller's factory, no assets required
 //   * gltf        —— loaded through Donut's scene loader, for realism later on
 //
 // Everything the experiments see goes through SceneData: the Donut graph for the shared scene pipeline, plus
@@ -32,9 +32,11 @@ namespace Prism::Adapter
 	  public:
 		// Creates the scene and records its first uploads. Does not return a command list to the caller:
 		// the scene is ready to draw when the call returns.
+		using FSceneFactory = FSceneData (*)(nvrhi::IDevice*, nvrhi::ICommandList*, const FLightingPreset&);
+
 		FStatus Load(nvrhi::IDevice* InDevice, const std::shared_ptr<donut::engine::ShaderFactory>& InShaderFactory,
 					 const std::shared_ptr<donut::vfs::IFileSystem>& InFileSystem, const FScenePreset& InScenePreset,
-					 const FLightingPreset& InLightingPreset);
+					 const FLightingPreset& InLightingPreset, FSceneFactory ProceduralFactory = nullptr);
 
 		// 每帧调用（在已打开的命令列表中）：刷新动画、变换和缓冲。程序化场景是空实现。
 		void Update(nvrhi::ICommandList* Commands, uint32_t FrameIndex);

@@ -14,6 +14,7 @@ namespace Prism::Surface
 	struct FDepthSettings
 	{
 		bool bClearDepth = true;
+		bool bReverseZ = false;
 		EDepthCullMode CullMode = EDepthCullMode::TwoSided;
 	};
 } // namespace Prism::Surface

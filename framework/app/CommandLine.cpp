@@ -41,18 +41,6 @@ namespace Prism::Host
 			{
 				CommandLine.SceneAsset = Argv[++Index];
 			}
-			else if (Equals(Argument, "--smoke-test"))
-			{
-				CommandLine.bSmokeTest = true;
-				CommandLine.SmokeTestFrames = 3;
-			}
-			else if (StartsWith(Argument, "--smoke-test="))
-			{
-				CommandLine.bSmokeTest = true;
-				const uint32_t Frames =
-					uint32_t(std::strtoul(Argument.c_str() + std::strlen("--smoke-test="), nullptr, 10));
-				CommandLine.SmokeTestFrames = (Frames > 0) ? Frames : 3;
-			}
 			else if (Equals(Argument, "--capture") && bHasValue)
 			{
 				CommandLine.CapturePath = Argv[++Index];
@@ -134,7 +122,6 @@ namespace Prism::Host
 			   "  --config <path>        use a specific JSON config file\n"
 			   "  --scene <source>       override the scene source: procedural | gltf\n"
 			   "  --asset <path>         override the scene asset (scene .json, .gltf or .glb)\n"
-			   "  --smoke-test[=N]       render N frames (default 3) and exit\n"
 			   "  --capture <path>       save a screenshot and exit (see --capture-frame)\n"
 			   "  --capture-frame <n>    frame index to capture, default 2\n"
 			   "  --write-reference <path>  write the captured frame as a float reference (.f32) and exit\n"
@@ -143,7 +130,7 @@ namespace Prism::Host
 			   "  --tolerance <v>        tolerance for --reference, default 0.01\n"
 			   "  --bench[=N]            measure N frames (default 120) after warmup, write the metrics CSV, exit\n"
 			   "  --bench-warmup[=N]     warmup frames for --bench, default 30\n"
-			   "  --metrics <path>       metrics CSV path (used with --bench or --smoke-test)\n"
+			   "  --metrics <path>       metrics CSV path (used with --bench)\n"
 			   "  --debug-view <n>       show the n-th published intermediate result (0 = experiment output)\n"
 			   "  --width <n>            window width\n"
 			   "  --height <n>           window height\n"

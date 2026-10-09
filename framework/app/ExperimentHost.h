@@ -66,7 +66,6 @@ namespace Prism::Host
 		Gpu::FShaderLibrary* Shaders = nullptr;
 		Gpu::FTextureCache* Targets = nullptr;
 		Gpu::FBufferCache* Buffers = nullptr;
-		Gpu::FResourceTable* Resources = nullptr;
 		Gpu::FGpuProfiler* Profiler = nullptr;
 		const Host::FHostConfig* Config = nullptr;
 		std::filesystem::path AssetsDirectory;

@@ -7,10 +7,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Prism: ForwardExperiment",
+            "name": "Prism: Deferred",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/my-project/bin/Debug/PrismForward.exe",
+            "program": "${workspaceFolder}/build/my-project/bin/Debug/PrismDeferred.exe",
             "args": [],
             "cwd": "${workspaceFolder}/build/my-project/bin/Debug",
             "console": "internalConsole",
@@ -18,44 +18,11 @@
             "stopAtEntry": false
         },
         {
-            "name": "Prism: ForwardExperiment (smoke test 30)",
+            "name": "Prism: Deferred (capture frame 4)",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/my-project/bin/Debug/PrismForward.exe",
-            "args": [ "--smoke-test=30" ],
-            "cwd": "${workspaceFolder}/build/my-project/bin/Debug",
-            "console": "internalConsole",
-            "preLaunchTask": "Prism: build (Debug)",
-            "stopAtEntry": false
-        },
-        {
-            "name": "Prism: ForwardExperiment (capture frame 4)",
-            "type": "cppvsdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/my-project/bin/Debug/PrismForward.exe",
-            "args": [ "--capture", "forward_capture.png", "--capture-frame", "4" ],
-            "cwd": "${workspaceFolder}/build/my-project/bin/Debug",
-            "console": "internalConsole",
-            "preLaunchTask": "Prism: build (Debug)",
-            "stopAtEntry": false
-        },
-        {
-            "name": "Prism: ContractExperiment (self check 30)",
-            "type": "cppvsdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/my-project/bin/Debug/PrismContract.exe",
-            "args": [ "--smoke-test=30" ],
-            "cwd": "${workspaceFolder}/build/my-project/bin/Debug",
-            "console": "internalConsole",
-            "preLaunchTask": "Prism: build (Debug)",
-            "stopAtEntry": false
-        },
-        {
-            "name": "Prism: Starter",
-            "type": "cppvsdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/my-project/bin/Debug/PrismStarter.exe",
-            "args": [],
+            "program": "${workspaceFolder}/build/my-project/bin/Debug/PrismDeferred.exe",
+            "args": [ "--capture", "deferred_capture.png", "--capture-frame", "4" ],
             "cwd": "${workspaceFolder}/build/my-project/bin/Debug",
             "console": "internalConsole",
             "preLaunchTask": "Prism: build (Debug)",

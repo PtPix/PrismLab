@@ -4,6 +4,8 @@ prism_add_target(PrismDeferred
     SOURCES
         Deferred.h
         Deferred.cpp
+        ProceduralScene.h
+        ProceduralScene.cpp
         DepthPreview.h
         DepthPreview.cpp
         DepthDebugCb.h

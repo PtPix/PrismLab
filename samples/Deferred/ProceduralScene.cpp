@@ -1,6 +1,6 @@
 #include "ProceduralScene.h"
 
-#include "LightAdapter.h"
+#include <framework/adapters/donut/LightAdapter.h>
 
 #include <donut/core/log.h>
 #include <donut/core/math/math.h>
@@ -20,7 +20,7 @@ using namespace donut::math;
 #include <donut/shaders/bindless.h>
 #include <donut/shaders/material_cb.h>
 
-namespace Prism::Adapter
+namespace Prism::Samples
 {
 	namespace
 	{
@@ -195,10 +195,10 @@ namespace Prism::Adapter
 		}
 	} // namespace
 
-	FSceneData CreateProceduralScene(nvrhi::IDevice* Device, nvrhi::ICommandList* CommandList,
-									 const FLightingPreset& Lighting)
+	Adapter::FSceneData CreateProceduralScene(nvrhi::IDevice* Device, nvrhi::ICommandList* CommandList,
+											  const FLightingPreset& Lighting)
 	{
-		FSceneData Scene;
+		Adapter::FSceneData Scene;
 
 		FMeshSource Source;
 		std::vector<FPartDescription> Parts;
@@ -236,8 +236,8 @@ namespace Prism::Adapter
 
 		// --- geometry and materials: each part is a separate mesh and may have several instances ---
 		{
-			const uint32_t Material = CreateMaterial(Device, Scene.Materials, "GroundMaterial",
-													 dm::float3(0.30f, 0.31f, 0.33f), 0.95f, 0.f);
+			const uint32_t Material =
+				CreateMaterial(Device, Scene.Materials, "GroundMaterial", dm::float3(0.30f, 0.31f, 0.33f), 0.95f, 0.f);
 			const uint32_t Part = BeginPart("Ground", Material);
 			AddBox(Source, dm::float3(0.f, -0.05f, 0.f), dm::float3(10.f, 0.05f, 10.f));
 			EndPart(Part);
@@ -255,8 +255,8 @@ namespace Prism::Adapter
 
 		// Four instances of the same mesh, to exercise instance indices and per-instance transforms.
 		{
-			const uint32_t Material = CreateMaterial(Device, Scene.Materials, "CubeMaterial",
-													 dm::float3(0.72f, 0.25f, 0.20f), 0.35f, 0.f);
+			const uint32_t Material =
+				CreateMaterial(Device, Scene.Materials, "CubeMaterial", dm::float3(0.72f, 0.25f, 0.20f), 0.35f, 0.f);
 			const uint32_t Part = BeginPart("Cube", Material);
 			AddBox(Source, dm::float3(0.f), dm::float3(0.35f));
 			EndPart(Part);
@@ -277,8 +277,8 @@ namespace Prism::Adapter
 		}
 
 		{
-			const uint32_t Material = CreateMaterial(Device, Scene.Materials, "EmissiveCubeMaterial",
-													 dm::float3(0.f), 0.5f, 0.f, dm::float3(1.f, 0.55f, 0.15f), 6.f);
+			const uint32_t Material = CreateMaterial(Device, Scene.Materials, "EmissiveCubeMaterial", dm::float3(0.f),
+													 0.5f, 0.f, dm::float3(1.f, 0.55f, 0.15f), 6.f);
 			const uint32_t Part = BeginPart("EmissiveCube", Material);
 			AddBox(Source, dm::float3(0.f), dm::float3(0.25f));
 			EndPart(Part);
@@ -327,8 +327,8 @@ namespace Prism::Adapter
 			CommandList->writeBuffer(Buffers->vertexBuffer, Source.Texcoords.data(), TexcoordSize, TexcoordOffset);
 			CommandList->writeBuffer(Buffers->vertexBuffer, PackedNormals.data(), NormalSize, NormalOffset);
 			CommandList->writeBuffer(Buffers->vertexBuffer, PackedTangents.data(), TangentSize, TangentOffset);
-			CommandList->setPermanentBufferState(Buffers->vertexBuffer,
-				nvrhi::ResourceStates::ShaderResource | nvrhi::ResourceStates::VertexBuffer);
+			CommandList->setPermanentBufferState(Buffers->vertexBuffer, nvrhi::ResourceStates::ShaderResource |
+																			nvrhi::ResourceStates::VertexBuffer);
 		}
 
 		{
@@ -510,8 +510,8 @@ namespace Prism::Adapter
 		// --- summary ---
 		Scene.Graph = Graph;
 		Scene.SharedBuffers = Buffers;
-		Scene.Lights = CollectLights(*Graph);
-		Scene.Description = "procedural test scene (no assets)";
+		Scene.Lights = Adapter::CollectLights(*Graph);
+		Scene.Description = "procedural scene (no assets)";
 		Scene.Stats.Meshes = uint32_t(Meshes.size());
 		Scene.Stats.Instances = InstanceCount;
 		Scene.Stats.Lights = uint32_t(Scene.Lights.size());
@@ -524,4 +524,4 @@ namespace Prism::Adapter
 
 		return Scene;
 	}
-} // namespace Prism::Adapter
+} // namespace Prism::Samples

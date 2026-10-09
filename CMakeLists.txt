@@ -26,7 +26,6 @@ set(DONUT_WITH_DX11 OFF CACHE BOOL "" FORCE)
 set(DONUT_WITH_DX12 ON CACHE BOOL "" FORCE)
 set(DONUT_WITH_VULKAN OFF CACHE BOOL "" FORCE)
 set(DONUT_WITH_TINYEXR OFF CACHE BOOL "" FORCE)
-set(DONUT_WITH_UNIT_TESTS OFF CACHE BOOL "" FORCE)
 set(DONUT_SHADERS_OUTPUT_DIR "${PRISM_RUNTIME_DIR}/shaders/framework")
 add_subdirectory("${DONUT_DIR}" "${CMAKE_BINARY_DIR}/donut" EXCLUDE_FROM_ALL)
 include("${DONUT_DIR}/compileshaders.cmake")
@@ -38,23 +37,6 @@ add_subdirectory(framework)
 add_subdirectory(algorithms/Surface)
 add_subdirectory(algorithms/shadows)
 
-add_subdirectory(samples/starter)
-add_subdirectory(samples/forward)
 add_subdirectory(samples/Deferred)
 
-# Contract remains an interactive verification executable and a GPU test.
-add_subdirectory(tests/gpu/contract)
-
-option(PRISM_BUILD_TESTS "Build CPU and GPU regression tests" OFF)
-if(PRISM_BUILD_TESTS)
-    enable_testing()
-    add_subdirectory(tests)
-endif()
-
-option(PRISM_BUILD_EXAMPLES "Build the raw Donut triangle reference" OFF)
-if(PRISM_BUILD_EXAMPLES)
-    add_subdirectory(examples/donut_triangle)
-endif()
-
-include(cmake/DonutExamples.cmake)
-set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT PrismStarter)
+set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT PrismDeferred)

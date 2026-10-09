@@ -1,6 +1,9 @@
 #pragma once
-#include <framework/render/data/CameraData.h>
+
 #include <nvrhi/nvrhi.h>
+
+#include <array>
+#include <cstdint>
 #include <vector>
 
 namespace Prism::Surface
@@ -9,8 +12,6 @@ namespace Prism::Surface
 	{
 		nvrhi::IBuffer* Positions = nullptr;
 		nvrhi::BufferRange PositionRange;
-		uint32_t PositionStride = sizeof(dm::float3);
-
 		nvrhi::IBuffer* Indices = nullptr;
 		nvrhi::Format IndexFormat = nvrhi::Format::R32_UINT;
 	};
@@ -21,7 +22,8 @@ namespace Prism::Surface
 		uint32_t FirstIndex = 0;
 		uint32_t IndexCount = 0;
 		uint32_t BaseVertex = 0;
-		dm::affine3 ObjectToWorld = dm::affine3::identity();
+		// Row-major, row-vector object-to-raster-clip matrix (16 floats).
+		std::array<float, 16> ObjectToClip{};
 	};
 
 	struct FDepthBatch
@@ -33,7 +35,6 @@ namespace Prism::Surface
 	struct FDepthInputs
 	{
 		const FDepthBatch& Geometry;
-		const FCameraData& Camera;
 		nvrhi::IFramebuffer* Target = nullptr;
 	};
 } // namespace Prism::Surface
