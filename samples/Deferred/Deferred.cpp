@@ -107,8 +107,12 @@ namespace Prism::Samples
             DepthBatch.Draws.push_back({Draw.BufferGroupIndex, Draw.FirstIndex, Draw.IndexCount,
                                         uint32_t(Draw.BaseVertex), Draw.ObjectToWorld});
         }
-        const auto Status = DepthRenderer.Record(Frame.Commands, DepthBatch, Frame.Camera.Raster.WorldToClip,
-                                                 Frame.Camera.DepthConvention, Depth, DepthTarget);
+
+        const Surface::FDepthInputs DepthInputs{DepthBatch, Frame.Camera, DepthTarget};
+        const Surface::FDepthSettings DepthSettings{};
+        Surface::FDepthOutputs DepthOutputs;
+        const auto Status = DepthRenderer.Record(Frame.Commands, DepthInputs, DepthSettings, DepthOutputs);
+
         if (!Status)
         {
             donut::log::error("Deferred: depth pass failed: %s", Status.ToStringWithCode().c_str());
@@ -116,9 +120,9 @@ namespace Prism::Samples
         }
 
         if (Context.Tools.DebugViews)
-            Context.Tools.DebugViews->Publish(GetName(), "Device depth", Depth);
-        nvrhi::ITexture* Output = Preview.Record(Context.Gpu, Frame.Commands, Depth, Frame.Camera,
-                                                  Frame.RenderSize, DebugMode);
+            Context.Tools.DebugViews->Publish(GetName(), "Device depth", DepthOutputs.Depth);
+        nvrhi::ITexture* Output = Preview.Record(Context.Gpu, Frame.Commands, DepthOutputs.Depth,
+                                                  Frame.Camera, Frame.RenderSize, DebugMode);
         if (Output && Context.Tools.Comparison)
             Context.Tools.Comparison->Publish("Depth preview", {Output, EColorSpace::DisplayEncoded});
         return Output;

@@ -47,42 +47,68 @@ namespace Prism::Surface
             return FStatus::Error(EErrorCode::PipelineCreationFailed, "binding layout failed");
         }
 
-        // Create graphics pipelines for forward and reverse depth.
+        // Create passes for each depth convention and cull mode.
         nvrhi::GraphicsPipelineDesc Pipeline;
         Pipeline.inputLayout = InputLayout;
         Pipeline.bindingLayouts = {BindingLayout};
         Pipeline.primType = nvrhi::PrimitiveType::TriangleList;
-        Pipeline.renderState.rasterState.setCullMode(nvrhi::RasterCullMode::None);
         Pipeline.renderState.depthStencilState
             .setDepthTestEnable(true)
-            .setDepthWriteEnable(true)
-            .setDepthFunc(Gpu::GetDepthCompare(EDepthConvention::ForwardZ0To1));
-        auto Status = ForwardPass.Initialize(Device, Shaders, Pipeline, {VertexShader});
-        if (!Status)
+            .setDepthWriteEnable(true);
+
+        constexpr nvrhi::RasterCullMode CullModes[] = {
+            nvrhi::RasterCullMode::None,
+            nvrhi::RasterCullMode::Front,
+            nvrhi::RasterCullMode::Back
+        };
+
+        for (uint32_t DepthIndex = 0; DepthIndex < Passes.size(); ++DepthIndex)
         {
-            return Status;
+            const auto Convention = DepthIndex == 0
+                ? EDepthConvention::ForwardZ0To1 : EDepthConvention::ReversedZ0To1;
+            Pipeline.renderState.depthStencilState.setDepthFunc(Gpu::GetDepthCompare(Convention));
+
+            for (uint32_t CullIndex = 0; CullIndex < Passes[DepthIndex].size(); ++CullIndex)
+            {
+                Pipeline.renderState.rasterState.setCullMode(CullModes[CullIndex]);
+                const auto Status = Passes[DepthIndex][CullIndex].Initialize(Device, Shaders, Pipeline, {VertexShader});
+                if (!Status)
+                {
+                    return Status;
+                }
+            }
         }
-        
-        Pipeline.renderState.depthStencilState.setDepthFunc(Gpu::GetDepthCompare(EDepthConvention::ReversedZ0To1));
-        return ReversePass.Initialize(Device, Shaders, Pipeline, {VertexShader});
+        return FStatus::Ok();
     }
 
-    FStatus FDepthRenderer::Record(nvrhi::ICommandList* Commands, const FDepthBatch& Geometry,
-                                    const dm::float4x4& WorldToClip, EDepthConvention Convention,
-                                    nvrhi::ITexture* Depth, nvrhi::IFramebuffer* Target)
+    FStatus FDepthRenderer::Record(nvrhi::ICommandList* Commands, const FDepthInputs& Inputs,
+                                    const FDepthSettings& Settings, FDepthOutputs& Outputs)
     {
-        // Check validity of inputs first.
-        if (!Commands || !Depth || !Target || !BindingLayout || Geometry.Draws.empty() ||
-            Target->getDesc().depthAttachment.texture != Depth || !Target->getDesc().colorAttachments.empty() ||
-            Target->getDesc().depthAttachment.subresources.baseMipLevel != 0 ||
-            Target->getDesc().depthAttachment.subresources.baseArraySlice != 0 ||
-            Target->getDesc().depthAttachment.subresources.numMipLevels != 1 ||
-            Target->getDesc().depthAttachment.subresources.numArraySlices != 1 ||
+        Outputs = {};
+        const auto& Geometry = Inputs.Geometry;
+        const auto& Camera = Inputs.Camera;
+        nvrhi::IFramebuffer* Target = Inputs.Target;
+
+        if (!Commands || !Target || !BindingLayout ||
+            static_cast<uint32_t>(Settings.CullMode) >= static_cast<uint32_t>(EDepthCullMode::Count))
+        {
+            return FStatus::Error(EErrorCode::InvalidArgument, "invalid depth pass inputs");
+        }
+
+        const auto& TargetDesc = Target->getDesc();
+        nvrhi::ITexture* Depth = TargetDesc.depthAttachment.texture;
+        if (!Depth || !TargetDesc.colorAttachments.empty() ||
+            TargetDesc.depthAttachment.subresources.baseMipLevel != 0 ||
+            TargetDesc.depthAttachment.subresources.baseArraySlice != 0 ||
+            TargetDesc.depthAttachment.subresources.numMipLevels != 1 ||
+            TargetDesc.depthAttachment.subresources.numArraySlices != 1 ||
             Depth->getDesc().dimension != nvrhi::TextureDimension::Texture2D ||
-            Depth->getDesc().sampleCount != 1 || Depth->getDesc().format != nvrhi::Format::D32)
-            {
-                return FStatus::Error(EErrorCode::InvalidArgument, "depth pass needs a D32 single-sample depth-only target at mip 0, slice 0");
-            } 
+            Depth->getDesc().sampleCount != 1 ||
+            Depth->getDesc().format != nvrhi::Format::D32)
+        {
+            return FStatus::Error(EErrorCode::InvalidArgument,
+                                  "depth pass needs a D32 single-sample depth-only target at mip 0, slice 0");
+        }
 
         // Per draw check validity.
         for (const auto& Draw : Geometry.Draws)
@@ -107,8 +133,24 @@ namespace Prism::Surface
                 }  
         }
 
+        if (Geometry.Draws.empty())
+        {
+            if (Settings.bClearDepth)
+            {
+                Commands->clearDepthStencilTexture(Depth, nvrhi::TextureSubresourceSet(0, 1, 0, 1), true,
+                                                    GetDepthClearValue(Camera.DepthConvention), false, 0);
+            }
+            Outputs.Depth = Depth;
+            Outputs.Debug.bCleared = Settings.bClearDepth;
+            return FStatus::Ok();
+        }
+
         // Choose PSO
-        Gpu::FRasterPass& Pass = Convention == EDepthConvention::ReversedZ0To1 ? ReversePass : ForwardPass;
+        const auto Convention = Camera.DepthConvention;
+        const auto& WorldToClip = Camera.Raster.WorldToClip;
+        const uint32_t DepthIndex = Convention == EDepthConvention::ReversedZ0To1 ? 1u : 0u;
+        const uint32_t CullIndex = static_cast<uint32_t>(Settings.CullMode);
+        Gpu::FRasterPass& Pass = Passes[DepthIndex][CullIndex];
 
         // Create binding set for push constants.
         nvrhi::BindingSetDesc Bindings;
@@ -118,10 +160,15 @@ namespace Prism::Surface
         {
             return FStatus::Error(EErrorCode::PipelineCreationFailed, "depth binding set failed");
         }
-            
+
         // Depth clear
-        Commands->clearDepthStencilTexture(Depth, nvrhi::TextureSubresourceSet(0, 1, 0, 1), true,
+        if (Settings.bClearDepth)
+        {
+            Commands->clearDepthStencilTexture(Depth, nvrhi::TextureSubresourceSet(0, 1, 0, 1), true,
                                             GetDepthClearValue(Convention), false, 0);
+        }
+
+        uint64_t TriangleCount = 0;
 
         // Draw all geometry
         for (const auto& Draw : Geometry.Draws)
@@ -144,8 +191,15 @@ namespace Prism::Surface
             Commands->setPushConstants(&Constants, sizeof(Constants));
             Commands->drawIndexed(nvrhi::DrawArguments().setVertexCount(Draw.IndexCount)
                                       .setStartIndexLocation(Draw.FirstIndex).setStartVertexLocation(Draw.BaseVertex));
+
+            TriangleCount += Draw.IndexCount / 3;
         }
         
+        Outputs.Depth = Depth;
+        Outputs.Debug.DrawCount = static_cast<uint32_t>(Geometry.Draws.size());
+        Outputs.Debug.TriangleCount = TriangleCount;
+        Outputs.Debug.bCleared = Settings.bClearDepth;
+
         return FStatus::Ok();
     }
 } // namespace Prism::Surface
