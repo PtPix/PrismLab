@@ -11,8 +11,8 @@ namespace Prism::Samples
 	{
 	  public:
 		FStatus Initialize(Gpu::FRenderServices& Gpu);
-		nvrhi::ITexture* Record(Gpu::FRenderServices& Gpu, nvrhi::ICommandList* Commands,
-								 nvrhi::ITexture* Depth, const FCameraData& Camera, FExtent2D Size, int Mode);
+		nvrhi::ITexture* Record(Gpu::FRenderServices& Gpu, nvrhi::ICommandList* Commands, nvrhi::ITexture* Depth,
+								const FCameraData& Camera, FExtent2D Size, int Mode);
 		void OnResize()
 		{
 			Pass.ClearBindings();

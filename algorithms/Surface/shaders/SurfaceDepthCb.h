@@ -3,7 +3,7 @@
 
 struct FSurfaceDepthConstants
 {
-    float4x4 ObjectToClip;
+	float4x4 ObjectToClip;
 };
 
 #endif // PRISM_SURFACE_DEPTH_CB_H

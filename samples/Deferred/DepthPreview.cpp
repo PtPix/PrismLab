@@ -12,38 +12,52 @@ namespace Prism::Samples
 	FStatus FDepthPreview::Initialize(Gpu::FRenderServices& Gpu)
 	{
 		if (!Gpu.Device || !Gpu.Shaders || !Gpu.Targets || !Gpu.CommonPasses)
+		{
 			return FStatus::Error(EErrorCode::NotInitialized, "depth preview needs GPU services");
+		}
 
 		OutputRequest.Name = "Deferred.DepthPreview";
 		OutputRequest.Format = EPixelFormat::RgbA16Float;
 		OutputRequest.Usage = Gpu::ETextureUsage::RenderTarget | Gpu::ETextureUsage::ShaderResource;
 		if (!Constants.Initialize(Gpu.Device, sizeof(FDepthDebugConstants), "Deferred.DepthDebug"))
+		{
 			return FStatus::Error(EErrorCode::DeviceError, "depth debug constants allocation failed");
+		}
 
 		nvrhi::BindingLayoutDesc Desc;
 		Desc.visibility = nvrhi::ShaderType::Pixel;
-		Desc.bindings = {nvrhi::BindingLayoutItem::VolatileConstantBuffer(0),
-						 nvrhi::BindingLayoutItem::Texture_SRV(0), nvrhi::BindingLayoutItem::Sampler(0)};
+		Desc.bindings = {nvrhi::BindingLayoutItem::VolatileConstantBuffer(0), nvrhi::BindingLayoutItem::Texture_SRV(0),
+						 nvrhi::BindingLayoutItem::Sampler(0)};
 		Layout = Gpu.Device->createBindingLayout(Desc);
 		if (!Layout)
+		{
 			return FStatus::Error(EErrorCode::PipelineCreationFailed, "depth debug binding layout failed");
+		}
 		return Pass.Initialize(Gpu.Device, *Gpu.Shaders, *Gpu.CommonPasses,
-			{"prism/PrismDeferred/DepthDebug.hlsl", "main_ps", nvrhi::ShaderType::Pixel, {}}, {Layout});
+							   {"prism/PrismDeferred/DepthDebug.hlsl", "main_ps", nvrhi::ShaderType::Pixel, {}},
+							   {Layout});
 	}
 
 	nvrhi::ITexture* FDepthPreview::Record(Gpu::FRenderServices& Gpu, nvrhi::ICommandList* Commands,
-											 nvrhi::ITexture* Depth, const FCameraData& Camera, FExtent2D Size, int Mode)
+										   nvrhi::ITexture* Depth, const FCameraData& Camera, FExtent2D Size, int Mode)
 	{
 		if (!Depth || !Commands || !Size.IsValid())
+		{
 			return nullptr;
+		}
 		auto* Output = Gpu.Targets->GetOrCreate(OutputRequest);
 		auto* Target = Output ? Gpu.Targets->GetFramebuffer(Output) : nullptr;
 		if (!Target)
+		{
 			return nullptr;
+		}
 
-		const FDepthDebugConstants Data = {
-			dm::float2(1.f / float(Size.Width), 1.f / float(Size.Height)), Camera.ZNearMeters,
-			Camera.ZFarMeters, int(Camera.DepthConvention), Mode, dm::float2(0.f)};
+		const FDepthDebugConstants Data = {dm::float2(1.f / float(Size.Width), 1.f / float(Size.Height)),
+										   Camera.ZNearMeters,
+										   Camera.ZFarMeters,
+										   int(Camera.DepthConvention),
+										   Mode,
+										   dm::float2(0.f)};
 		Constants.Write(Commands, Data);
 		nvrhi::BindingSetDesc Bindings;
 		Bindings.bindings = {nvrhi::BindingSetItem::ConstantBuffer(0, Constants.Get()),

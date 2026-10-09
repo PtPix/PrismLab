@@ -1,5 +1,12 @@
 #include "Prism/Common/Platform.hlsli"
-cbuffer Constants : register(b0) { float2 size; float time; float padding; }
+
+cbuffer Constants : register(b0)
+{
+    float2 size;
+    float time;
+    float padding;
+};
+
 float4 main_ps(float4 position : SV_Position) : SV_Target0
 {
     float2 uv = position.xy / size;

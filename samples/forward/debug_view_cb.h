@@ -3,8 +3,8 @@
 // A CPU semantic struct must not be uploaded by memory layout; this file is the GPU layout, with the
 // same field order in both languages and static_asserts on the C++ side.
 //
-// Matrix convention: row-vector form mul(v, M), exactly like Donut. clipToWorld is the inverse of
-// worldToClip = worldToView * viewToClip.
+// Matrix convention: row-vector form mul(v, M), exactly like Donut. ClipToWorld is the inverse of
+// WorldToClip = WorldToView * ViewToClip.
 
 #ifndef PRISM_FORWARD_DEBUG_VIEW_CB_H
 #define PRISM_FORWARD_DEBUG_VIEW_CB_H

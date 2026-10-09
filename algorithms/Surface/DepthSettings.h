@@ -3,17 +3,17 @@
 
 namespace Prism::Surface
 {
-    enum class EDepthCullMode : uint32_t
-    {
-        TwoSided = 0,
-        FrontFacing,
-        BackFacing,
-        Count
-    };
+	enum class EDepthCullMode : uint32_t
+	{
+		TwoSided = 0,
+		FrontFacing,
+		BackFacing,
+		Count
+	};
 
-    struct FDepthSettings
-    {
-        bool bClearDepth = true;
-        EDepthCullMode CullMode = EDepthCullMode::TwoSided;
-    };
-}
+	struct FDepthSettings
+	{
+		bool bClearDepth = true;
+		EDepthCullMode CullMode = EDepthCullMode::TwoSided;
+	};
+} // namespace Prism::Surface

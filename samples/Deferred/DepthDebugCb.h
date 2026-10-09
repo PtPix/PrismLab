@@ -3,12 +3,12 @@
 
 struct FDepthDebugConstants
 {
-    float2 InverseSize;
-    float ZNear;
-    float ZFar;
-    int DepthConvention;
-    int Mode;
-    float2 Padding;
+	float2 InverseSize;
+	float ZNear;
+	float ZFar;
+	int DepthConvention;
+	int Mode;
+	float2 Padding;
 };
 
 #endif // PRISM_DEFERRED_DEPTH_DEBUG_CB_H

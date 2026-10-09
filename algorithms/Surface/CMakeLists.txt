@@ -9,5 +9,4 @@ prism_add_target(PrismSurface
     SHADERS
         shaders/SurfaceDepth.hlsl:vs
     INCLUDES
-        "${CMAKE_CURRENT_SOURCE_DIR}/shaders"
-)
+        "${CMAKE_CURRENT_SOURCE_DIR}/shaders")

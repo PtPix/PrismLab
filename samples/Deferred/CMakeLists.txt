@@ -12,5 +12,4 @@ prism_add_target(PrismDeferred
     INCLUDES
         "${CMAKE_CURRENT_SOURCE_DIR}"
     CONFIG
-        presets/default.json
-)
+        presets/default.json)

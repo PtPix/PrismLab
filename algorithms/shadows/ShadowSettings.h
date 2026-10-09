@@ -2,9 +2,9 @@
 
 // Shadow-family settings and light projection conventions.
 
-#include "framework/render/data/Conventions.h"
-#include "framework/scene/LightData.h"
-#include "framework/core/Types.h"
+#include <framework/render/data/Conventions.h>
+#include <framework/scene/LightData.h>
+#include <framework/core/Types.h>
 
 #include <cstdint>
 

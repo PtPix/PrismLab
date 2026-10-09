@@ -12,7 +12,7 @@
 //
 // 约定：
 //   * 可见性 0 = 完全遮挡，1 = 完全可见；
-//   * 阴影图之外的可见性由 FShadowSettings::outsideShadowMapVisibility 决定，必须显式写出，
+//   * 阴影图之外的可见性由 FShadowSettings::OutsideShadowMapVisibility 决定，必须显式写出，
 //     不能把"图外"当成"无遮挡"或"完全遮挡"而不说明；
 //   * depthBiasNdc 是比较深度上的偏移，与光栅阶段的 depth/slope bias 分开配置（两者都要有）。
 //
@@ -39,7 +39,9 @@ float PcfShadowVisibility(
     int sampleCount)
 {
     if (sampleCount <= 1 || radiusTexels <= 0.f)
+    {
         return HardShadowVisibility(worldPosition, texelCoord, depthBiasNdc);
+    }
 
     const float receiverDepth = PRISM_ShadowDepthFromWorld(worldPosition) - depthBiasNdc;
 
@@ -59,7 +61,9 @@ float PcfShadowVisibility(
 
             // 图外的样本不参与平均：它们的可见性由调用方按契约处理。
             if (!PRISM_IsInsideShadowMap(sampleTexel))
+            {
                 continue;
+            }
 
             visible += (receiverDepth <= PRISM_LoadShadowDepth(sampleTexel)) ? 1.f : 0.f;
             taken += 1.f;

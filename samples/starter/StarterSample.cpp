@@ -1,5 +1,6 @@
 #include <framework/app/Experiment.h>
 #include <framework/render/passes/FullscreenPass.h>
+
 namespace Prism::Samples
 {
 	class FStarterSample final : public Host::IExperiment
@@ -19,7 +20,9 @@ namespace Prism::Samples
 			OutputRequest.Format = EPixelFormat::RgbA16Float;
 			Context.Output.ColorSpace = EColorSpace::DisplayEncoded;
 			if (!ConstantBuffer.Initialize(Context.Gpu.Device, sizeof(FShaderConstants), "Starter.Constants"))
+			{
 				return FStatus::Error(EErrorCode::DeviceError, "constant allocation failed");
+			}
 
 			nvrhi::BindingLayoutDesc LayoutDescription;
 			LayoutDescription.visibility = nvrhi::ShaderType::Pixel;
@@ -34,7 +37,9 @@ namespace Prism::Samples
 		{
 			nvrhi::ITexture* OutputTexture = Context.Gpu.Targets->GetOrCreate(OutputRequest);
 			if (!OutputTexture)
+			{
 				return nullptr;
+			}
 
 			const FShaderConstants ShaderConstants{
 				dm::float2(float(Frame.RenderSize.Width), float(Frame.RenderSize.Height)), Frame.Frame.TimeSeconds,
@@ -67,6 +72,7 @@ namespace Prism::Samples
 		nvrhi::BindingLayoutHandle BindingLayout;
 	};
 } // namespace Prism::Samples
+
 namespace Prism::Host
 {
 	std::unique_ptr<IExperiment> CreateExperiment()

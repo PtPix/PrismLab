@@ -12,7 +12,8 @@
 #include <array>
 
 namespace dm = donut::math;
-using namespace donut::math;
+using donut::math::float2;
+using donut::math::float4x4;
 
 // 共享常量布局：需要 donut 的数学类型在全局可见（与 Donut 自己的 shared header 用法一致）
 #include "debug_view_cb.h"
@@ -37,17 +38,21 @@ namespace Prism::Experiments
 	FStatus FForwardExperiment::Initialize(Host::FExperimentContext& Context)
 	{
 		if (!Context.Gpu.Device || !Context.Gpu.Targets || !Context.Gpu.Shaders)
+		{
 			return FStatus::Error(EErrorCode::NotInitialized, "the host context is incomplete");
+		}
 
 		const Host::FHostConfig Defaults;
 		const auto& Config = Context.Config ? *Context.Config : Defaults;
 		const FStatus SceneStatus = Scene.Initialize(Context.Gpu, Config.Scene, Config.Lighting);
 		if (!SceneStatus)
+		{
 			return SceneStatus;
+		}
 		Context.Scene.Stats = Scene.GetData().Stats;
 		Context.Scene.Description = Scene.GetData().Description;
 
-		// 读取本实验自己的配置段（samples/forward/config.json 的 experiments.ForwardExperiment）
+		// Read this experiment's settings from presets/default.json (experiments.ForwardExperiment).
 		if (Context.Config)
 		{
 			Json::Value JsonSettings;
@@ -74,13 +79,17 @@ namespace Prism::Experiments
 		DebugRequest.ClearColor = dm::float4(0.02f, 0.02f, 0.03f, 1.f);
 
 		if (!Context.Gpu.Targets->GetOrCreate(ColorRequest) || !Context.Gpu.Targets->GetOrCreate(DepthRequest))
+		{
 			return FStatus::Error(EErrorCode::DeviceError, "failed to create the scene render targets");
+		}
 
 		DebugConstantBuffer = Context.Gpu.Device->createBuffer(nvrhi::utils::CreateVolatileConstantBufferDesc(
 			sizeof(FDebugViewConstants), "ForwardExperimentDebugView", 4));
 
 		if (!DebugConstantBuffer)
+		{
 			return FStatus::Error(EErrorCode::DeviceError, "failed to create the debug view constant buffer");
+		}
 
 		Context.Tools.Replay->CaptureParameters = [this]()
 		{
@@ -92,9 +101,13 @@ namespace Prism::Experiments
 		Context.Tools.Replay->RestoreParameters = [this](const Json::Value& P)
 		{
 			if (P["debugMode"].isInt())
+			{
 				Settings.DebugMode = P["debugMode"].asInt();
+			}
 			if (P["depthScale"].isNumeric())
+			{
 				Settings.DepthScale = P["depthScale"].asFloat();
+			}
 		};
 
 		donut::log::info("ForwardExperiment: ready (debug mode %d).", Settings.DebugMode);
@@ -112,12 +125,16 @@ namespace Prism::Experiments
 										  nvrhi::BindingLayoutItem::Sampler(0)};
 			DebugBindingLayout = Context.Gpu.Device->createBindingLayout(LayoutDescription);
 			if (!DebugBindingLayout)
+			{
 				return false;
+			}
 			const FStatus Status = DebugPass.Initialize(
 				Context.Gpu.Device, *Context.Gpu.Shaders, *Context.Gpu.CommonPasses,
 				{"prism/PrismForward/debug_view.hlsl", "main_ps", nvrhi::ShaderType::Pixel, {}}, {DebugBindingLayout});
 			if (!Status)
+			{
 				return false;
+			}
 			bDebugReady = true;
 		}
 		nvrhi::BindingSetDesc Bindings;
@@ -143,7 +160,9 @@ namespace Prism::Experiments
 		nvrhi::ITexture* Depth = Targets.GetOrCreate(DepthRequest);
 
 		if (!Color || !Depth)
+		{
 			return nullptr;
+		}
 
 		nvrhi::ICommandList* Commands = Frame.Commands;
 		const nvrhi::TextureSubresourceSet Subresources(0, 1, 0, 1);
@@ -154,7 +173,9 @@ namespace Prism::Experiments
 		Commands->clearDepthStencilTexture(Depth, Subresources, true, DepthRequest.ClearDepth, false, 0);
 
 		if (!Scene.GetData().Graph)
+		{
 			return Color;
+		}
 
 		{
 			Gpu::FScopedGpuScope Scope(*Context.Gpu.Profiler, Commands, "Forward scene");
@@ -168,26 +189,36 @@ namespace Prism::Experiments
 		{
 			Context.Tools.DebugViews->Publish(GetName(), "Scene color", Color);
 			const bool bReverseZ = Frame.Camera.DepthConvention == EDepthConvention::ReversedZ0To1;
-			Context.Tools.DebugViews->Publish(GetName(), "Scene depth (near bright)", Depth,
-											  {bReverseZ ? Gpu::EDebugViewMode::R : Gpu::EDebugViewMode::OneMinusR,
-											   20.f, 0.f});
+			Context.Tools.DebugViews->Publish(
+				GetName(), "Scene depth (near bright)", Depth,
+				{bReverseZ ? Gpu::EDebugViewMode::R : Gpu::EDebugViewMode::OneMinusR, 20.f, 0.f});
 		}
 
 		if (Context.Tools.Comparison)
+		{
 			Context.Tools.Comparison->Publish("Scene color", {Color, EColorSpace::SceneLinear});
+		}
 		if (Settings.DebugMode <= 0)
+		{
 			return Color;
+		}
 
 		nvrhi::ITexture* DebugTarget = Targets.GetOrCreate(DebugRequest);
 		if (!DebugTarget)
+		{
 			return Color;
+		}
 
 		DebugFramebuffer = Targets.GetFramebuffer(DebugTarget, nullptr);
 		if (!DebugFramebuffer)
+		{
 			return Color;
+		}
 
 		if (!EnsureDebugPass(Context, Depth))
+		{
 			return Color;
+		}
 
 		FDebugViewConstants Constants = {};
 		Constants.ClipToWorld = Frame.Camera.Raster.ClipToWorld;
@@ -230,10 +261,14 @@ namespace Prism::Experiments
 
 		int DebugMode = Settings.DebugMode;
 		if (ImGui::Combo("Debug view", &DebugMode, KDebugModeNames, int(std::size(KDebugModeNames))))
+		{
 			Settings.DebugMode = DebugMode;
+		}
 
 		if (Settings.DebugMode > 0)
+		{
 			ImGui::SliderFloat("Depth scale", &Settings.DepthScale, 0.01f, 4.f);
+		}
 	}
 
 	void FForwardExperiment::OnResize(Host::FExperimentContext& Context, const FExtent2D& RenderSize,

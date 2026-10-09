@@ -18,7 +18,9 @@ float LinearizeDepth(float deviceDepth)
     const float zNear = g_Debug.ZNear;
     const float zFar = g_Debug.ZFar;
     if (g_Debug.DepthConvention == PRISM_DEPTH_CONVENTION_REVERSED_Z)
+    {
         return zNear * zFar / (zNear + deviceDepth * (zFar - zNear));
+    }
     return zNear * zFar / (zFar - deviceDepth * (zFar - zNear));
 }
 
@@ -32,7 +34,8 @@ float3 ReconstructWorldPosition(float2 uv, float deviceDepth)
 
 bool IsBackground(float deviceDepth)
 {
-    return (g_Debug.DepthConvention == 1) ? (deviceDepth <= 0.0000001f) : (deviceDepth >= 0.9999999f);
+    return (g_Debug.DepthConvention == PRISM_DEPTH_CONVENTION_REVERSED_Z)
+        ? (deviceDepth <= 0.0000001f) : (deviceDepth >= 0.9999999f);
 }
 
 float4 main_ps(float4 position : SV_Position) : SV_Target0
@@ -41,7 +44,9 @@ float4 main_ps(float4 position : SV_Position) : SV_Target0
     const float deviceDepth = g_SceneDepth.SampleLevel(g_PointClamp, uv, 0);
 
     if (IsBackground(deviceDepth))
-        return float4(1.f, 0.f, 1.f, 1.f);   // 背景：品红（与目标清空色区分，便于诊断）
+    {
+        return float4(1.f, 0.f, 1.f, 1.f); // 背景：品红（与目标清空色区分，便于诊断）
+    }
 
     if (g_Debug.Mode == 0)
     {
@@ -70,7 +75,9 @@ float4 main_ps(float4 position : SV_Position) : SV_Target0
 
     float3 normal = normalize(cross(down - center, right - center));
     if (!all(isfinite(normal)))
+    {
         normal = float3(0.f, 0.f, 1.f);
+    }
 
     // 世界空间法线编码在 [-1,1]：这是契约里 NormalSpace::World 的默认约定
     return float4(normal * 0.5f + 0.5f, 1.f);
